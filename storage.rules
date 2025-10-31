@@ -1,0 +1,31 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Equipment images
+    match /equipment/{equipmentId}/{allPaths=**} {
+      // Approved users can read equipment images
+      allow read: if request.auth != null;
+      
+      // Only admins can upload/update/delete equipment images
+      allow write: if request.auth != null && 
+                      isAdmin();
+    }
+    
+    // User profile images
+    match /users/{userId}/{allPaths=**} {
+      // Users can read and write their own profile images
+      allow read, write: if request.auth != null && 
+                            request.auth.uid == userId;
+      
+      // Admins can read all user images
+      allow read: if request.auth != null && 
+                     isAdmin();
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}

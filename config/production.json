@@ -1,0 +1,87 @@
+{
+  "environment": "production",
+  "app": {
+    "name": "Equipment Lending System",
+    "version": "1.0.0",
+    "description": "ระบบยืม-คืนโน็คบุคและอุปกรณ์คอมพิวเตอร์"
+  },
+  "firebase": {
+    "useEmulator": false,
+    "enableAnalytics": true,
+    "enablePerformance": true,
+    "enableCrashlytics": false
+  },
+  "security": {
+    "allowedEmailDomains": [
+      "gmail.com",
+      "g.lpru.ac.th"
+    ],
+    "sessionTimeout": 3600000,
+    "maxFileSize": 5242880,
+    "allowedFileTypes": [
+      "image/jpeg",
+      "image/png",
+      "image/webp"
+    ]
+  },
+  "features": {
+    "userRegistration": true,
+    "equipmentManagement": true,
+    "loanRequests": true,
+    "reservations": true,
+    "notifications": true,
+    "reports": true,
+    "analytics": true
+  },
+  "ui": {
+    "theme": "default",
+    "language": "th",
+    "dateFormat": "DD/MM/YYYY",
+    "timeFormat": "HH:mm",
+    "itemsPerPage": 20,
+    "maxSearchResults": 100
+  },
+  "notifications": {
+    "enabled": true,
+    "channels": {
+      "inApp": true,
+      "email": false,
+      "push": false
+    },
+    "defaultSettings": {
+      "loanReminder": {
+        "enabled": true,
+        "daysBeforeDue": 1
+      },
+      "reservationReminder": {
+        "enabled": true,
+        "hoursBeforeStart": 24
+      },
+      "approvalNotifications": {
+        "enabled": true
+      }
+    }
+  },
+  "performance": {
+    "enableServiceWorker": true,
+    "enableCodeSplitting": true,
+    "enableImageOptimization": true,
+    "enableCaching": true,
+    "cacheMaxAge": {
+      "static": 31536000,
+      "dynamic": 86400,
+      "html": 0
+    }
+  },
+  "monitoring": {
+    "enableErrorReporting": true,
+    "enablePerformanceMonitoring": true,
+    "enableUserAnalytics": true,
+    "logLevel": "error"
+  },
+  "backup": {
+    "enabled": true,
+    "frequency": "daily",
+    "retention": 30
+  }
+}

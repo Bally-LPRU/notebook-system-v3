@@ -1,0 +1,171 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isApprovedUser() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved';
+    }
+    
+    function hasValidEmail() {
+      return isAuthenticated() && 
+             (request.auth.token.email.matches('.*@gmail\\.com$') || 
+              request.auth.token.email.matches('.*@g\\.lpru\\.ac\\.th$'));
+    }
+    
+    function isValidUserData(data) {
+      return data.keys().hasAll(['firstName', 'lastName', 'phoneNumber', 'department', 'userType']) &&
+             data.firstName is string && data.firstName.size() > 0 &&
+             data.lastName is string && data.lastName.size() > 0 &&
+             data.phoneNumber is string && data.phoneNumber.matches('^[0-9]{10}$') &&
+             data.department is string && data.department.size() > 0 &&
+             data.userType in ['student', 'teacher', 'staff'];
+    }
+
+    // Users collection rules
+    match /users/{userId} {
+      // Users can read and write their own profile (with validation)
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && hasValidEmail() && isValidUserData(request.resource.data);
+      allow update: if isOwner(userId) && isValidUserData(request.resource.data) &&
+                       !request.resource.data.keys().hasAny(['role', 'status', 'createdAt']);
+      
+      // Admins can read all user profiles
+      allow read: if isAdmin();
+      
+      // Admins can update user status and role (but not other sensitive fields)
+      allow update: if isAdmin() &&
+                       request.resource.data.keys().hasAny(['status', 'role']) &&
+                       !request.resource.data.keys().hasAny(['uid', 'email', 'createdAt']);
+    }
+    
+    // Equipment collection rules
+    match /equipment/{equipmentId} {
+      // Approved users can read equipment
+      allow read: if isApprovedUser();
+      
+      // Only admins can write equipment data (with validation)
+      allow create: if isAdmin() && 
+                       request.resource.data.keys().hasAll(['name', 'category', 'serialNumber', 'status']) &&
+                       request.resource.data.name is string && request.resource.data.name.size() > 0 &&
+                       request.resource.data.category is string && request.resource.data.category.size() > 0 &&
+                       request.resource.data.serialNumber is string && request.resource.data.serialNumber.size() > 0 &&
+                       request.resource.data.status in ['available', 'borrowed', 'maintenance', 'retired'];
+      
+      allow update: if isAdmin() && 
+                       !request.resource.data.keys().hasAny(['createdAt', 'createdBy']);
+      
+      allow delete: if isAdmin();
+    }
+    
+    // Loan requests collection rules
+    match /loanRequests/{requestId} {
+      // Users can read their own loan requests
+      allow read: if isApprovedUser() && request.auth.uid == resource.data.userId;
+      
+      // Users can create loan requests (with validation)
+      allow create: if isApprovedUser() && 
+                       request.auth.uid == request.resource.data.userId &&
+                       request.resource.data.keys().hasAll(['equipmentId', 'borrowDate', 'expectedReturnDate', 'purpose']) &&
+                       request.resource.data.status == 'pending' &&
+                       request.resource.data.borrowDate is timestamp &&
+                       request.resource.data.expectedReturnDate is timestamp &&
+                       request.resource.data.borrowDate < request.resource.data.expectedReturnDate;
+      
+      // Users can update their own pending requests (limited fields)
+      allow update: if isApprovedUser() && 
+                       request.auth.uid == resource.data.userId &&
+                       resource.data.status == 'pending' &&
+                       request.resource.data.keys().hasOnly(['borrowDate', 'expectedReturnDate', 'purpose', 'notes', 'updatedAt']);
+      
+      // Admins can read and update all loan requests
+      allow read: if isAdmin();
+      allow update: if isAdmin() && 
+                       !request.resource.data.keys().hasAny(['userId', 'equipmentId', 'createdAt']);
+    }
+    
+    // Reservations collection rules
+    match /reservations/{reservationId} {
+      // Users can read their own reservations
+      allow read: if isApprovedUser() && request.auth.uid == resource.data.userId;
+      
+      // Users can create reservations (with validation)
+      allow create: if isApprovedUser() && 
+                       request.auth.uid == request.resource.data.userId &&
+                       request.resource.data.keys().hasAll(['equipmentId', 'startTime', 'endTime', 'purpose']) &&
+                       request.resource.data.status == 'pending' &&
+                       request.resource.data.startTime is timestamp &&
+                       request.resource.data.endTime is timestamp &&
+                       request.resource.data.startTime < request.resource.data.endTime &&
+                       request.resource.data.startTime > request.time;
+      
+      // Users can update their own pending reservations (limited fields)
+      allow update: if isApprovedUser() && 
+                       request.auth.uid == resource.data.userId &&
+                       resource.data.status == 'pending' &&
+                       request.resource.data.keys().hasOnly(['startTime', 'endTime', 'purpose', 'notes', 'updatedAt']);
+      
+      // Admins can read and update all reservations
+      allow read: if isAdmin();
+      allow update: if isAdmin() && 
+                       !request.resource.data.keys().hasAny(['userId', 'equipmentId', 'createdAt']);
+    }
+    
+    // Notifications collection rules
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      
+      // Users can update their own notifications (mark as read only)
+      allow update: if isAuthenticated() && 
+                       request.auth.uid == resource.data.userId &&
+                       request.resource.data.keys().hasOnly(['isRead', 'readAt']) &&
+                       request.resource.data.isRead == true;
+      
+      // System/Admins can create notifications
+      allow create: if isAdmin();
+      
+      // Users can delete their own old notifications
+      allow delete: if isAuthenticated() && 
+                       request.auth.uid == resource.data.userId &&
+                       resource.data.createdAt < timestamp.date(2024, 1, 1); // Allow deletion of old notifications
+    }
+    
+    // Notification settings collection rules
+    match /notificationSettings/{userId} {
+      // Users can read and write their own notification settings
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Activity logs collection rules
+    match /activityLogs/{logId} {
+      // Only admins can read activity logs
+      allow read: if isAdmin();
+      
+      // System can create activity logs (authenticated users only)
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Scheduled notifications collection rules (for Cloud Functions)
+    match /scheduledNotifications/{scheduleId} {
+      // Only system/admins can manage scheduled notifications
+      allow read, write: if isAdmin();
+    }
+  }
+}

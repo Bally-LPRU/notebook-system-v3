@@ -1,0 +1,62 @@
+{
+  "name": "equipment-lending-system",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "date-fns": "^4.1.0",
+    "firebase": "^12.5.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.5",
+    "react-scripts": "5.0.1",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "build:production": "REACT_APP_ENVIRONMENT=production GENERATE_SOURCEMAP=false react-scripts build",
+    "test": "react-scripts test",
+    "test:coverage": "react-scripts test --coverage --watchAll=false",
+    "eject": "react-scripts eject",
+    "firebase:emulators": "firebase emulators:start",
+    "firebase:deploy": "npm run build && firebase deploy",
+    "firebase:deploy:hosting": "npm run build && firebase deploy --only hosting",
+    "firebase:deploy:firestore": "firebase deploy --only firestore",
+    "firebase:deploy:storage": "firebase deploy --only storage",
+    "deploy:production": "node scripts/deploy-production.js",
+    "deploy:staging": "npm run build && firebase use staging && firebase deploy",
+    "deploy:vercel": "node scripts/deploy-vercel.js --prod",
+    "deploy:vercel:preview": "node scripts/deploy-vercel.js",
+    "predeploy": "npm run test:coverage && npm run build:production",
+    "validate:production": "node scripts/validate-production.js",
+    "qa:test": "node scripts/run-qa-tests.js",
+    "analyze": "npm run build:production && npx serve -s build"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.0"
+  }
+}
