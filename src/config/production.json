@@ -1,0 +1,29 @@
+{
+  "features": {
+    "enableAnalytics": true,
+    "enablePerformanceMonitoring": true,
+    "enableCrashlytics": true,
+    "enableOfflineSupport": true,
+    "enablePushNotifications": true,
+    "enableAdvancedSearch": true,
+    "enableBulkOperations": true,
+    "enableReports": true,
+    "enableAuditLog": true,
+    "enableBackup": true
+  },
+  "limits": {
+    "maxFileSize": 10485760,
+    "maxFilesPerUpload": 5,
+    "maxRequestsPerMinute": 100,
+    "maxConcurrentUsers": 1000
+  },
+  "cache": {
+    "ttl": 3600,
+    "maxSize": 100
+  },
+  "monitoring": {
+    "errorReporting": true,
+    "performanceTracking": true,
+    "userAnalytics": true
+  }
+}

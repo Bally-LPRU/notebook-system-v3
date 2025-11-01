@@ -102,7 +102,7 @@ if (process.env.REACT_APP_USE_EMULATOR === 'true' && isDevelopment) {
 let productionConfig = {};
 try {
   if (isProduction) {
-    productionConfig = require('../../config/production.json');
+    productionConfig = require('./production.json');
   }
 } catch (error) {
   console.warn('Production config not found, using defaults');
