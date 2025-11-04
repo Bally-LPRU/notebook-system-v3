@@ -1,251 +1,58 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { NotificationProvider } from './contexts/NotificationContext';
-import { NotificationToastContainer } from './components/notifications/NotificationToast';
-import SimpleErrorBoundary from './components/common/SimpleErrorBoundary';
-import FirebaseLoadingBoundary from './components/common/FirebaseLoadingBoundary';
-import LoginPage from './components/auth/LoginPage';
-import ProfileSetupPage from './components/auth/ProfileSetupPage';
-import ProtectedRoute from './components/auth/ProtectedRoute';
-import NotFound from './components/NotFound';
-import { lazy } from 'react';
-import './App.css';
 
-// Lazy loaded components
-import {
-  LazyDashboardWithSkeleton,
-  LazyEquipmentListWithSkeleton,
-  LazyAdminDashboardWithSkeleton,
-  LazyUserApprovalListWithSkeleton,
-  LazyMyRequestsWithSkeleton,
-  LazyReservationPageWithSkeleton,
-  LazyReportsPageWithSkeleton,
-  preloadCriticalComponents
-} from './components/lazy/LazyComponents';
-
-// Lazy load notification components
-const LazyNotificationCenter = lazy(() => import('./components/notifications/NotificationCenter'));
-const LazyNotificationSettings = lazy(() => import('./components/notifications/NotificationSettings'));
-
-// Initialize debug utils in development
-if (process.env.NODE_ENV === 'development') {
-  import('./utils/debugUtils');
-}
-const LazyNotificationTestPage = lazy(() => import('./components/notifications/NotificationTestPage'));
-const LazyMyReservations = lazy(() => import('./components/reservations/MyReservations'));
-
-// App Router Component
-const AppRouter = () => {
-  const { isAuthenticated, needsProfileSetup } = useAuth();
-
-  // Preload critical components on app start
-  React.useEffect(() => {
-    if (isAuthenticated && !needsProfileSetup()) {
-      preloadCriticalComponents();
+// Simple login component for testing
+const SimpleLogin = () => {
+  const handleGoogleLogin = async () => {
+    try {
+      // Import Firebase dynamically to avoid circular dependency
+      const { auth, googleProvider } = await import('./config/firebase');
+      const { signInWithPopup } = await import('firebase/auth');
+      
+      console.log('Starting Google login...');
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log('Login successful:', result.user);
+      
+      alert('Login successful! User: ' + result.user.email);
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Login failed: ' + error.message);
     }
-  }, [isAuthenticated, needsProfileSetup]);
+  };
 
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route 
-        path="/login" 
-        element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" replace />} 
-      />
-      
-      {/* Profile Setup Route */}
-      <Route 
-        path="/profile-setup" 
-        element={
-          isAuthenticated ? (
-            needsProfileSetup() ? (
-              <ProfileSetupPage />
-            ) : (
-              <Navigate to="/dashboard" replace />
-            )
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        } 
-      />
-      
-      {/* Protected User Routes */}
-      <Route 
-        path="/dashboard" 
-        element={
-          <ProtectedRoute requireApproval={true}>
-            <LazyDashboardWithSkeleton />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/equipment" 
-        element={
-          <ProtectedRoute requireApproval={true}>
-            <LazyEquipmentListWithSkeleton />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/my-requests" 
-        element={
-          <ProtectedRoute requireApproval={true}>
-            <LazyMyRequestsWithSkeleton />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/reservations" 
-        element={
-          <ProtectedRoute requireApproval={true}>
-            <LazyReservationPageWithSkeleton />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/my-reservations" 
-        element={
-          <ProtectedRoute requireApproval={true}>
-            <LazyMyReservations />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/notifications" 
-        element={
-          <ProtectedRoute requireApproval={true}>
-            <LazyNotificationCenter />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/notification-settings" 
-        element={
-          <ProtectedRoute requireApproval={true}>
-            <LazyNotificationSettings />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/notification-test" 
-        element={
-          <ProtectedRoute requireApproval={true}>
-            <LazyNotificationTestPage />
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* Admin Routes */}
-      <Route 
-        path="/admin/dashboard" 
-        element={
-          <ProtectedRoute requireAdmin={true}>
-            <LazyAdminDashboardWithSkeleton />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/admin/users" 
-        element={
-          <ProtectedRoute requireAdmin={true}>
-            <LazyUserApprovalListWithSkeleton />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/admin/equipment" 
-        element={
-          <ProtectedRoute requireAdmin={true}>
-            <LazyAdminDashboardWithSkeleton />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/admin/loan-requests" 
-        element={
-          <ProtectedRoute requireAdmin={true}>
-            <LazyAdminDashboardWithSkeleton />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/admin/reservations" 
-        element={
-          <ProtectedRoute requireAdmin={true}>
-            <LazyAdminDashboardWithSkeleton />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/admin/reports" 
-        element={
-          <ProtectedRoute requireAdmin={true}>
-            <LazyReportsPageWithSkeleton />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/admin/notifications" 
-        element={
-          <ProtectedRoute requireAdmin={true}>
-            <LazyAdminDashboardWithSkeleton />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/admin/settings" 
-        element={
-          <ProtectedRoute requireAdmin={true}>
-            <LazyAdminDashboardWithSkeleton />
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* Root Route */}
-      <Route 
-        path="/" 
-        element={
-          <Navigate 
-            to={
-              isAuthenticated 
-                ? needsProfileSetup() 
-                  ? "/profile-setup" 
-                  : "/dashboard"
-                : "/login"
-            } 
-            replace 
-          />
-        } 
-      />
-      
-      {/* 404 Not Found Route */}
-      <Route 
-        path="*" 
-        element={<NotFound />} 
-      />
-    </Routes>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              ทดสอบระบบเข้าสู่ระบบ
+            </h2>
+            
+            <button
+              onClick={handleGoogleLogin}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              เข้าสู่ระบบด้วย Google
+            </button>
+            
+            <p className="mt-4 text-sm text-gray-600">
+              นี่คือหน้าทดสอบเพื่อตรวจสอบการทำงานของระบบ login
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
 function App() {
-  const handleFirebaseRetry = (retryCount) => {
-    console.log(`Firebase initialization retry attempt: ${retryCount}`);
-  };
-
   return (
-    <SimpleErrorBoundary>
-      <FirebaseLoadingBoundary onRetry={handleFirebaseRetry}>
-        <AuthProvider>
-          <NotificationProvider>
-            <Router>
-              <AppRouter />
-              <NotificationToastContainer />
-            </Router>
-          </NotificationProvider>
-        </AuthProvider>
-      </FirebaseLoadingBoundary>
-    </SimpleErrorBoundary>
+    <Router>
+      <Routes>
+        <Route path="*" element={<SimpleLogin />} />
+      </Routes>
+    </Router>
   );
 }
 
