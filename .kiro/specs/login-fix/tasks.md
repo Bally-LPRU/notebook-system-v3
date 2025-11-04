@@ -23,7 +23,9 @@
 
 
 
-  - [-] 2.1 Add try-catch blocks around Firebase service initialization
+  - [x] 2.1 Add try-catch blocks around Firebase service initialization
+
+
 
 
 
