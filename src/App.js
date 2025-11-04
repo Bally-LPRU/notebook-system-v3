@@ -4,10 +4,13 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { NotificationToastContainer } from './components/notifications/NotificationToast';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import FirebaseLoadingBoundary from './components/common/FirebaseLoadingBoundary';
 import LoginPage from './components/auth/LoginPage';
 import ProfileSetupPage from './components/auth/ProfileSetupPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import NotFound from './components/NotFound';
+import { lazy } from 'react';
+import './App.css';
 
 // Lazy loaded components
 import {
@@ -22,11 +25,13 @@ import {
 } from './components/lazy/LazyComponents';
 
 // Lazy load notification components
-import { lazy } from 'react';
-
-import './App.css';
 const LazyNotificationCenter = lazy(() => import('./components/notifications/NotificationCenter'));
 const LazyNotificationSettings = lazy(() => import('./components/notifications/NotificationSettings'));
+
+// Initialize debug utils in development
+if (process.env.NODE_ENV === 'development') {
+  import('./utils/debugUtils');
+}
 const LazyNotificationTestPage = lazy(() => import('./components/notifications/NotificationTestPage'));
 const LazyMyReservations = lazy(() => import('./components/reservations/MyReservations'));
 
@@ -224,16 +229,22 @@ const AppRouter = () => {
 };
 
 function App() {
+  const handleFirebaseRetry = (retryCount) => {
+    console.log(`Firebase initialization retry attempt: ${retryCount}`);
+  };
+
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <NotificationProvider>
-          <Router>
-            <AppRouter />
-            <NotificationToastContainer />
-          </Router>
-        </NotificationProvider>
-      </AuthProvider>
+      <FirebaseLoadingBoundary onRetry={handleFirebaseRetry}>
+        <AuthProvider>
+          <NotificationProvider>
+            <Router>
+              <AppRouter />
+              <NotificationToastContainer />
+            </Router>
+          </NotificationProvider>
+        </AuthProvider>
+      </FirebaseLoadingBoundary>
     </ErrorBoundary>
   );
 }

@@ -37,13 +37,27 @@ service cloud.firestore {
              data.userType in ['student', 'teacher', 'staff'];
     }
 
+    function isInitialUserData(data) {
+      return data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'status', 'createdAt', 'updatedAt']) &&
+             data.uid == request.auth.uid &&
+             data.email is string && data.email.size() > 0 &&
+             data.role == 'user' &&
+             data.status == 'incomplete';
+    }
+
+    function isSelfStatusTransitionValid(oldData, newData) {
+      return (oldData.status == newData.status) ||
+             (oldData.status == 'incomplete' && newData.status == 'pending');
+    }
+
     // Users collection rules
     match /users/{userId} {
       // Users can read and write their own profile (with validation)
       allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && hasValidEmail() && isValidUserData(request.resource.data);
-      allow update: if isOwner(userId) && isValidUserData(request.resource.data) &&
-                       !request.resource.data.keys().hasAny(['role', 'status', 'createdAt']);
+  allow create: if isOwner(userId) && hasValidEmail() && (isInitialUserData(request.resource.data) || isValidUserData(request.resource.data));
+  allow update: if isOwner(userId) && isValidUserData(request.resource.data) &&
+           isSelfStatusTransitionValid(resource.data, request.resource.data) &&
+           !request.resource.data.keys().hasAny(['role', 'createdAt']);
       
       // Admins can read all user profiles
       allow read: if isAdmin();
