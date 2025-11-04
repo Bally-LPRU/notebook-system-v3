@@ -156,48 +156,27 @@ export const NotificationProvider = ({ children }) => {
     loadInitialData();
   }, [user?.uid]);
 
-  // Set up real-time listener
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    const unsubscribe = NotificationService.subscribeToUserNotifications(
-      user.uid,
-      (notifications) => {
-        dispatch({ type: NOTIFICATION_ACTIONS.SET_NOTIFICATIONS, payload: notifications });
-      }
-    );
-
-    // Listen for new notifications
-    const handleNewNotification = async (event) => {
-      if (event.detail.userId === user.uid) {
-        const { notification } = event.detail;
-        
-        // Add to notifications list
-        dispatch({ type: NOTIFICATION_ACTIONS.ADD_NOTIFICATION, payload: notification });
-        
-        // Show toast notification
-        showToast(notification);
-        
-        // Update unread count
-        try {
-          const count = await NotificationService.getUnreadCount(user.uid);
-          dispatch({ type: NOTIFICATION_ACTIONS.SET_UNREAD_COUNT, payload: count });
-        } catch (error) {
-          console.error('Error updating unread count:', error);
-        }
-      }
-    };
-
-    window.addEventListener('newNotification', handleNewNotification);
-
-    return () => {
-      unsubscribe();
-      NotificationService.unsubscribeFromUserNotifications(user.uid);
-      window.removeEventListener('newNotification', handleNewNotification);
-    };
-  }, [user?.uid, showToast]);
-
   // Actions
+  const hideToast = useCallback((toastId) => {
+    dispatch({ type: NOTIFICATION_ACTIONS.HIDE_TOAST, payload: toastId });
+  }, []);
+
+  const showToast = useCallback((notification, duration = 5000) => {
+    const toastId = Date.now().toString();
+    const toast = {
+      id: toastId,
+      ...notification,
+      duration
+    };
+
+    dispatch({ type: NOTIFICATION_ACTIONS.SHOW_TOAST, payload: toast });
+
+    // Auto-hide toast after duration
+    setTimeout(() => {
+      hideToast(toastId);
+    }, duration);
+  }, [hideToast]);
+
   const markAsRead = async (notificationId) => {
     try {
       await NotificationService.markAsRead(notificationId);
@@ -242,25 +221,46 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  const showToast = useCallback((notification, duration = 5000) => {
-    const toastId = Date.now().toString();
-    const toast = {
-      id: toastId,
-      ...notification,
-      duration
+  // Set up real-time listener
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const unsubscribe = NotificationService.subscribeToUserNotifications(
+      user.uid,
+      (notifications) => {
+        dispatch({ type: NOTIFICATION_ACTIONS.SET_NOTIFICATIONS, payload: notifications });
+      }
+    );
+
+    // Listen for new notifications
+    const handleNewNotification = async (event) => {
+      if (event.detail.userId === user.uid) {
+        const { notification } = event.detail;
+        
+        // Add to notifications list
+        dispatch({ type: NOTIFICATION_ACTIONS.ADD_NOTIFICATION, payload: notification });
+        
+        // Show toast notification
+        showToast(notification);
+        
+        // Update unread count
+        try {
+          const count = await NotificationService.getUnreadCount(user.uid);
+          dispatch({ type: NOTIFICATION_ACTIONS.SET_UNREAD_COUNT, payload: count });
+        } catch (error) {
+          console.error('Error updating unread count:', error);
+        }
+      }
     };
 
-    dispatch({ type: NOTIFICATION_ACTIONS.SHOW_TOAST, payload: toast });
+    window.addEventListener('newNotification', handleNewNotification);
 
-    // Auto-hide toast after duration
-    setTimeout(() => {
-      hideToast(toastId);
-    }, duration);
-  });
-
-  const hideToast = (toastId) => {
-    dispatch({ type: NOTIFICATION_ACTIONS.HIDE_TOAST, payload: toastId });
-  };
+    return () => {
+      unsubscribe();
+      NotificationService.unsubscribeFromUserNotifications(user.uid);
+      window.removeEventListener('newNotification', handleNewNotification);
+    };
+  }, [user?.uid, showToast]);
 
   const refresh = async () => {
     if (!user?.uid) return;

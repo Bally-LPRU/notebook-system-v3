@@ -70,7 +70,10 @@ service cloud.firestore {
     
     // Equipment collection rules
     match /equipment/{equipmentId} {
-      // Approved users can read equipment
+      // Public read access for statistics (limited fields only)
+      allow read: if true;
+      
+      // Approved users can read equipment details
       allow read: if isApprovedUser();
       
       // Only admins can write equipment data (with validation)
@@ -115,6 +118,9 @@ service cloud.firestore {
     
     // Reservations collection rules
     match /reservations/{reservationId} {
+      // Public read access for statistics (status field only)
+      allow read: if true;
+      
       // Users can read their own reservations
       allow read: if isApprovedUser() && request.auth.uid == resource.data.userId;
       
@@ -180,6 +186,15 @@ service cloud.firestore {
     match /scheduledNotifications/{scheduleId} {
       // Only system/admins can manage scheduled notifications
       allow read, write: if isAdmin();
+    }
+    
+    // Public statistics collection rules
+    match /publicStats/{statsId} {
+      // Public read access for statistics
+      allow read: if true;
+      
+      // Only admins and system can write statistics
+      allow write: if isAdmin();
     }
   }
 }

@@ -43,12 +43,12 @@ function checkEnvironmentVariables() {
   log(`\n${colors.yellow}🔍 Checking environment variables...${colors.reset}`);
   
   const requiredVars = [
-    'REACT_APP_FIREBASE_API_KEY_PROD',
-    'REACT_APP_FIREBASE_AUTH_DOMAIN_PROD',
-    'REACT_APP_FIREBASE_PROJECT_ID_PROD',
-    'REACT_APP_FIREBASE_STORAGE_BUCKET_PROD',
-    'REACT_APP_FIREBASE_MESSAGING_SENDER_ID_PROD',
-    'REACT_APP_FIREBASE_APP_ID_PROD'
+    'REACT_APP_FIREBASE_API_KEY',
+    'REACT_APP_FIREBASE_AUTH_DOMAIN',
+    'REACT_APP_FIREBASE_PROJECT_ID',
+    'REACT_APP_FIREBASE_STORAGE_BUCKET',
+    'REACT_APP_FIREBASE_MESSAGING_SENDER_ID',
+    'REACT_APP_FIREBASE_APP_ID'
   ];
   
   const missing = [];
@@ -76,7 +76,7 @@ function checkFirebaseProject() {
   
   try {
     const result = execSync('firebase projects:list', { encoding: 'utf8' });
-    const projectId = process.env.REACT_APP_FIREBASE_PROJECT_ID_PROD;
+    const projectId = process.env.REACT_APP_FIREBASE_PROJECT_ID;
     
     if (!result.includes(projectId)) {
       log(`${colors.red}❌ Firebase project '${projectId}' not found or not accessible${colors.reset}`);
@@ -123,7 +123,7 @@ function buildApplication() {
 }
 
 function deployToFirebase() {
-  const projectId = process.env.REACT_APP_FIREBASE_PROJECT_ID_PROD;
+  const projectId = process.env.REACT_APP_FIREBASE_PROJECT_ID;
   
   execCommand(
     `firebase use ${projectId}`,
@@ -154,7 +154,7 @@ function deployToFirebase() {
 function runPostDeploymentChecks() {
   log(`\n${colors.yellow}🔍 Running post-deployment checks...${colors.reset}`);
   
-  const projectId = process.env.REACT_APP_FIREBASE_PROJECT_ID_PROD;
+  const projectId = process.env.REACT_APP_FIREBASE_PROJECT_ID;
   const hostingUrl = `https://${projectId}.web.app`;
   
   log(`${colors.green}✅ Deployment completed successfully!${colors.reset}`);

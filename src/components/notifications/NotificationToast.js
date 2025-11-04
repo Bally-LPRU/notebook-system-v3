@@ -12,6 +12,13 @@ const NotificationToast = ({ notification, onClose, duration = 5000 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
 
+  const handleClose = useCallback(() => {
+    setIsLeaving(true);
+    setTimeout(() => {
+      onClose();
+    }, 300);
+  }, [onClose]);
+
   useEffect(() => {
     // Animate in
     const timer = setTimeout(() => setIsVisible(true), 100);
@@ -26,13 +33,6 @@ const NotificationToast = ({ notification, onClose, duration = 5000 }) => {
       clearTimeout(hideTimer);
     };
   }, [duration, handleClose]);
-
-  const handleClose = useCallback(() => {
-    setIsLeaving(true);
-    setTimeout(() => {
-      onClose();
-    }, 300);
-  }, [onClose]);
 
   const getToastStyle = () => {
     const baseClasses = "fixed top-4 right-4 max-w-sm w-full bg-white shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden transform transition-all duration-300 ease-in-out z-50";

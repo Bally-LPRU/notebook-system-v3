@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -11,6 +10,9 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import NotFound from './components/NotFound';
 import { lazy } from 'react';
 import './App.css';
+
+// Public components
+import PublicHomepage from './components/public/PublicHomepage';
 
 // Lazy loaded components
 const LazyDashboard = lazy(() => import('./components/Dashboard'));
@@ -36,9 +38,15 @@ const AppRoutes = () => {
     );
   }
 
-  // Not authenticated - show login
+  // Not authenticated - show public homepage
   if (!user) {
-    return <LoginPage />;
+    return (
+      <Routes>
+        <Route path="/" element={<PublicHomepage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
   }
 
   // Needs profile setup
