@@ -80,7 +80,8 @@
     - Handle network connectivity issues
     - _Requirements: 1.1, 2.4_
 
-  - [x] 4.2 Enhance AuthContext error management
+  - [-] 4.2 Enhance AuthContext error management
+
 
 
     - Add error state management in AuthContext
