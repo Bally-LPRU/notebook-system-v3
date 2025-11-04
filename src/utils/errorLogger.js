@@ -3,7 +3,8 @@
  * Provides comprehensive error logging for production debugging and Firebase service failure tracking
  */
 
-import { safelyUseAnalytics } from '../config/firebase';
+// Removed import to prevent circular dependency
+// import { safelyUseAnalytics } from '../config/firebase';
 
 class ErrorLogger {
   constructor() {
@@ -145,19 +146,17 @@ class ErrorLogger {
 
     this.logError(statusLog);
 
-    // Track service availability in analytics
-    safelyUseAnalytics((analytics) => {
-      if (window.gtag) {
-        window.gtag('event', 'firebase_service_status', {
-          auth_available: serviceStatus.auth,
-          firestore_available: serviceStatus.firestore,
-          storage_available: serviceStatus.storage,
-          analytics_available: serviceStatus.analytics,
-          performance_available: serviceStatus.performance,
-          session_id: this.sessionId
-        });
-      }
-    });
+    // Track service availability in analytics (disabled to prevent circular dependency)
+    if (window.gtag) {
+      window.gtag('event', 'firebase_service_status', {
+        auth_available: serviceStatus.auth,
+        firestore_available: serviceStatus.firestore,
+        storage_available: serviceStatus.storage,
+        analytics_available: serviceStatus.analytics,
+        performance_available: serviceStatus.performance,
+        session_id: this.sessionId
+      });
+    }
   }
 
   /**
@@ -185,16 +184,14 @@ class ErrorLogger {
 
     this.logError(authError);
     
-    // Track auth errors in analytics
-    safelyUseAnalytics((analytics) => {
-      if (window.gtag) {
-        window.gtag('event', 'auth_error', {
-          error_code: error.code || 'unknown',
-          operation: operation,
-          session_id: this.sessionId
-        });
-      }
-    });
+    // Track auth errors in analytics (disabled to prevent circular dependency)
+    if (window.gtag) {
+      window.gtag('event', 'auth_error', {
+        error_code: error.code || 'unknown',
+        operation: operation,
+        session_id: this.sessionId
+      });
+    }
 
     return authError;
   }
@@ -391,18 +388,17 @@ class ErrorLogger {
    * Track Firebase errors in Analytics
    */
   trackFirebaseErrorInAnalytics(errorData) {
-    safelyUseAnalytics((analytics) => {
-      if (window.gtag) {
-        window.gtag('event', 'firebase_error', {
-          service: errorData.service,
-          operation: errorData.operation,
-          error_code: errorData.error?.code || 'unknown',
-          error_category: errorData.category,
-          severity: errorData.severity,
-          session_id: this.sessionId
-        });
-      }
-    });
+    // Analytics disabled to prevent circular dependency
+    if (window.gtag) {
+      window.gtag('event', 'firebase_error', {
+        service: errorData.service,
+        operation: errorData.operation,
+        error_code: errorData.error?.code || 'unknown',
+        error_category: errorData.category,
+        severity: errorData.severity,
+        session_id: this.sessionId
+      });
+    }
   }
 
   /**
