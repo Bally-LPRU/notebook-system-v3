@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, googleProvider, db } from '../config/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -18,113 +18,65 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const [isRetrying, setIsRetrying] = useState(false);
 
-  // Enhanced error state management
-  const [errorHistory, setErrorHistory] = useState([]);
-  const MAX_RETRY_ATTEMPTS = 3;
-  const RETRY_DELAY_BASE = 2000; // 2 seconds base delay
-
-  // Simple error logging
-  const logError = useCallback((error, context = '') => {
-    const errorEntry = {
-      timestamp: new Date().toISOString(),
-      context,
-      message: error.message || error,
-      type: error.type || 'unknown',
-      retryable: error.retryable || false
-    };
-    
-    setErrorHistory(prev => [...prev.slice(-9), errorEntry]); // Keep last 10 errors
-    console.error(`AuthContext Error (${context}):`, error);
-  }, []);
-
-  // Enhanced error recovery mechanism
-  const handleErrorWithRecovery = useCallback(async (error, context, retryFunction) => {
-    logError(error, context);
-    
-    // Check if error is retryable and we haven't exceeded max attempts
-    const isRetryable = error.retryable !== false && retryCount < MAX_RETRY_ATTEMPTS;
-    
-    if (isRetryable && retryFunction) {
-      setIsRetrying(true);
-      setRetryCount(prev => prev + 1);
-      
-      // Calculate delay with exponential backoff
-      const delay = RETRY_DELAY_BASE * Math.pow(2, retryCount);
-      
-      setTimeout(async () => {
-        try {
-          await retryFunction();
-          setRetryCount(0); // Reset on success
-          setError(null);
-        } catch (retryError) {
-          await handleErrorWithRecovery(retryError, `${context} (retry ${retryCount + 1})`, retryFunction);
-        } finally {
-          setIsRetrying(false);
-        }
-      }, delay);
-    } else {
-      setError(error.message || error);
-      setRetryCount(0);
-      setIsRetrying(false);
-    }
-  }, [retryCount, logError]);
-
-  // Simple auth state handler
-  const handleAuthStateChange = useCallback(async (user) => {
-    try {
-      setError(null);
-      if (user) {
-        setUser(user);
-        // Get user profile from Firestore
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        
-        if (userDoc.exists()) {
-          setUserProfile({ id: userDoc.id, ...userDoc.data() });
-        } else {
-          // Create new user profile
-          const userData = {
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
-            role: 'user',
-            status: 'incomplete',
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          };
-          await setDoc(userDocRef, userData);
-          setUserProfile(userData);
-        }
-      } else {
-        setUser(null);
-        setUserProfile(null);
-      }
-      setRetryCount(0);
-    } catch (error) {
-      logError(error, 'auth state change');
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [logError]);
-
+  // Auth state change handler
   useEffect(() => {
-    // Firebase auth listener
-    const unsubscribe = onAuthStateChanged(auth, handleAuthStateChange);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('🔥 Auth state changed:', user ? 'logged in' : 'logged out');
+      
+      try {
+        if (user) {
+          setUser(user);
+          
+          // Get user profile
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists()) {
+            const profile = { id: userDoc.id, ...userDoc.data() };
+            setUserProfile(profile);
+            console.log('👤 User profile loaded:', profile);
+          } else {
+            // Create new user profile
+            const userData = {
+              uid: user.uid,
+              email: user.email,
+              displayName: user.displayName,
+              photoURL: user.photoURL,
+              role: 'user',
+              status: 'incomplete',
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            };
+            
+            await setDoc(userDocRef, userData);
+            setUserProfile(userData);
+            console.log('👤 New user profile created:', userData);
+          }
+        } else {
+          setUser(null);
+          setUserProfile(null);
+        }
+      } catch (error) {
+        console.error('🚨 Auth state error:', error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+
     return () => unsubscribe();
-  }, [handleAuthStateChange]);
+  }, []);
 
   const signIn = async () => {
     try {
       setError(null);
-      setLoading(true);
+      console.log('🔐 Starting Google sign in...');
       
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
+      
+      console.log('✅ Sign in successful:', user.email);
       
       // Validate email domain
       const allowedDomains = ['gmail.com', 'g.lpru.ac.th'];
@@ -137,21 +89,20 @@ export const AuthProvider = ({ children }) => {
       
       return user;
     } catch (error) {
-      logError(error, 'sign in');
+      console.error('🚨 Sign in error:', error);
       setError(error.message);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleSignOut = async () => {
     try {
       setError(null);
+      console.log('🚪 Signing out...');
       await signOut(auth);
-      setRetryCount(0);
+      console.log('✅ Sign out successful');
     } catch (error) {
-      logError(error, 'sign out');
+      console.error('🚨 Sign out error:', error);
       setError(error.message);
       throw error;
     }
@@ -162,6 +113,8 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       if (!user) throw new Error('No user logged in');
       
+      console.log('📝 Updating profile:', data);
+      
       const userDocRef = doc(db, 'users', user.uid);
       const updateData = {
         ...data,
@@ -170,9 +123,11 @@ export const AuthProvider = ({ children }) => {
       
       await setDoc(userDocRef, updateData, { merge: true });
       setUserProfile(prev => ({ ...prev, ...updateData }));
+      
+      console.log('✅ Profile updated successfully');
       return updateData;
     } catch (error) {
-      logError(error, 'update profile');
+      console.error('🚨 Profile update error:', error);
       setError(error.message);
       throw error;
     }
@@ -193,48 +148,7 @@ export const AuthProvider = ({ children }) => {
 
   const clearError = () => {
     setError(null);
-    setRetryCount(0);
-    setIsRetrying(false);
   };
-
-  // Manual retry function for user-initiated retries
-  const retryLastOperation = useCallback(async () => {
-    if (errorHistory.length === 0) return;
-    
-    const lastError = errorHistory[errorHistory.length - 1];
-    if (!lastError.retryable) return;
-    
-    setIsRetrying(true);
-    setError(null);
-    
-    try {
-      // Based on the context, retry the appropriate operation
-      if (lastError.context.includes('auth state change')) {
-        await handleAuthStateChange(user);
-      } else if (lastError.context.includes('sign in')) {
-        // For sign-in retry, we'll just clear the error and let user try again manually
-        setError('กรุณาลองเข้าสู่ระบบอีกครั้ง');
-      } else if (lastError.context.includes('update profile')) {
-        // This would need the original data, so we'll just clear the error
-        setError('กรุณาลองอัปเดตโปรไฟล์อีกครั้ง');
-      }
-    } catch (error) {
-      logError(error, `manual retry: ${lastError.context}`);
-      setError(error.message);
-    } finally {
-      setIsRetrying(false);
-    }
-  }, [errorHistory, user, handleAuthStateChange, logError]);
-
-  // Get error statistics for debugging
-  const getErrorStats = useCallback(() => {
-    return {
-      totalErrors: errorHistory.length,
-      recentErrors: errorHistory.slice(-5),
-      retryCount,
-      isRetrying
-    };
-  }, [errorHistory, retryCount, isRetrying]);
 
   const value = {
     user,
@@ -250,13 +164,7 @@ export const AuthProvider = ({ children }) => {
     isApproved: userProfile?.status === 'approved',
     isAdmin: userProfile?.role === 'admin',
     isPending: userProfile?.status === 'pending',
-    isIncomplete: userProfile?.status === 'incomplete',
-    // Enhanced error management features
-    isRetrying,
-    retryCount,
-    retryLastOperation,
-    getErrorStats,
-    errorHistory: errorHistory.slice(-5) // Only expose last 5 errors
+    isIncomplete: userProfile?.status === 'incomplete'
   };
 
   return (
