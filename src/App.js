@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { NotificationToastContainer } from './components/notifications/NotificationToast';
-import ErrorBoundary from './components/common/ErrorBoundary';
+import SimpleErrorBoundary from './components/common/SimpleErrorBoundary';
 import FirebaseLoadingBoundary from './components/common/FirebaseLoadingBoundary';
 import LoginPage from './components/auth/LoginPage';
 import ProfileSetupPage from './components/auth/ProfileSetupPage';
@@ -234,7 +234,7 @@ function App() {
   };
 
   return (
-    <ErrorBoundary>
+    <SimpleErrorBoundary>
       <FirebaseLoadingBoundary onRetry={handleFirebaseRetry}>
         <AuthProvider>
           <NotificationProvider>
@@ -245,7 +245,7 @@ function App() {
           </NotificationProvider>
         </AuthProvider>
       </FirebaseLoadingBoundary>
-    </ErrorBoundary>
+    </SimpleErrorBoundary>
   );
 }
 
