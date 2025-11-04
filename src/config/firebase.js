@@ -3,26 +3,27 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Simple Firebase configuration for production
+// Firebase configuration with fallback for production
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || 'AIzaSyA9D6ReIlhiaaJ1g1Obd-dcjp2R0LO_eyo',
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || 'equipment-lending-system-41b49.firebaseapp.com',
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || 'equipment-lending-system-41b49',
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || 'equipment-lending-system-41b49.firebasestorage.app',
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || '47770598089',
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || '1:47770598089:web:9d898f247f742fe1686b18',
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID || 'G-YQ5GGVMR4V'
 };
 
 // Log environment status
 console.log('🌍 Environment:', process.env.NODE_ENV);
+console.log('🔧 All Environment Variables:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP_')));
 console.log('🔧 Firebase Config Status:', {
-  apiKey: firebaseConfig.apiKey ? '✅ set' : '❌ missing',
-  authDomain: firebaseConfig.authDomain ? '✅ set' : '❌ missing',
-  projectId: firebaseConfig.projectId ? '✅ set' : '❌ missing',
-  storageBucket: firebaseConfig.storageBucket ? '✅ set' : '❌ missing',
-  messagingSenderId: firebaseConfig.messagingSenderId ? '✅ set' : '❌ missing',
-  appId: firebaseConfig.appId ? '✅ set' : '❌ missing'
+  apiKey: firebaseConfig.apiKey ? `✅ set (${firebaseConfig.apiKey.substring(0, 10)}...)` : '❌ missing',
+  authDomain: firebaseConfig.authDomain ? `✅ set (${firebaseConfig.authDomain})` : '❌ missing',
+  projectId: firebaseConfig.projectId ? `✅ set (${firebaseConfig.projectId})` : '❌ missing',
+  storageBucket: firebaseConfig.storageBucket ? `✅ set (${firebaseConfig.storageBucket})` : '❌ missing',
+  messagingSenderId: firebaseConfig.messagingSenderId ? `✅ set (${firebaseConfig.messagingSenderId})` : '❌ missing',
+  appId: firebaseConfig.appId ? `✅ set (${firebaseConfig.appId})` : '❌ missing'
 });
 
 // Validate required fields
