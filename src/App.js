@@ -6,14 +6,47 @@ const SimpleLogin = () => {
   const handleGoogleLogin = async () => {
     try {
       // Import Firebase dynamically to avoid circular dependency
-      const { auth, googleProvider } = await import('./config/firebase');
+      const { auth, googleProvider, db } = await import('./config/firebase');
       const { signInWithPopup } = await import('firebase/auth');
+      const { doc, getDoc, setDoc, serverTimestamp } = await import('firebase/firestore');
       
       console.log('Starting Google login...');
       const result = await signInWithPopup(auth, googleProvider);
-      console.log('Login successful:', result.user);
+      const user = result.user;
+      console.log('Login successful:', user);
       
-      alert('Login successful! User: ' + result.user.email);
+      // Check if user profile exists in Firestore
+      console.log('Checking user profile in Firestore...');
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (!userDoc.exists()) {
+        console.log('Creating new user profile...');
+        
+        // Create user profile in Firestore
+        const userData = {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          role: 'user', // Default role
+          status: 'incomplete', // Profile not yet completed
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+        
+        await setDoc(userDocRef, userData);
+        console.log('User profile created successfully');
+        
+        alert(`Login successful! New user created: ${user.email}\nPlease check Firestore for user data.`);
+      } else {
+        console.log('User profile already exists');
+        const existingData = userDoc.data();
+        console.log('Existing user data:', existingData);
+        
+        alert(`Login successful! Welcome back: ${user.email}\nRole: ${existingData.role || 'user'}`);
+      }
+      
     } catch (error) {
       console.error('Login error:', error);
       alert('Login failed: ' + error.message);
