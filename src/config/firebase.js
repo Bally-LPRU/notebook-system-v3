@@ -3,38 +3,22 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Firebase configuration with fallback for production
+// Production Firebase configuration - hardcoded for reliability
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || 'AIzaSyA9D6ReIlhiaaJ1g1Obd-dcjp2R0LO_eyo',
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || 'equipment-lending-system-41b49.firebaseapp.com',
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || 'equipment-lending-system-41b49',
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || 'equipment-lending-system-41b49.firebasestorage.app',
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || '47770598089',
-  appId: process.env.REACT_APP_FIREBASE_APP_ID || '1:47770598089:web:9d898f247f742fe1686b18',
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID || 'G-YQ5GGVMR4V'
+  apiKey: "AIzaSyA9D6ReIlhiaaJ1g1Obd-dcjp2R0LO_eyo",
+  authDomain: "equipment-lending-system-41b49.firebaseapp.com",
+  projectId: "equipment-lending-system-41b49",
+  storageBucket: "equipment-lending-system-41b49.firebasestorage.app",
+  messagingSenderId: "47770598089",
+  appId: "1:47770598089:web:9d898f247f742fe1686b18",
+  measurementId: "G-YQ5GGVMR4V"
 };
 
-// Log environment status
-console.log('🌍 Environment:', process.env.NODE_ENV);
-console.log('🔧 All Environment Variables:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP_')));
-console.log('🔧 Firebase Config Status:', {
-  apiKey: firebaseConfig.apiKey ? `✅ set (${firebaseConfig.apiKey.substring(0, 10)}...)` : '❌ missing',
-  authDomain: firebaseConfig.authDomain ? `✅ set (${firebaseConfig.authDomain})` : '❌ missing',
-  projectId: firebaseConfig.projectId ? `✅ set (${firebaseConfig.projectId})` : '❌ missing',
-  storageBucket: firebaseConfig.storageBucket ? `✅ set (${firebaseConfig.storageBucket})` : '❌ missing',
-  messagingSenderId: firebaseConfig.messagingSenderId ? `✅ set (${firebaseConfig.messagingSenderId})` : '❌ missing',
-  appId: firebaseConfig.appId ? `✅ set (${firebaseConfig.appId})` : '❌ missing'
+// Log Firebase initialization
+console.log('🔥 Initializing Firebase with config:', {
+  projectId: firebaseConfig.projectId,
+  authDomain: firebaseConfig.authDomain
 });
-
-// Validate required fields
-const requiredFields = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
-const missingFields = requiredFields.filter(field => !firebaseConfig[field]);
-
-if (missingFields.length > 0) {
-  const error = `Missing Firebase configuration: ${missingFields.join(', ')}`;
-  console.error('🚨 Firebase Configuration Error:', error);
-  throw new Error(error);
-}
 
 // Initialize Firebase
 let app;
@@ -79,28 +63,22 @@ googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
-// Stub functions for compatibility
+// Service status check
 export const getServiceStatus = () => ({
   analytics: false,
   performance: false,
-  auth: auth !== null,
-  firestore: db !== null,
-  storage: storage !== null
+  auth: !!auth,
+  firestore: !!db,
+  storage: !!storage
 });
 
-export const safelyUseAnalytics = (callback) => {
-  console.warn('📊 Analytics not available - operation skipped');
-  return null;
-};
+// Compatibility functions
+export const safelyUseAnalytics = () => null;
+export const safelyUsePerformance = () => null;
 
-export const safelyUsePerformance = (callback) => {
-  console.warn('⚡ Performance monitoring not available - operation skipped');
-  return null;
-};
-
-// Simple ConfigValidator for compatibility
+// Config validator
 export const ConfigValidator = {
-  validateFirebaseConfig: (config, environment) => {
+  validateFirebaseConfig: (config) => {
     const required = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
     const missing = required.filter(field => !config[field]);
     if (missing.length > 0) {
