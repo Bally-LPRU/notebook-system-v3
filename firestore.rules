@@ -28,14 +28,7 @@ service cloud.firestore {
               request.auth.token.email.matches('.*@g\\.lpru\\.ac\\.th$'));
     }
     
-    function isValidUserData(data) {
-      return data.keys().hasAll(['firstName', 'lastName', 'phoneNumber', 'department', 'userType']) &&
-             data.firstName is string && data.firstName.size() > 0 &&
-             data.lastName is string && data.lastName.size() > 0 &&
-             data.phoneNumber is string && data.phoneNumber.matches('^[0-9]{10}$') &&
-             data.department is string && data.department.size() > 0 &&
-             data.userType in ['student', 'teacher', 'staff'];
-    }
+
 
     function isInitialUserData(data) {
       return data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'status', 'createdAt', 'updatedAt']) &&
@@ -44,28 +37,94 @@ service cloud.firestore {
              data.role == 'user' &&
              data.status == 'incomplete';
     }
+    
+    function isProfileUpdateData(data) {
+      let allowedKeys = ['firstName', 'lastName', 'phoneNumber', 'department', 'userType', 'status', 'updatedAt', 'profileCompletedAt', 'draftData', 'draftSavedAt'];
+      let requiredKeys = ['firstName', 'lastName', 'phoneNumber', 'department', 'userType'];
+      
+      return data.keys().hasAll(requiredKeys) &&
+             data.keys().hasOnly(allowedKeys.concat(['uid', 'email', 'displayName', 'photoURL', 'role', 'createdAt'])) &&
+             isValidProfileData(data);
+    }
+    
+    function isDraftUpdate(data) {
+      let allowedKeys = ['draftData', 'draftSavedAt', 'updatedAt'];
+      return data.keys().hasOnly(allowedKeys.concat(['uid', 'email', 'displayName', 'photoURL', 'role', 'status', 'createdAt', 'firstName', 'lastName', 'phoneNumber', 'department', 'userType', 'profileCompletedAt'])) &&
+             data.draftData is map;
+    }
 
-    function isSelfStatusTransitionValid(oldData, newData) {
-      return (oldData.status == newData.status) ||
-             (oldData.status == 'incomplete' && newData.status == 'pending');
+
+    
+    function isValidDepartment(department) {
+      let validDepartments = [
+        'accounting', 'digital-business', 'business-admin', 'management',
+        'computer-business', 'communication', 'logistics', 'tourism',
+        'modern-business', 'dean-office'
+      ];
+      return department is map && 
+             department.keys().hasAll(['value', 'label']) &&
+             department.value in validDepartments &&
+             department.label is string && department.label.size() > 0;
+    }
+    
+    function isValidProfileData(data) {
+      return data.keys().hasAll(['firstName', 'lastName', 'phoneNumber', 'department', 'userType']) &&
+             data.firstName is string && data.firstName.size() > 0 && data.firstName.size() <= 50 &&
+             data.firstName.matches('^[ก-๙a-zA-Z\\s]+$') &&
+             data.lastName is string && data.lastName.size() > 0 && data.lastName.size() <= 50 &&
+             data.lastName.matches('^[ก-๙a-zA-Z\\s]+$') &&
+             data.phoneNumber is string && data.phoneNumber.matches('^[0-9]{9,10}$') &&
+             isValidDepartment(data.department) &&
+             data.userType in ['student', 'teacher', 'staff'];
+    }
+    
+    function canTransitionStatus(oldStatus, newStatus, isAdminRequest) {
+      // Users can only transition from incomplete to pending
+      if (!isAdminRequest) {
+        return (oldStatus == newStatus) ||
+               (oldStatus == 'incomplete' && newStatus == 'pending');
+      }
+      
+      // Admins can make any valid status transition
+      let validStatuses = ['incomplete', 'pending', 'approved', 'rejected'];
+      return newStatus in validStatuses;
+    }
+    
+    function isValidUserUpdate(oldData, newData, isAdminRequest) {
+      // Check status transition validity
+      if (oldData.status != newData.status) {
+        return canTransitionStatus(oldData.status, newData.status, isAdminRequest);
+      }
+      
+      return true;
     }
 
     // Users collection rules
     match /users/{userId} {
-      // Users can read and write their own profile (with validation)
+      // Users can read their own profile
       allow read: if isOwner(userId);
-  allow create: if isOwner(userId) && hasValidEmail() && (isInitialUserData(request.resource.data) || isValidUserData(request.resource.data));
-  allow update: if isOwner(userId) && isValidUserData(request.resource.data) &&
-           isSelfStatusTransitionValid(resource.data, request.resource.data) &&
-           !request.resource.data.keys().hasAny(['role', 'createdAt']);
+      
+      // Users can create their initial profile (basic auth data only)
+      allow create: if isOwner(userId) && hasValidEmail() && isInitialUserData(request.resource.data);
+      
+      // Users can update their own profile with complete profile data or save drafts
+      allow update: if isOwner(userId) && hasValidEmail() && 
+                       (isProfileUpdateData(request.resource.data) || 
+                        isDraftUpdate(request.resource.data) ||
+                        (resource.data.status == 'incomplete' && isValidProfileData(request.resource.data))) &&
+                       isValidUserUpdate(resource.data, request.resource.data, false) &&
+                       request.resource.data.uid == request.auth.uid &&
+                       request.resource.data.email == request.auth.token.email;
       
       // Admins can read all user profiles
       allow read: if isAdmin();
       
       // Admins can update user status and role (but not other sensitive fields)
       allow update: if isAdmin() &&
-                       request.resource.data.keys().hasAny(['status', 'role']) &&
-                       !request.resource.data.keys().hasAny(['uid', 'email', 'createdAt']);
+                       !request.resource.data.keys().hasAny(['uid', 'email', 'createdAt']) &&
+                       isValidUserUpdate(resource.data, request.resource.data, true) &&
+                       (request.resource.data.keys().hasAny(['status', 'role', 'approvedAt', 'approvedBy']) ||
+                        isValidProfileData(request.resource.data));
     }
     
     // Equipment collection rules

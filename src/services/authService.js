@@ -5,7 +5,10 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../config/firebase';
-import { logAuthError, logFirebaseError } from '../utils/errorLogger';
+import { logError } from '../utils/errorLogger';
+import { ErrorClassifier } from '../utils/errorClassification';
+import { withRetry, withProfileRetry, withFirestoreRetry } from '../utils/retryHandler';
+import DuplicateDetectionService from './duplicateDetectionService';
 
 // Error types for better error handling
 const ERROR_TYPES = {
@@ -32,92 +35,26 @@ const ERROR_MESSAGES = {
 };
 
 class AuthService {
-  // Helper method to classify and format errors
+  // Enhanced error handling using ErrorClassifier
   static _handleError(error, context = '') {
     console.error(`AuthService Error (${context}):`, error);
     
-    // Log to error logger
-    if (context.includes('firestore') || context.includes('profile')) {
-      logFirebaseError(error, 'firestore', context, { service: 'AuthService' });
-    } else {
-      logAuthError(error, context, { service: 'AuthService' });
-    }
+    // Use ErrorClassifier for comprehensive error handling
+    const classification = ErrorClassifier.classify(error, {
+      operation: context,
+      component: 'AuthService'
+    });
     
-    // Network connectivity issues
-    if (error.code === 'auth/network-request-failed' || 
-        error.message?.includes('network') ||
-        error.message?.includes('fetch')) {
-      return {
-        type: ERROR_TYPES.NETWORK,
-        message: ERROR_MESSAGES.NETWORK_ERROR,
-        originalError: error,
-        retryable: true
-      };
-    }
+    // Log to error logger with classification
+    logError({
+      type: 'auth_service_error',
+      error,
+      context: { operation: context, component: 'AuthService' },
+      severity: classification.severity,
+      classification
+    });
     
-    // Authentication specific errors
-    if (error.code?.startsWith('auth/')) {
-      switch (error.code) {
-        case 'auth/popup-blocked':
-          return {
-            type: ERROR_TYPES.AUTH,
-            message: ERROR_MESSAGES.AUTH_POPUP_BLOCKED,
-            originalError: error,
-            retryable: true
-          };
-        case 'auth/popup-closed-by-user':
-          return {
-            type: ERROR_TYPES.AUTH,
-            message: ERROR_MESSAGES.AUTH_POPUP_CLOSED,
-            originalError: error,
-            retryable: true
-          };
-        case 'auth/cancelled-popup-request':
-          return {
-            type: ERROR_TYPES.AUTH,
-            message: ERROR_MESSAGES.AUTH_CANCELLED,
-            originalError: error,
-            retryable: true
-          };
-        default:
-          return {
-            type: ERROR_TYPES.AUTH,
-            message: error.message || ERROR_MESSAGES.GENERIC_ERROR,
-            originalError: error,
-            retryable: false
-          };
-      }
-    }
-    
-    // Firestore errors
-    if (error.code?.startsWith('firestore/') || 
-        error.message?.includes('firestore') ||
-        error.message?.includes('document')) {
-      return {
-        type: ERROR_TYPES.FIRESTORE,
-        message: context.includes('profile') ? ERROR_MESSAGES.PROFILE_FETCH_ERROR : ERROR_MESSAGES.GENERIC_ERROR,
-        originalError: error,
-        retryable: true
-      };
-    }
-    
-    // Custom validation errors (already in Thai)
-    if (error.message?.includes('อีเมล') || error.message?.includes('email')) {
-      return {
-        type: ERROR_TYPES.VALIDATION,
-        message: error.message,
-        originalError: error,
-        retryable: false
-      };
-    }
-    
-    // Default error handling
-    return {
-      type: ERROR_TYPES.UNKNOWN,
-      message: error.message || ERROR_MESSAGES.GENERIC_ERROR,
-      originalError: error,
-      retryable: false
-    };
+    return classification;
   }
 
   // Helper method to check network connectivity
@@ -127,60 +64,48 @@ class AuthService {
     }
   }
 
-  // Sign in with Google with enhanced error handling
+  // Sign in with Google with enhanced error handling and duplicate detection
   static async signInWithGoogle() {
     try {
       // Check network connectivity first
       await this._checkNetworkConnectivity();
       
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      
-      // Validate email domain
-      if (!this.isValidEmail(user.email)) {
-        await this.signOut();
-        const error = new Error(ERROR_MESSAGES.INVALID_EMAIL_DOMAIN);
-        throw this._handleError(error, 'email validation');
-      }
-      
-      // Check if user exists in Firestore with retry logic
-      let userDoc = null;
-      const maxRetries = 3;
-      
-      for (let retryCount = 0; retryCount < maxRetries; retryCount++) {
-        try {
-          userDoc = await this.getUserProfile(user.uid);
-          break;
-        } catch (profileError) {
-          if (retryCount >= maxRetries - 1) {
-            throw profileError;
-          }
-          // Wait before retry (exponential backoff)
-          const delay = Math.pow(2, retryCount + 1) * 1000;
-          await new Promise(resolve => setTimeout(resolve, delay));
+      return await withRetry(async () => {
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+        
+        // Validate email domain
+        if (!this.isValidEmail(user.email)) {
+          await this.signOut();
+          throw new Error(ERROR_MESSAGES.INVALID_EMAIL_DOMAIN);
         }
-      }
-      
-      if (!userDoc) {
-        // Create new user profile with retry logic
-        for (let retryCount = 0; retryCount < maxRetries; retryCount++) {
-          try {
+        
+        // Check for duplicate profiles before proceeding
+        const duplicateCheck = await this.checkForDuplicateProfile(user.email);
+        if (duplicateCheck.hasDuplicate) {
+          console.log('🔍 Duplicate profile detected during sign in:', duplicateCheck);
+          // Return user - the auth state handler will manage the existing profile
+          return user;
+        }
+        
+        // Check if user exists in Firestore with retry logic
+        const userDoc = await withProfileRetry(async () => {
+          return await this.getUserProfile(user.uid);
+        }, { operation: 'get_user_profile_signin' });
+        
+        if (!userDoc) {
+          // Create new user profile with retry logic
+          await withProfileRetry(async () => {
             await this.createUserProfile(user);
-            break;
-          } catch (createError) {
-            if (retryCount >= maxRetries - 1) {
-              throw createError;
-            }
-            const delay = Math.pow(2, retryCount + 1) * 1000;
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
+          }, { operation: 'create_user_profile_signin' });
         }
-      }
-      
-      return user;
+        
+        return user;
+      }, { operation: 'google_sign_in' }, { maxRetries: 3 });
     } catch (error) {
-      const handledError = this._handleError(error, 'sign in');
-      throw new Error(handledError.message);
+      const classification = this._handleError(error, 'sign in');
+      const errorMessage = ErrorClassifier.getErrorMessage(classification);
+      throw new Error(errorMessage.message);
     }
   }
 
@@ -195,10 +120,13 @@ class AuthService {
   // Sign out with enhanced error handling
   static async signOut() {
     try {
-      await signOut(auth);
+      await withRetry(async () => {
+        await signOut(auth);
+      }, { operation: 'sign_out' }, { maxRetries: 2 });
     } catch (error) {
-      const handledError = this._handleError(error, 'sign out');
-      throw new Error(handledError.message);
+      const classification = this._handleError(error, 'sign out');
+      const errorMessage = ErrorClassifier.getErrorMessage(classification);
+      throw new Error(errorMessage.message);
     }
   }
 
@@ -211,48 +139,77 @@ class AuthService {
       
       await this._checkNetworkConnectivity();
       
-      const userDocRef = doc(db, 'users', uid);
-      const userDoc = await getDoc(userDocRef);
-      
-      if (userDoc.exists()) {
-        return { id: userDoc.id, ...userDoc.data() };
-      }
-      
-      return null;
+      return await withFirestoreRetry(async () => {
+        const userDocRef = doc(db, 'users', uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (userDoc.exists()) {
+          return { id: userDoc.id, ...userDoc.data() };
+        }
+        
+        return null;
+      }, { operation: 'get_user_profile' });
     } catch (error) {
-      const handledError = this._handleError(error, 'get user profile');
-      throw new Error(handledError.message);
+      const classification = this._handleError(error, 'get user profile');
+      const errorMessage = ErrorClassifier.getErrorMessage(classification);
+      throw new Error(errorMessage.message);
     }
   }
 
-  // Create user profile in Firestore with enhanced error handling
+  // Create user profile in Firestore with enhanced error handling and validation
   static async createUserProfile(user, additionalData = {}) {
     try {
       if (!user || !user.uid) {
         throw new Error('Valid user object is required');
       }
       
+      // Validate email before creating profile
+      if (!this.isValidEmail(user.email)) {
+        throw new Error(ERROR_MESSAGES.INVALID_EMAIL_DOMAIN);
+      }
+      
       await this._checkNetworkConnectivity();
       
-      const userDocRef = doc(db, 'users', user.uid);
+      // Check for duplicates before creating
+      const duplicateCheck = await this.checkForDuplicateProfile(user.email);
+      if (duplicateCheck.hasDuplicate) {
+        throw new Error(`โปรไฟล์สำหรับอีเมล ${user.email} มีอยู่ในระบบแล้ว`);
+      }
       
-      const userData = {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        role: 'user', // Default role
-        status: 'incomplete', // Profile not yet completed
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        ...additionalData
-      };
-      
-      await setDoc(userDocRef, userData);
-      return userData;
+      return await withFirestoreRetry(async () => {
+        const userDocRef = doc(db, 'users', user.uid);
+        
+        const userData = {
+          uid: user.uid,
+          email: user.email.toLowerCase().trim(),
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          role: 'user', // Default role
+          status: 'incomplete', // Profile not yet completed
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          ...additionalData
+        };
+        
+        await setDoc(userDocRef, userData);
+        
+        // Log profile creation for audit
+        logError({
+          type: 'profile_created',
+          context: {
+            uid: user.uid,
+            email: user.email,
+            component: 'AuthService'
+          },
+          severity: 'info'
+        });
+        
+        return userData;
+      }, { operation: 'create_user_profile' });
     } catch (error) {
-      const handledError = this._handleError(error, 'create user profile');
-      throw new Error(handledError.message);
+      const classification = this._handleError(error, 'create user profile');
+      const errorMessage = ErrorClassifier.getErrorMessage(classification);
+      throw new Error(errorMessage.message);
     }
   }
 
@@ -270,7 +227,7 @@ class AuthService {
     );
   }
 
-  // Update user profile with enhanced error handling
+  // Update user profile with enhanced error handling and validation
   static async updateUserProfile(uid, data) {
     try {
       if (!uid) {
@@ -281,37 +238,58 @@ class AuthService {
         throw new Error('Update data is required');
       }
       
-      await this._checkNetworkConnectivity();
-      
-      const userDocRef = doc(db, 'users', uid);
-      const updateData = {
-        ...data,
-        updatedAt: serverTimestamp()
-      };
-      
-      await setDoc(userDocRef, updateData, { merge: true });
-      
-      // If this is a profile completion (status changing to pending), notify admins
-      if (data.status === 'pending' && data.firstName && data.lastName) {
-        try {
-          // Import NotificationService dynamically to avoid circular dependency
-          const { default: NotificationService } = await import('./notificationService');
-          await NotificationService.notifyAdminsNewUser({
-            uid,
-            firstName: data.firstName,
-            lastName: data.lastName,
-            email: data.email || 'ไม่ระบุ'
-          });
-        } catch (notificationError) {
-          console.error('Error sending notification to admins:', notificationError);
-          // Don't throw error here as profile update was successful
-        }
+      // Validate profile data before update
+      const validationResult = this.validateProfileData(data);
+      if (!validationResult.isValid) {
+        throw new Error(validationResult.errors.join(', '));
       }
       
-      return updateData;
+      await this._checkNetworkConnectivity();
+      
+      return await withFirestoreRetry(async () => {
+        const userDocRef = doc(db, 'users', uid);
+        const updateData = {
+          ...data,
+          updatedAt: serverTimestamp()
+        };
+        
+        await setDoc(userDocRef, updateData, { merge: true });
+        
+        // Log profile update for audit
+        logError({
+          type: 'profile_updated',
+          context: {
+            uid,
+            updatedFields: Object.keys(data),
+            status: data.status,
+            component: 'AuthService'
+          },
+          severity: 'info'
+        });
+        
+        // If this is a profile completion (status changing to pending), notify admins
+        if (data.status === 'pending' && data.firstName && data.lastName) {
+          try {
+            // Import NotificationService dynamically to avoid circular dependency
+            const { default: NotificationService } = await import('./notificationService');
+            await NotificationService.notifyAdminsNewUser({
+              uid,
+              firstName: data.firstName,
+              lastName: data.lastName,
+              email: data.email || 'ไม่ระบุ'
+            });
+          } catch (notificationError) {
+            console.error('Error sending notification to admins:', notificationError);
+            // Don't throw error here as profile update was successful
+          }
+        }
+        
+        return updateData;
+      }, { operation: 'update_user_profile' });
     } catch (error) {
-      const handledError = this._handleError(error, 'update user profile');
-      throw new Error(handledError.message);
+      const classification = this._handleError(error, 'update user profile');
+      const errorMessage = ErrorClassifier.getErrorMessage(classification);
+      throw new Error(errorMessage.message);
     }
   }
 
@@ -333,6 +311,131 @@ class AuthService {
   // Expose error messages for external use
   static getErrorMessages() {
     return ERROR_MESSAGES;
+  }
+
+  // Enhanced duplicate detection methods
+  static async checkForDuplicateProfile(email, phoneNumber = null) {
+    try {
+      return await withRetry(async () => {
+        return await DuplicateDetectionService.detectDuplicates(email, phoneNumber);
+      }, { operation: 'check_duplicate_profile' }, { maxRetries: 2 });
+    } catch (error) {
+      const classification = this._handleError(error, 'check duplicate profile');
+      const errorMessage = ErrorClassifier.getErrorMessage(classification);
+      throw new Error(errorMessage.message);
+    }
+  }
+
+  // Validate profile data before operations
+  static validateProfileData(data) {
+    const errors = [];
+    const result = {
+      isValid: true,
+      errors: []
+    };
+
+    // Required fields validation
+    if (data.firstName && (!data.firstName.trim() || data.firstName.length > 50)) {
+      errors.push('ชื่อต้องมีความยาว 1-50 ตัวอักษร');
+    }
+
+    if (data.lastName && (!data.lastName.trim() || data.lastName.length > 50)) {
+      errors.push('นามสกุลต้องมีความยาว 1-50 ตัวอักษร');
+    }
+
+    if (data.phoneNumber) {
+      const phoneRegex = /^[0-9]{9,10}$/;
+      const cleanPhone = data.phoneNumber.replace(/[-\s]/g, '');
+      if (!phoneRegex.test(cleanPhone)) {
+        errors.push('เบอร์โทรศัพท์ต้องเป็นตัวเลข 9-10 หลัก');
+      }
+    }
+
+    if (data.department && (!data.department.value || !data.department.label)) {
+      errors.push('กรุณาเลือกสังกัด');
+    }
+
+    if (data.userType && !['student', 'teacher', 'staff'].includes(data.userType)) {
+      errors.push('ประเภทผู้ใช้ไม่ถูกต้อง');
+    }
+
+    if (data.email && !this.isValidEmail(data.email)) {
+      errors.push('อีเมลไม่ได้รับอนุญาตให้เข้าใช้งานระบบ');
+    }
+
+    result.isValid = errors.length === 0;
+    result.errors = errors;
+
+    return result;
+  }
+
+  // Get profile completion status
+  static getProfileCompletionStatus(profile) {
+    if (!profile) {
+      return {
+        isComplete: false,
+        completionPercentage: 0,
+        missingFields: ['ข้อมูลทั้งหมด']
+      };
+    }
+
+    const requiredFields = [
+      { key: 'firstName', label: 'ชื่อ' },
+      { key: 'lastName', label: 'นามสกุล' },
+      { key: 'phoneNumber', label: 'เบอร์โทรศัพท์' },
+      { key: 'department', label: 'สังกัด' },
+      { key: 'userType', label: 'ประเภทผู้ใช้' }
+    ];
+
+    const missingFields = [];
+    let completedFields = 0;
+
+    requiredFields.forEach(field => {
+      if (profile[field.key] && 
+          (typeof profile[field.key] === 'string' ? profile[field.key].trim() : profile[field.key])) {
+        completedFields++;
+      } else {
+        missingFields.push(field.label);
+      }
+    });
+
+    const completionPercentage = Math.round((completedFields / requiredFields.length) * 100);
+    const isComplete = completionPercentage === 100 && profile.status !== 'incomplete';
+
+    return {
+      isComplete,
+      completionPercentage,
+      missingFields,
+      completedFields,
+      totalFields: requiredFields.length
+    };
+  }
+
+  // Enhanced logging and error reporting
+  static async reportError(error, context = {}) {
+    try {
+      const classification = this._handleError(error, context.operation || 'unknown');
+      
+      // Enhanced error reporting with more context
+      logError({
+        type: 'auth_service_error_report',
+        error,
+        context: {
+          ...context,
+          component: 'AuthService',
+          classification,
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          url: window.location.href
+        },
+        severity: classification.severity
+      });
+
+      return classification;
+    } catch (reportError) {
+      console.error('Failed to report error:', reportError);
+      return null;
+    }
   }
 }
 

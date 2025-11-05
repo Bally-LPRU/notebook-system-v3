@@ -2,6 +2,10 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, googleProvider, db } from '../config/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import DuplicateDetectionService from '../services/duplicateDetectionService';
+import { ErrorClassifier } from '../utils/errorClassification';
+import { withRetry, withProfileRetry } from '../utils/retryHandler';
+import { logError } from '../utils/errorLogger';
 
 const AuthContext = createContext();
 
@@ -18,48 +22,98 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [errorState, setErrorState] = useState({
+    hasError: false,
+    classification: null,
+    retryable: false,
+    retryCount: 0
+  });
 
-  // Auth state change handler
+  // Enhanced error handling helper
+  const handleError = (error, context = 'auth_context') => {
+    console.error(`🚨 AuthContext Error (${context}):`, error);
+    
+    const classification = ErrorClassifier.classify(error, { 
+      operation: context,
+      component: 'AuthContext'
+    });
+    
+    const errorMessage = ErrorClassifier.getErrorMessage(classification);
+    
+    setError(errorMessage.message);
+    setErrorState({
+      hasError: true,
+      classification,
+      retryable: classification.retryable,
+      retryCount: 0
+    });
+    
+    // Log error for monitoring
+    logError({
+      type: 'auth_context_error',
+      error,
+      context: { operation: context, component: 'AuthContext' },
+      severity: classification.severity
+    });
+    
+    return classification;
+  };
+
+  // Clear error state
+  const clearErrorState = () => {
+    setError(null);
+    setErrorState({
+      hasError: false,
+      classification: null,
+      retryable: false,
+      retryCount: 0
+    });
+  };
+
+  // Auth state change handler with enhanced error handling
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('🔥 Auth state changed:', user ? 'logged in' : 'logged out');
       
       try {
+        clearErrorState(); // Clear any previous errors
+        
         if (user) {
           setUser(user);
           
-          // Get user profile
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-          
-          if (userDoc.exists()) {
-            const profile = { id: userDoc.id, ...userDoc.data() };
-            setUserProfile(profile);
-            console.log('👤 User profile loaded:', profile);
-          } else {
-            // Create new user profile
-            const userData = {
-              uid: user.uid,
-              email: user.email,
-              displayName: user.displayName,
-              photoURL: user.photoURL,
-              role: 'user',
-              status: 'incomplete',
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp()
-            };
+          // Get user profile with retry logic
+          await withProfileRetry(async () => {
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
             
-            await setDoc(userDocRef, userData);
-            setUserProfile(userData);
-            console.log('👤 New user profile created:', userData);
-          }
+            if (userDoc.exists()) {
+              const profile = { id: userDoc.id, ...userDoc.data() };
+              setUserProfile(profile);
+              console.log('👤 User profile loaded:', profile);
+            } else {
+              // Create new user profile with retry logic
+              const userData = {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL,
+                role: 'user',
+                status: 'incomplete',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+              };
+              
+              await setDoc(userDocRef, userData);
+              setUserProfile(userData);
+              console.log('👤 New user profile created:', userData);
+            }
+          }, { operation: 'load_user_profile' });
         } else {
           setUser(null);
           setUserProfile(null);
         }
       } catch (error) {
-        console.error('🚨 Auth state error:', error);
-        setError(error.message);
+        handleError(error, 'auth_state_change');
       } finally {
         setLoading(false);
       }
@@ -70,65 +124,102 @@ export const AuthProvider = ({ children }) => {
 
   const signIn = async () => {
     try {
-      setError(null);
+      clearErrorState();
       console.log('🔐 Starting Google sign in...');
       
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      
-      console.log('✅ Sign in successful:', user.email);
-      
-      // Validate email domain
-      const allowedDomains = ['gmail.com', 'g.lpru.ac.th'];
-      const userDomain = user.email.split('@')[1];
-      
-      if (!allowedDomains.includes(userDomain)) {
-        await signOut(auth);
-        throw new Error('อีเมลของคุณไม่ได้รับอนุญาตให้เข้าใช้งานระบบ กรุณาใช้อีเมล @gmail.com หรือ @g.lpru.ac.th');
-      }
-      
-      return user;
+      return await withRetry(async () => {
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+        
+        console.log('✅ Sign in successful:', user.email);
+        
+        // Validate email domain
+        const allowedDomains = ['gmail.com', 'g.lpru.ac.th'];
+        const userDomain = user.email.split('@')[1];
+        
+        if (!allowedDomains.includes(userDomain)) {
+          await signOut(auth);
+          throw new Error('อีเมลของคุณไม่ได้รับอนุญาตให้เข้าใช้งานระบบ กรุณาใช้อีเมล @gmail.com หรือ @g.lpru.ac.th');
+        }
+
+        // Check for duplicate profiles before proceeding
+        const duplicateCheck = await DuplicateDetectionService.detectDuplicates(user.email);
+        if (duplicateCheck.hasDuplicate) {
+          console.log('🔍 Duplicate profile detected:', duplicateCheck);
+          // The auth state change handler will handle the existing profile
+          // No need to create a new profile
+          return user;
+        }
+        
+        return user;
+      }, { operation: 'google_sign_in' }, { maxRetries: 3 });
     } catch (error) {
-      console.error('🚨 Sign in error:', error);
-      setError(error.message);
+      handleError(error, 'sign_in');
       throw error;
     }
   };
 
   const handleSignOut = async () => {
     try {
-      setError(null);
+      clearErrorState();
       console.log('🚪 Signing out...');
-      await signOut(auth);
+      
+      await withRetry(async () => {
+        await signOut(auth);
+      }, { operation: 'sign_out' }, { maxRetries: 2 });
+      
       console.log('✅ Sign out successful');
     } catch (error) {
-      console.error('🚨 Sign out error:', error);
-      setError(error.message);
+      handleError(error, 'sign_out');
       throw error;
     }
   };
 
   const updateProfile = async (data) => {
     try {
-      setError(null);
+      clearErrorState();
       if (!user) throw new Error('No user logged in');
       
       console.log('📝 Updating profile:', data);
       
-      const userDocRef = doc(db, 'users', user.uid);
-      const updateData = {
-        ...data,
-        updatedAt: serverTimestamp()
-      };
-      
-      await setDoc(userDocRef, updateData, { merge: true });
-      setUserProfile(prev => ({ ...prev, ...updateData }));
-      
-      console.log('✅ Profile updated successfully');
-      return updateData;
+      return await withProfileRetry(async () => {
+        const userDocRef = doc(db, 'users', user.uid);
+        const updateData = {
+          ...data,
+          updatedAt: serverTimestamp()
+        };
+        
+        await setDoc(userDocRef, updateData, { merge: true });
+        setUserProfile(prev => ({ ...prev, ...updateData }));
+        
+        console.log('✅ Profile updated successfully');
+        return updateData;
+      }, { operation: 'update_profile' });
     } catch (error) {
-      console.error('🚨 Profile update error:', error);
-      setError(error.message);
+      handleError(error, 'update_profile');
+      throw error;
+    }
+  };
+
+  // Retry failed operations
+  const retryLastOperation = async () => {
+    if (!errorState.retryable || !errorState.classification) {
+      throw new Error('Operation is not retryable');
+    }
+
+    try {
+      setErrorState(prev => ({
+        ...prev,
+        retryCount: prev.retryCount + 1
+      }));
+
+      // The specific retry logic would depend on the last failed operation
+      // For now, we'll clear the error and let the user try again
+      clearErrorState();
+      
+      console.log('🔄 Retry operation initiated');
+    } catch (error) {
+      handleError(error, 'retry_operation');
       throw error;
     }
   };
@@ -147,7 +238,27 @@ export const AuthProvider = ({ children }) => {
   };
 
   const clearError = () => {
-    setError(null);
+    clearErrorState();
+  };
+
+  const checkProfileExists = async (email) => {
+    try {
+      return await withRetry(async () => {
+        return await DuplicateDetectionService.checkProfileByEmail(email);
+      }, { operation: 'check_profile_exists' }, { maxRetries: 2 });
+    } catch (error) {
+      handleError(error, 'check_profile_exists');
+      return null;
+    }
+  };
+
+  const getDashboardRoute = () => {
+    if (!userProfile) return '/';
+    return DuplicateDetectionService.getDashboardRoute(userProfile);
+  };
+
+  const getStatusDisplayInfo = () => {
+    return DuplicateDetectionService.getStatusDisplayInfo(userProfile);
   };
 
   const value = {
@@ -155,16 +266,25 @@ export const AuthProvider = ({ children }) => {
     userProfile,
     loading,
     error,
+    errorState,
     signIn,
     signOut: handleSignOut,
     updateProfile,
     clearError,
+    retryLastOperation,
     needsProfileSetup,
+    checkProfileExists,
+    getDashboardRoute,
+    getStatusDisplayInfo,
     isAuthenticated: !!user,
     isApproved: userProfile?.status === 'approved',
     isAdmin: userProfile?.role === 'admin',
     isPending: userProfile?.status === 'pending',
-    isIncomplete: userProfile?.status === 'incomplete'
+    isIncomplete: userProfile?.status === 'incomplete',
+    // Enhanced error handling properties
+    hasRetryableError: errorState.retryable,
+    canRetry: errorState.retryable && errorState.retryCount < 3,
+    errorClassification: errorState.classification
   };
 
   return (

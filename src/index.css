@@ -60,6 +60,77 @@
     animation: slideUp 0.3s ease-out;
   }
   
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .high-contrast-border {
+      @apply border-2 border-black;
+    }
+    
+    .high-contrast-text {
+      @apply text-black;
+    }
+    
+    .high-contrast-bg {
+      @apply bg-white;
+    }
+    
+    .high-contrast-button {
+      @apply bg-black text-white border-2 border-black;
+    }
+    
+    .high-contrast-button:hover {
+      @apply bg-white text-black;
+    }
+    
+    .high-contrast-error {
+      @apply bg-white text-black border-2 border-black;
+    }
+    
+    .high-contrast-input {
+      @apply border-2 border-black bg-white text-black;
+    }
+    
+    .high-contrast-input:focus {
+      @apply ring-4 ring-black ring-offset-2;
+    }
+  }
+  
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .respect-motion-preference {
+      animation: none !important;
+      transition: none !important;
+    }
+    
+    .respect-motion-preference * {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+  
+  /* Focus visible improvements */
+  .focus-visible-enhanced:focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+  }
+  
+  /* Screen reader only content */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  
+  /* Skip to content link */
+  .skip-link {
+    @apply absolute -top-10 left-6 bg-primary-600 text-white px-4 py-2 rounded-md z-50 focus:top-6 transition-all duration-200;
+  }
+  
   /* Responsive text utilities */
   .text-responsive-xs {
     @apply text-xs sm:text-sm;
@@ -123,5 +194,101 @@
   /* Degraded mode styles */
   .degraded-mode {
     @apply opacity-75 grayscale-[0.2];
+  }
+  
+  /* Keyboard navigation improvements */
+  .keyboard-focusable {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-md;
+  }
+  
+  /* Enhanced form field styles */
+  .form-field-enhanced {
+    @apply transition-all duration-200 border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
+  }
+  
+  .form-field-enhanced:invalid {
+    @apply border-red-300 focus:ring-red-500 focus:border-red-500;
+  }
+  
+  .form-field-enhanced:valid {
+    @apply border-green-300;
+  }
+  
+  /* Loading state improvements */
+  .loading-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  /* Error state animations */
+  .error-shake {
+    animation: shake 0.5s ease-in-out;
+  }
+  
+  /* Success state animations */
+  .success-bounce {
+    animation: bounce 0.5s ease-in-out;
+  }
+}
+
+/* Keyframe animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40%, 43% {
+    transform: translate3d(0, -10px, 0);
+  }
+  70% {
+    transform: translate3d(0, -5px, 0);
+  }
+  90% {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-friendly {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
   }
 }

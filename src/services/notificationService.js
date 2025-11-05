@@ -508,6 +508,81 @@ class NotificationService {
     }
   }
 
+  // Notify user about profile update success
+  static async notifyProfileUpdateSuccess(userId, updateType = 'general') {
+    try {
+      const messages = {
+        general: 'ข้อมูลโปรไฟล์ของคุณได้รับการอัปเดตเรียบร้อยแล้ว',
+        submission: 'คำขอสมัครสมาชิกของคุณได้รับการส่งเรียบร้อยแล้ว รอการตรวจสอบจากผู้ดูแลระบบ',
+        completion: 'ข้อมูลโปรไฟล์ครบถ้วนแล้ว พร้อมส่งคำขอสมัครสมาชิก'
+      };
+
+      const titles = {
+        general: 'อัปเดตข้อมูลสำเร็จ',
+        submission: 'ส่งคำขอสำเร็จ',
+        completion: 'โปรไฟล์ครบถ้วน'
+      };
+
+      await this.createNotification(
+        userId,
+        'profile_updated',
+        titles[updateType] || titles.general,
+        messages[updateType] || messages.general,
+        {
+          updateType,
+          timestamp: new Date().toISOString(),
+          actionUrl: updateType === 'submission' ? '/pending-approval' : '/profile-setup'
+        }
+      );
+    } catch (error) {
+      console.error('Error notifying user about profile update:', error);
+      throw error;
+    }
+  }
+
+  // Notify user about profile status change
+  static async notifyProfileStatusChange(userId, newStatus, oldStatus, additionalData = {}) {
+    try {
+      const statusMessages = {
+        pending: {
+          title: 'ส่งคำขอสำเร็จ',
+          message: 'คำขอสมัครสมาชิกของคุณอยู่ระหว่างการตรวจสอบ ระยะเวลาการอนุมัติโดยประมาณ 1-2 วันทำการ',
+          actionUrl: '/pending-approval'
+        },
+        approved: {
+          title: 'บัญชีได้รับการอนุมัติ',
+          message: 'ยินดีต้อนรับ! บัญชีของคุณได้รับการอนุมัติแล้ว คุณสามารถใช้งานระบบได้เต็มรูปแบบ',
+          actionUrl: '/dashboard'
+        },
+        rejected: {
+          title: 'บัญชีไม่ได้รับการอนุมัติ',
+          message: 'บัญชีของคุณไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบเพื่อข้อมูลเพิ่มเติม',
+          actionUrl: '/account-rejected'
+        }
+      };
+
+      const statusInfo = statusMessages[newStatus];
+      if (!statusInfo) return;
+
+      await this.createNotification(
+        userId,
+        `profile_status_${newStatus}`,
+        statusInfo.title,
+        statusInfo.message,
+        {
+          newStatus,
+          oldStatus,
+          timestamp: new Date().toISOString(),
+          actionUrl: statusInfo.actionUrl,
+          ...additionalData
+        }
+      );
+    } catch (error) {
+      console.error('Error notifying user about profile status change:', error);
+      throw error;
+    }
+  }
+
   // Notify admins about new loan request
   static async notifyAdminsNewLoanRequest(loanRequest, equipment, user) {
     try {

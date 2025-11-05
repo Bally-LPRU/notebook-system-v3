@@ -6,6 +6,9 @@ import SimpleErrorBoundary from './components/common/SimpleErrorBoundary';
 import FirebaseLoadingBoundary from './components/common/FirebaseLoadingBoundary';
 import LoginPage from './components/auth/LoginPage';
 import ProfileSetupPage from './components/auth/ProfileSetupPage';
+import ProfileStatusDisplay from './components/auth/ProfileStatusDisplay';
+import PendingApprovalPage from './components/auth/PendingApprovalPage';
+import AccountRejectedPage from './components/auth/AccountRejectedPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import NotFound from './components/NotFound';
 import { lazy } from 'react';
@@ -44,6 +47,8 @@ const AppRoutes = () => {
       <Routes>
         <Route path="/" element={<PublicHomepage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/pending-approval" element={<Navigate to="/login" replace />} />
+        <Route path="/account-rejected" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
@@ -54,32 +59,14 @@ const AppRoutes = () => {
     return <ProfileSetupPage />;
   }
 
-  // User not approved yet
+  // User not approved yet - show status display
   if (userProfile?.status !== 'approved') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center">
-          <div className="bg-white p-8 rounded-lg shadow-md">
-            <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              รอการอนุมัติ
-            </h2>
-            <p className="text-gray-600 mb-4">
-              บัญชีของคุณอยู่ระหว่างการตรวจสอบ กรุณารอการอนุมัติจากผู้ดูแลระบบ
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-            >
-              รีเฟรช
-            </button>
-          </div>
-        </div>
-      </div>
+      <ProfileStatusDisplay 
+        profile={userProfile} 
+        onRetry={() => window.location.reload()}
+        showActions={true}
+      />
     );
   }
 
@@ -128,6 +115,10 @@ const AppRoutes = () => {
           <LazyUserApprovalList />
         </ProtectedRoute>
       } />
+
+      {/* Status Pages - redirect approved users */}
+      <Route path="/pending-approval" element={<Navigate to="/" replace />} />
+      <Route path="/account-rejected" element={<Navigate to="/" replace />} />
       
       <Route path="*" element={<NotFound />} />
     </Routes>
