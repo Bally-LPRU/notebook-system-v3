@@ -10,11 +10,16 @@
     "@testing-library/user-event": "^13.5.0",
     "date-fns": "^4.1.0",
     "firebase": "^12.5.0",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
+    "lucide-react": "^0.552.0",
+    "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.8.1",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -29,13 +34,27 @@
     "firebase:deploy:firestore": "firebase deploy --only firestore",
     "firebase:deploy:storage": "firebase deploy --only storage",
     "deploy:production": "node scripts/deploy-production.js",
+    "deploy:production:equipment": "node scripts/deploy-production-equipment.js",
     "deploy:staging": "npm run build && firebase use staging && firebase deploy",
     "deploy:vercel": "node scripts/deploy-vercel.js --prod",
     "deploy:vercel:preview": "node scripts/deploy-vercel.js",
     "predeploy": "npm run test:coverage && npm run build:production",
     "validate:production": "node scripts/validate-production.js",
+    "validate:production:equipment": "node scripts/validate-production-equipment.js",
     "qa:test": "node scripts/run-qa-tests.js",
-    "analyze": "npm run build:production && npx serve -s build"
+    "analyze": "npm run build:production && npx serve -s build",
+    "test:integration": "react-scripts test --testPathPattern=integration --watchAll=false",
+    "test:unit": "react-scripts test --testPathPattern=test --watchAll=false",
+    "security:audit": "npm audit --audit-level=moderate",
+    "firebase:rules:validate": "firebase firestore:rules:validate && firebase storage:rules:validate",
+    "firebase:rules:deploy": "firebase deploy --only firestore:rules,storage:rules",
+    "firebase:indexes:deploy": "firebase deploy --only firestore:indexes",
+    "test:production": "node scripts/run-production-tests.js",
+    "test:production:system": "node scripts/production-test-suite.js",
+    "test:production:mobile": "node scripts/mobile-device-testing.js",
+    "test:production:security": "node scripts/security-performance-audit.js",
+    "docs:generate": "echo 'Documentation generated in docs/ folder'",
+    "health:check": "node scripts/production-test-suite.js --quick"
   },
   "eslintConfig": {
     "extends": [
@@ -58,6 +77,8 @@
   "devDependencies": {
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.0"
+    "tailwindcss": "^3.4.0",
+    "puppeteer": "^21.0.0",
+    "dotenv": "^16.0.0"
   }
 }

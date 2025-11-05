@@ -127,7 +127,7 @@ service cloud.firestore {
                         isValidProfileData(request.resource.data));
     }
     
-    // Equipment collection rules
+    // Equipment collection rules (original lending system)
     match /equipment/{equipmentId} {
       // Public read access for statistics (limited fields only)
       allow read: if true;
@@ -147,6 +147,82 @@ service cloud.firestore {
                        !request.resource.data.keys().hasAny(['createdAt', 'createdBy']);
       
       allow delete: if isAdmin();
+    }
+    
+    // Equipment Management collection rules
+    match /equipmentManagement/{equipmentId} {
+      // Approved users can read equipment management data
+      allow read: if isApprovedUser();
+      
+      // Only admins can write equipment management data (with validation)
+      allow create: if isAdmin() && 
+                       validateEquipmentManagementData(request.resource.data) &&
+                       request.resource.data.createdBy == request.auth.uid &&
+                       request.resource.data.createdAt == request.time;
+      
+      allow update: if isAdmin() && 
+                       validateEquipmentManagementData(request.resource.data) &&
+                       !request.resource.data.keys().hasAny(['createdAt', 'createdBy', 'equipmentNumber']) &&
+                       request.resource.data.updatedBy == request.auth.uid &&
+                       request.resource.data.updatedAt == request.time &&
+                       request.resource.data.version == resource.data.version + 1;
+      
+      allow delete: if isAdmin() && 
+                       request.auth.uid != null;
+    }
+    
+    // Equipment Categories collection rules
+    match /equipmentCategories/{categoryId} {
+      // Approved users can read categories
+      allow read: if isApprovedUser();
+      
+      // Only admins can write categories (with validation)
+      allow create: if isAdmin() && 
+                       validateEquipmentCategoryData(request.resource.data) &&
+                       request.resource.data.createdBy == request.auth.uid &&
+                       request.resource.data.createdAt == request.time;
+      
+      allow update: if isAdmin() && 
+                       validateEquipmentCategoryData(request.resource.data) &&
+                       !request.resource.data.keys().hasAny(['createdAt', 'createdBy']) &&
+                       request.resource.data.updatedBy == request.auth.uid &&
+                       request.resource.data.updatedAt == request.time;
+      
+      allow delete: if isAdmin() && 
+                       request.auth.uid != null;
+    }
+    
+    // Equipment History collection rules
+    match /equipmentHistory/{historyId} {
+      // Only admins can read equipment history
+      allow read: if isAdmin();
+      
+      // System can create history entries (authenticated users only)
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.timestamp == request.time &&
+                       validateEquipmentHistoryData(request.resource.data);
+    }
+    
+    // Equipment Templates collection rules
+    match /equipmentTemplates/{templateId} {
+      // Approved users can read templates
+      allow read: if isApprovedUser();
+      
+      // Only admins can write templates
+      allow create: if isAdmin() && 
+                       validateEquipmentTemplateData(request.resource.data) &&
+                       request.resource.data.createdBy == request.auth.uid &&
+                       request.resource.data.createdAt == request.time;
+      
+      allow update: if isAdmin() && 
+                       validateEquipmentTemplateData(request.resource.data) &&
+                       !request.resource.data.keys().hasAny(['createdAt', 'createdBy']) &&
+                       request.resource.data.updatedBy == request.auth.uid &&
+                       request.resource.data.updatedAt == request.time;
+      
+      allow delete: if isAdmin() && 
+                       request.auth.uid != null;
     }
     
     // Loan requests collection rules
@@ -255,5 +331,54 @@ service cloud.firestore {
       // Only admins and system can write statistics
       allow write: if isAdmin();
     }
+  }
+  
+  // Validation functions for Equipment Management
+  function validateEquipmentManagementData(data) {
+    return data.keys().hasAll(['equipmentNumber', 'name', 'category', 'status', 'isActive', 'version']) &&
+           data.equipmentNumber is string && data.equipmentNumber.size() > 0 && data.equipmentNumber.size() <= 50 &&
+           data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+           data.category is map && data.category.keys().hasAll(['id', 'name']) &&
+           data.category.id is string && data.category.name is string &&
+           data.status in ['active', 'maintenance', 'retired', 'lost'] &&
+           data.isActive == true &&
+           data.version is number && data.version >= 1 &&
+           (!data.keys().hasAny(['brand']) || (data.brand is string && data.brand.size() <= 100)) &&
+           (!data.keys().hasAny(['model']) || (data.model is string && data.model.size() <= 100)) &&
+           (!data.keys().hasAny(['purchasePrice']) || (data.purchasePrice is number && data.purchasePrice >= 0)) &&
+           (!data.keys().hasAny(['images']) || (data.images is list && data.images.size() <= 10));
+  }
+  
+  function validateEquipmentCategoryData(data) {
+    return data.keys().hasAll(['name', 'level', 'path', 'isActive']) &&
+           data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+           data.level is number && data.level >= 0 && data.level <= 5 &&
+           data.path is string && data.path.size() > 0 && data.path.size() <= 500 &&
+           data.isActive == true &&
+           (!data.keys().hasAny(['parentId']) || (data.parentId is string)) &&
+           (!data.keys().hasAny(['description']) || (data.description is string && data.description.size() <= 500)) &&
+           (!data.keys().hasAny(['equipmentCount']) || (data.equipmentCount is number && data.equipmentCount >= 0));
+  }
+  
+  function validateEquipmentHistoryData(data) {
+    return data.keys().hasAll(['equipmentId', 'action', 'userId', 'timestamp']) &&
+           data.equipmentId is string && data.equipmentId.size() > 0 &&
+           data.action in ['created', 'updated', 'deleted', 'status_changed', 'image_added', 'image_removed'] &&
+           data.userId is string && data.userId.size() > 0 &&
+           data.timestamp is timestamp &&
+           (!data.keys().hasAny(['changes']) || (data.changes is list)) &&
+           (!data.keys().hasAny(['reason']) || (data.reason is string && data.reason.size() <= 500)) &&
+           (!data.keys().hasAny(['notes']) || (data.notes is string && data.notes.size() <= 1000));
+  }
+  
+  function validateEquipmentTemplateData(data) {
+    return data.keys().hasAll(['name', 'categoryId', 'isPublic']) &&
+           data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+           data.categoryId is string && data.categoryId.size() > 0 &&
+           data.isPublic is bool &&
+           (!data.keys().hasAny(['description']) || (data.description is string && data.description.size() <= 500)) &&
+           (!data.keys().hasAny(['defaultValues']) || (data.defaultValues is map)) &&
+           (!data.keys().hasAny(['requiredFields']) || (data.requiredFields is list)) &&
+           (!data.keys().hasAny(['usageCount']) || (data.usageCount is number && data.usageCount >= 0));
   }
 }

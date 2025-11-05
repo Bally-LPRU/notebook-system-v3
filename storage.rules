@@ -1,31 +1,81 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Equipment images
-    match /equipment/{equipmentId}/{allPaths=**} {
-      // Approved users can read equipment images
+    // Equipment images for lending system
+    match /equipment-images/{allPaths=**} {
+      // Read: authenticated users
       allow read: if request.auth != null;
       
-      // Only admins can upload/update/delete equipment images
+      // Write: admin users only
       allow write: if request.auth != null && 
-                      isAdmin();
+                      isAdmin() &&
+                      isValidImageFile();
     }
     
-    // User profile images
-    match /users/{userId}/{allPaths=**} {
-      // Users can read and write their own profile images
-      allow read, write: if request.auth != null && 
-                            request.auth.uid == userId;
-      
-      // Admins can read all user images
+    // Equipment management images
+    match /equipment-images/{equipmentId}/{imageType}/{fileName} {
+      // Read: approved users only
       allow read: if request.auth != null && 
-                     isAdmin();
+                     isApprovedUser() &&
+                     imageType in ['original', 'thumbnails', 'medium'];
+      
+      // Write: admin users only with validation
+      allow write: if request.auth != null && 
+                      isAdmin() &&
+                      isValidEquipmentImage() &&
+                      imageType in ['original', 'thumbnails', 'medium'] &&
+                      equipmentId.matches('^[a-zA-Z0-9_-]+$') &&
+                      fileName.matches('^[a-zA-Z0-9_.-]+\\.(jpg|jpeg|png|webp)$');
+      
+      // Delete: admin users only
+      allow delete: if request.auth != null && 
+                       isAdmin();
     }
     
-    // Helper function to check if user is admin
-    function isAdmin() {
-      return exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
-             get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // QR Code images for equipment
+    match /qr-codes/{equipmentId}.png {
+      // Read: approved users only
+      allow read: if request.auth != null && 
+                     isApprovedUser();
+      
+      // Write: admin users only
+      allow write: if request.auth != null && 
+                      isAdmin() &&
+                      request.resource.contentType == 'image/png' &&
+                      request.resource.size < 1024 * 1024; // 1MB limit for QR codes
+    }
+    
+    // Label templates and generated labels
+    match /labels/{equipmentId}/{fileName} {
+      // Read: approved users only
+      allow read: if request.auth != null && 
+                     isApprovedUser();
+      
+      // Write: admin users only
+      allow write: if request.auth != null && 
+                      isAdmin() &&
+                      request.resource.contentType in ['application/pdf', 'image/png'] &&
+                      request.resource.size < 10 * 1024 * 1024; // 10MB limit for labels
     }
   }
+}
+
+// Helper functions
+function isAdmin() {
+  return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+}
+
+function isApprovedUser() {
+  return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'approved';
+}
+
+function isValidImageFile() {
+  return request.resource.contentType.matches('image/.*') &&
+         request.resource.size < 5 * 1024 * 1024; // 5MB limit
+}
+
+function isValidEquipmentImage() {
+  return request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp'] &&
+         request.resource.size < 5 * 1024 * 1024 && // 5MB limit
+         request.resource.size > 1024; // Minimum 1KB to prevent empty files
 }

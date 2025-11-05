@@ -1,6 +1,7 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Equipment Manager",
+  "name": "Equipment Management System",
+  "description": "ระบบจัดการอุปกรณ์ - จัดการ ค้นหา และติดตามอุปกรณ์ขององค์กร",
   "icons": [
     {
       "src": "favicon.ico",
@@ -10,16 +11,76 @@
     {
       "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "orientation": "portrait-primary",
+  "theme_color": "#2563eb",
+  "background_color": "#ffffff",
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "th",
+  "dir": "ltr",
+  "scope": "/",
+  "display_override": ["window-controls-overlay", "minimal-ui"],
+  "shortcuts": [
+    {
+      "name": "ค้นหาอุปกรณ์",
+      "short_name": "ค้นหา",
+      "description": "ค้นหาอุปกรณ์ในระบบ",
+      "url": "/?shortcut=search",
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "เพิ่มอุปกรณ์",
+      "short_name": "เพิ่ม",
+      "description": "เพิ่มอุปกรณ์ใหม่เข้าระบบ",
+      "url": "/?shortcut=add",
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "สแกน QR Code",
+      "short_name": "สแกน",
+      "description": "สแกน QR Code เพื่อดูข้อมูลอุปกรณ์",
+      "url": "/?shortcut=scan",
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "logo512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Equipment Management Mobile View"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
 }

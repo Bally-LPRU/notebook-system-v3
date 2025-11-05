@@ -7,11 +7,12 @@ import FirebaseLoadingBoundary from './components/common/FirebaseLoadingBoundary
 import LoginPage from './components/auth/LoginPage';
 import ProfileSetupPage from './components/auth/ProfileSetupPage';
 import ProfileStatusDisplay from './components/auth/ProfileStatusDisplay';
-import PendingApprovalPage from './components/auth/PendingApprovalPage';
-import AccountRejectedPage from './components/auth/AccountRejectedPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import NotFound from './components/NotFound';
-import { lazy } from 'react';
+import PWAInstallPrompt from './components/common/PWAInstallPrompt';
+import OfflineIndicator from './components/common/OfflineIndicator';
+import { lazy, useEffect, useState } from 'react';
+import { register } from './utils/serviceWorkerRegistration';
 import './App.css';
 
 // Public components
@@ -126,9 +127,66 @@ const AppRoutes = () => {
 };
 
 function App() {
+  const [swUpdateAvailable, setSwUpdateAvailable] = useState(false);
+  const [swRegistration, setSwRegistration] = useState(null);
+
+  useEffect(() => {
+    // Register service worker
+    register({
+      onSuccess: (registration) => {
+        console.log('SW registered successfully');
+        setSwRegistration(registration);
+      },
+      onUpdate: (registration) => {
+        console.log('SW update available');
+        setSwUpdateAvailable(true);
+        setSwRegistration(registration);
+      }
+    });
+
+    // Handle PWA shortcuts
+    const urlParams = new URLSearchParams(window.location.search);
+    const shortcut = urlParams.get('shortcut');
+    
+    if (shortcut) {
+      // Handle PWA shortcuts
+      switch (shortcut) {
+        case 'search':
+          // Navigate to search page or trigger search
+          console.log('PWA shortcut: search');
+          break;
+        case 'add':
+          // Navigate to add equipment page
+          console.log('PWA shortcut: add equipment');
+          break;
+        case 'scan':
+          // Open QR scanner
+          console.log('PWA shortcut: scan QR');
+          break;
+        default:
+          break;
+      }
+    }
+  }, []);
+
   const handleFirebaseRetry = () => {
     console.log('Retrying Firebase connection...');
     window.location.reload();
+  };
+
+  const handleSwUpdate = () => {
+    if (swRegistration && swRegistration.waiting) {
+      swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      window.location.reload();
+    }
+  };
+
+  const handlePWAInstall = () => {
+    console.log('PWA installed successfully');
+  };
+
+  const handleSyncClick = () => {
+    console.log('Manual sync triggered');
   };
 
   return (
@@ -139,6 +197,36 @@ function App() {
             <Router>
               <AppRoutes />
               <NotificationToastContainer />
+              
+              {/* PWA Install Prompt */}
+              <PWAInstallPrompt 
+                onInstall={handlePWAInstall}
+                autoShow={true}
+              />
+              
+              {/* Offline Indicator */}
+              <OfflineIndicator 
+                onSyncClick={handleSyncClick}
+                showPendingCount={true}
+              />
+              
+              {/* Service Worker Update Notification */}
+              {swUpdateAvailable && (
+                <div className="fixed bottom-4 left-4 right-4 z-50 bg-blue-600 text-white p-4 rounded-lg shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">อัปเดตใหม่พร้อมใช้งาน</p>
+                      <p className="text-sm opacity-90">คลิกเพื่อรีเฟรชและใช้เวอร์ชันล่าสุด</p>
+                    </div>
+                    <button
+                      onClick={handleSwUpdate}
+                      className="ml-4 bg-white text-blue-600 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-100 transition-colors"
+                    >
+                      อัปเดต
+                    </button>
+                  </div>
+                </div>
+              )}
             </Router>
           </NotificationProvider>
         </AuthProvider>
