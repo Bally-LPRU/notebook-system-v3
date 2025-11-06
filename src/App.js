@@ -30,6 +30,7 @@ const LazyReportsPage = lazy(() => import('./components/reports/ReportsPage'));
 
 // Simple login for debugging
 const SimpleLogin = lazy(() => import('./components/auth/SimpleLogin'));
+const PopupLogin = lazy(() => import('./components/auth/PopupLogin'));
 
 // Main App Routes Component
 const AppRoutes = () => {
@@ -53,6 +54,7 @@ const AppRoutes = () => {
         <Route path="/" element={<PublicHomepage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/simple-login" element={<SimpleLogin />} />
+        <Route path="/popup-login" element={<PopupLogin />} />
         <Route path="/pending-approval" element={<Navigate to="/login" replace />} />
         <Route path="/account-rejected" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />

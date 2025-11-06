@@ -150,3 +150,19 @@
     - Try popup first, fallback to redirect if blocked
     - Provide user feedback about authentication method being used
     - _Requirements: 4.1, 4.4_
+- [ ]
+ 9. Alternative approach: Fix popup authentication properly
+  - [ ] 9.1 Create popup-based login component for testing
+    - Build simple popup authentication without complex logic
+    - Add proper error handling for popup blocking
+    - _Requirements: 4.1, 4.2_
+  
+  - [ ] 9.2 Add popup blocker fix instructions and tools
+    - Create user-friendly instructions for enabling popups
+    - Add browser-specific popup enabling guides
+    - _Requirements: 4.4_
+  
+  - [ ] 9.3 Test and validate popup authentication
+    - Test popup authentication in different browsers
+    - Validate user creation in Firebase after popup login
+    - _Requirements: 4.1, 4.2, 4.3_
