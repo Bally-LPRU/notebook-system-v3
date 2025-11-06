@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, googleProvider, db } from '../config/firebase';
-import { signInWithRedirect as firebaseSignInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from '../config/firebase';
+import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import DuplicateDetectionService from '../services/duplicateDetectionService';
+import AuthService from '../services/authService';
 import { ErrorClassifier } from '../utils/errorClassification';
 import { withRetry, withProfileRetry } from '../utils/retryHandler';
 import { logError } from '../utils/errorLogger';
@@ -77,28 +78,15 @@ export const AuthProvider = ({ children }) => {
     const handleRedirectResult = async () => {
       try {
         console.log('🔄 Checking for redirect result...');
-        const result = await getRedirectResult(auth);
+        
+        // Use AuthService to handle redirect result with full logic
+        const result = await AuthService.handleRedirectResult();
         
         if (result) {
-          console.log('✅ Redirect authentication successful:', result.user.email);
-          
-          // Validate email domain
-          const allowedDomains = ['gmail.com', 'g.lpru.ac.th'];
-          const userDomain = result.user.email.split('@')[1];
-          
-          if (!allowedDomains.includes(userDomain)) {
-            await signOut(auth);
-            throw new Error('อีเมลของคุณไม่ได้รับอนุญาตให้เข้าใช้งานระบบ กรุณาใช้อีเมล @gmail.com หรือ @g.lpru.ac.th');
-          }
-
-          // Check for duplicate profiles
-          const duplicateCheck = await DuplicateDetectionService.detectDuplicates(result.user.email);
-          if (duplicateCheck.hasDuplicate) {
-            console.log('🔍 Duplicate profile detected during redirect:', duplicateCheck);
-          }
+          console.log('✅ Redirect authentication handled by AuthService');
           
           // Navigate to intended path after successful authentication
-          const intendedPath = getAndClearIntendedPath();
+          const intendedPath = AuthService.getAndClearIntendedPath();
           if (intendedPath && intendedPath !== '/') {
             window.history.replaceState(null, '', intendedPath);
           }
@@ -164,47 +152,15 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  // Store intended path before authentication redirect
-  const storeIntendedPath = () => {
-    try {
-      const currentPath = window.location.pathname + window.location.search;
-      // Don't store auth-related paths
-      if (!currentPath.includes('/auth') && !currentPath.includes('/login')) {
-        sessionStorage.setItem('auth_intended_path', currentPath);
-      }
-    } catch (error) {
-      console.warn('Failed to store intended path:', error);
-    }
-  };
 
-  // Get and clear stored intended path
-  const getAndClearIntendedPath = () => {
-    try {
-      const intendedPath = sessionStorage.getItem('auth_intended_path');
-      if (intendedPath) {
-        sessionStorage.removeItem('auth_intended_path');
-        return intendedPath;
-      }
-      return '/';
-    } catch (error) {
-      console.warn('Failed to get intended path:', error);
-      return '/';
-    }
-  };
 
   const signIn = async () => {
     try {
       clearErrorState();
       console.log('🔐 Starting Google sign in with redirect...');
       
-      // Configure Google provider with additional parameters
-      googleProvider.setCustomParameters({
-        prompt: 'select_account',
-        hd: 'g.lpru.ac.th' // Prefer institutional domain
-      });
-      
-      // Always use redirect method to avoid popup blocking issues
-      return await signInWithRedirect();
+      // Use AuthService for consistent authentication logic
+      return await AuthService.signInWithGoogle();
       
     } catch (error) {
       // Enhanced error handling
@@ -226,26 +182,7 @@ export const AuthProvider = ({ children }) => {
 
 
 
-  // Redirect authentication
-  const signInWithRedirect = async () => {
-    try {
-      console.log('🔐 Using redirect authentication...');
-      AuthDebugger.logAuthAttempt('google_signin_redirect', false);
-      
-      // Store current path for redirect back after authentication
-      storeIntendedPath();
-      
-      await withRetry(async () => {
-        await firebaseSignInWithRedirect(auth, googleProvider);
-        // Note: This method doesn't return immediately - the page will redirect
-      }, { operation: 'google_sign_in_redirect' }, { maxRetries: 2 });
-      
-      AuthDebugger.logAuthAttempt('google_signin_redirect', true);
-      
-    } catch (error) {
-      throw error;
-    }
-  };
+
 
 
 
