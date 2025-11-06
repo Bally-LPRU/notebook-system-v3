@@ -107,25 +107,39 @@ class AuthService {
   // Handle redirect result after authentication
   static async handleRedirectResult() {
     try {
+      console.log('🔍 AuthService.handleRedirectResult: Starting...');
       await this._checkNetworkConnectivity();
       
       return await withRetry(async () => {
+        console.log('🔍 AuthService: Calling getRedirectResult...');
         const result = await getRedirectResult(auth);
+        
+        console.log('🔍 AuthService: getRedirectResult returned:', result);
         
         if (!result) {
           // No redirect result (user didn't just complete authentication)
+          console.log('🔍 AuthService: No redirect result found');
           return null;
         }
         
         const user = result.user;
+        console.log('🔍 AuthService: User from redirect:', {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName
+        });
         
         // Validate email domain
         if (!this.isValidEmail(user.email)) {
+          console.log('❌ AuthService: Invalid email domain:', user.email);
           await this.signOut();
           throw new Error(ERROR_MESSAGES.INVALID_EMAIL_DOMAIN);
         }
         
+        console.log('✅ AuthService: Email domain valid');
+        
         // Check for duplicate profiles before proceeding
+        console.log('🔍 AuthService: Checking for duplicates...');
         const duplicateCheck = await this.checkForDuplicateProfile(user.email);
         if (duplicateCheck.hasDuplicate) {
           console.log('🔍 Duplicate profile detected during sign in:', duplicateCheck);
@@ -133,21 +147,32 @@ class AuthService {
           return user;
         }
         
+        console.log('✅ AuthService: No duplicates found');
+        
         // Check if user exists in Firestore with retry logic
+        console.log('🔍 AuthService: Checking if user profile exists...');
         const userDoc = await withProfileRetry(async () => {
           return await this.getUserProfile(user.uid);
         }, { operation: 'get_user_profile_signin' });
         
+        console.log('🔍 AuthService: Existing user profile:', userDoc);
+        
         if (!userDoc) {
           // Create new user profile with retry logic
+          console.log('🔍 AuthService: Creating new user profile...');
           await withProfileRetry(async () => {
             await this.createUserProfile(user);
           }, { operation: 'create_user_profile_signin' });
+          console.log('✅ AuthService: New user profile created');
+        } else {
+          console.log('✅ AuthService: User profile already exists');
         }
         
+        console.log('✅ AuthService: handleRedirectResult completed successfully');
         return user;
       }, { operation: 'handle_redirect_result' }, { maxRetries: 3 });
     } catch (error) {
+      console.error('❌ AuthService.handleRedirectResult error:', error);
       const classification = this._handleError(error, 'handle redirect result');
       const errorMessage = ErrorClassifier.getErrorMessage(classification);
       throw new Error(errorMessage.message);

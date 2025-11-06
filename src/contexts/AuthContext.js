@@ -78,21 +78,34 @@ export const AuthProvider = ({ children }) => {
     const handleRedirectResult = async () => {
       try {
         console.log('🔄 Checking for redirect result...');
+        console.log('🔍 Current URL:', window.location.href);
+        console.log('🔍 URL params:', new URLSearchParams(window.location.search).toString());
         
         // Use AuthService to handle redirect result with full logic
         const result = await AuthService.handleRedirectResult();
         
+        console.log('🔍 AuthService.handleRedirectResult returned:', result);
+        
         if (result) {
           console.log('✅ Redirect authentication handled by AuthService');
+          console.log('👤 User from redirect:', result);
           
           // Navigate to intended path after successful authentication
           const intendedPath = AuthService.getAndClearIntendedPath();
+          console.log('🔍 Intended path:', intendedPath);
           if (intendedPath && intendedPath !== '/') {
             window.history.replaceState(null, '', intendedPath);
           }
+        } else {
+          console.log('ℹ️ No redirect result found');
         }
       } catch (error) {
         console.error('❌ Redirect result error:', error);
+        console.error('❌ Error details:', {
+          code: error.code,
+          message: error.message,
+          stack: error.stack
+        });
         handleError(error, 'redirect_result');
       }
     };
@@ -104,24 +117,35 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('🔥 Auth state changed:', user ? 'logged in' : 'logged out');
+      console.log('🔍 User details:', user ? {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        emailVerified: user.emailVerified
+      } : null);
       
       try {
         clearErrorState(); // Clear any previous errors
         
         if (user) {
           setUser(user);
+          console.log('🔍 Setting user in state:', user.uid);
           
           // Get user profile with retry logic
           await withProfileRetry(async () => {
+            console.log('🔍 Looking for user profile in Firestore...');
             const userDocRef = doc(db, 'users', user.uid);
             const userDoc = await getDoc(userDocRef);
+            
+            console.log('🔍 Firestore document exists:', userDoc.exists());
             
             if (userDoc.exists()) {
               const profile = { id: userDoc.id, ...userDoc.data() };
               setUserProfile(profile);
-              console.log('👤 User profile loaded:', profile);
+              console.log('👤 User profile loaded from Firestore:', profile);
             } else {
               // Create new user profile with retry logic
+              console.log('🔍 Creating new user profile in Firestore...');
               const userData = {
                 uid: user.uid,
                 email: user.email,
@@ -135,17 +159,20 @@ export const AuthProvider = ({ children }) => {
               
               await setDoc(userDocRef, userData);
               setUserProfile(userData);
-              console.log('👤 New user profile created:', userData);
+              console.log('👤 New user profile created in Firestore:', userData);
             }
           }, { operation: 'load_user_profile' });
         } else {
+          console.log('🔍 No user, clearing state');
           setUser(null);
           setUserProfile(null);
         }
       } catch (error) {
+        console.error('❌ Auth state change error:', error);
         handleError(error, 'auth_state_change');
       } finally {
         setLoading(false);
+        console.log('🔍 Auth loading set to false');
       }
     });
 
