@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import DuplicateDetectionService from '../../services/duplicateDetectionService';
@@ -11,6 +11,25 @@ import StatusMessage from './StatusMessage';
 const ProfileStatusDisplay = ({ profile, onRetry, showActions = true }) => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
+
+  // Auto-redirect admin to admin dashboard
+  useEffect(() => {
+    if (profile?.role === 'admin' && profile?.status === 'approved') {
+      navigate('/admin', { replace: true });
+    }
+  }, [profile, navigate]);
+
+  // Don't render anything for approved admin - they should be redirected
+  if (profile?.role === 'admin' && profile?.status === 'approved') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">กำลังเปลี่ยนเส้นทางไปหน้า Admin Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!profile) {
     return (

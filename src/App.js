@@ -71,18 +71,7 @@ const AppRoutes = () => {
     );
   }
 
-  // Admin redirect - check if admin and redirect to admin dashboard
-  if (userProfile?.role === 'admin' && window.location.pathname === '/') {
-    window.location.href = '/admin';
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">กำลังเปลี่ยนเส้นทางไปหน้า Admin...</p>
-        </div>
-      </div>
-    );
-  }
+
 
   // Authenticated and approved - show main app
   return (
