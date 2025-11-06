@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, googleProvider, db } from '../config/firebase';
-import { signInWithRedirect as firebaseSignInWithRedirect, signInWithPopup, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithRedirect as firebaseSignInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import DuplicateDetectionService from '../services/duplicateDetectionService';
 import { ErrorClassifier } from '../utils/errorClassification';
 import { withRetry, withProfileRetry } from '../utils/retryHandler';
 import { logError } from '../utils/errorLogger';
 import { AuthDebugger } from '../utils/authDebugger';
-import PopupBlockingDetector from '../utils/popupBlockingDetector';
+
 
 const AuthContext = createContext();
 
@@ -192,10 +192,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signIn = async (forceRedirect = false) => {
+  const signIn = async () => {
     try {
       clearErrorState();
-      console.log('🔐 Starting Google sign in...');
+      console.log('🔐 Starting Google sign in with redirect...');
       
       // Configure Google provider with additional parameters
       googleProvider.setCustomParameters({
@@ -203,17 +203,12 @@ export const AuthProvider = ({ children }) => {
         hd: 'g.lpru.ac.th' // Prefer institutional domain
       });
       
-      // If forced to use redirect, skip popup detection
-      if (forceRedirect) {
-        return await signInWithRedirect();
-      }
-
-      // Try popup with fallback to redirect
-      return await signInWithPopupFallback();
+      // Always use redirect method to avoid popup blocking issues
+      return await signInWithRedirect();
       
     } catch (error) {
       // Enhanced error handling
-      if (error.code === 'auth/cancelled-popup-request') {
+      if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/user-cancelled') {
         error.message = 'การเข้าสู่ระบบถูกยกเลิก';
       } else if (error.code === 'auth/network-request-failed') {
         error.message = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่';
@@ -229,58 +224,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Popup authentication with fallback
-  const signInWithPopupFallback = async () => {
-    try {
-      // First, detect if popups are likely to be blocked
-      const blockingDetection = await PopupBlockingDetector.detectPopupBlocking();
-      
-      if (blockingDetection.isBlocked && blockingDetection.confidence > 70) {
-        console.log('🚫 Popup blocking detected, using redirect method');
-        return await signInWithRedirect();
-      }
 
-      // Try popup authentication
-      console.log('🔐 Attempting popup authentication...');
-      AuthDebugger.logAuthAttempt('google_signin_popup', false);
-      
-      const result = await withRetry(async () => {
-        const result = await signInWithPopup(auth, googleProvider);
-        const user = result.user;
-        
-        console.log('✅ Popup sign in successful:', user.email);
-        
-        // Validate email domain
-        const allowedDomains = ['gmail.com', 'g.lpru.ac.th'];
-        const userDomain = user.email.split('@')[1];
-        
-        if (!allowedDomains.includes(userDomain)) {
-          await signOut(auth);
-          throw new Error('อีเมลของคุณไม่ได้รับอนุญาตให้เข้าใช้งานระบบ กรุณาใช้อีเมล @gmail.com หรือ @g.lpru.ac.th');
-        }
-
-        // Check for duplicate profiles before proceeding
-        const duplicateCheck = await DuplicateDetectionService.detectDuplicates(user.email);
-        if (duplicateCheck.hasDuplicate) {
-          console.log('🔍 Duplicate profile detected during popup sign in:', duplicateCheck);
-        }
-        
-        return user;
-      }, { operation: 'google_sign_in_popup' }, { maxRetries: 1 });
-      
-      AuthDebugger.logAuthAttempt('google_signin_popup', true);
-      return result;
-      
-    } catch (error) {
-      // Check if error is popup-related
-      if (isPopupBlockedError(error)) {
-        console.log('🔄 Popup blocked, falling back to redirect method');
-        return await signInWithRedirect();
-      }
-      
-      throw error;
-    }
-  };
 
   // Redirect authentication
   const signInWithRedirect = async () => {
@@ -303,25 +247,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Check if error is related to popup blocking
-  const isPopupBlockedError = (error) => {
-    const popupBlockedCodes = [
-      'auth/popup-blocked',
-      'auth/popup-closed-by-user',
-      'auth/cancelled-popup-request'
-    ];
-    
-    const popupBlockedMessages = [
-      'popup',
-      'blocked',
-      'closed'
-    ];
-    
-    return popupBlockedCodes.includes(error.code) ||
-           popupBlockedMessages.some(msg => 
-             error.message.toLowerCase().includes(msg)
-           );
-  };
+
 
   const handleSignOut = async () => {
     try {

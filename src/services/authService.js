@@ -1,6 +1,5 @@
 import { 
   signInWithRedirect, 
-  signInWithPopup,
   getRedirectResult,
   signOut, 
   onAuthStateChanged
@@ -11,7 +10,7 @@ import { logError } from '../utils/errorLogger';
 import { ErrorClassifier } from '../utils/errorClassification';
 import { withRetry, withProfileRetry, withFirestoreRetry } from '../utils/retryHandler';
 import DuplicateDetectionService from './duplicateDetectionService';
-import PopupBlockingDetector from '../utils/popupBlockingDetector';
+
 
 // Error types for better error handling
 const ERROR_TYPES = {
@@ -66,19 +65,14 @@ class AuthService {
     }
   }
 
-  // Sign in with Google using popup with fallback to redirect
-  static async signInWithGoogle(forceRedirect = false) {
+  // Sign in with Google using redirect method (no popup blocking issues)
+  static async signInWithGoogle() {
     try {
       // Check network connectivity first
       await this._checkNetworkConnectivity();
       
-      // If forced to use redirect or popup is detected as blocked, use redirect
-      if (forceRedirect) {
-        return await this._signInWithRedirect();
-      }
-
-      // Try popup first, fallback to redirect if blocked
-      return await this._signInWithPopupFallback();
+      // Always use redirect method to avoid popup blocking issues
+      return await this._signInWithRedirect();
       
     } catch (error) {
       const classification = this._handleError(error, 'sign in with google');
@@ -87,64 +81,7 @@ class AuthService {
     }
   }
 
-  // Private method for popup authentication with fallback
-  static async _signInWithPopupFallback() {
-    try {
-      // First, detect if popups are likely to be blocked
-      const blockingDetection = await PopupBlockingDetector.detectPopupBlocking();
-      
-      if (blockingDetection.isBlocked && blockingDetection.confidence > 70) {
-        console.log('🚫 Popup blocking detected, using redirect method');
-        return await this._signInWithRedirect();
-      }
 
-      // Try popup authentication
-      console.log('🔐 Attempting popup authentication...');
-      
-      return await withRetry(async () => {
-        const result = await signInWithPopup(auth, googleProvider);
-        const user = result.user;
-        
-        console.log('✅ Popup sign in successful:', user.email);
-        
-        // Validate email domain
-        if (!this.isValidEmail(user.email)) {
-          await this.signOut();
-          throw new Error(ERROR_MESSAGES.INVALID_EMAIL_DOMAIN);
-        }
-        
-        // Check for duplicate profiles before proceeding
-        const duplicateCheck = await this.checkForDuplicateProfile(user.email);
-        if (duplicateCheck.hasDuplicate) {
-          console.log('🔍 Duplicate profile detected during popup sign in:', duplicateCheck);
-          return user;
-        }
-        
-        // Check if user exists in Firestore with retry logic
-        const userDoc = await withProfileRetry(async () => {
-          return await this.getUserProfile(user.uid);
-        }, { operation: 'get_user_profile_signin' });
-        
-        if (!userDoc) {
-          // Create new user profile with retry logic
-          await withProfileRetry(async () => {
-            await this.createUserProfile(user);
-          }, { operation: 'create_user_profile_signin' });
-        }
-        
-        return user;
-      }, { operation: 'google_sign_in_popup' }, { maxRetries: 1 });
-      
-    } catch (error) {
-      // Check if error is popup-related
-      if (this._isPopupBlockedError(error)) {
-        console.log('🔄 Popup blocked, falling back to redirect method');
-        return await this._signInWithRedirect();
-      }
-      
-      throw error;
-    }
-  }
 
   // Private method for redirect authentication
   static async _signInWithRedirect() {
@@ -165,25 +102,7 @@ class AuthService {
     }
   }
 
-  // Check if error is related to popup blocking
-  static _isPopupBlockedError(error) {
-    const popupBlockedCodes = [
-      'auth/popup-blocked',
-      'auth/popup-closed-by-user',
-      'auth/cancelled-popup-request'
-    ];
-    
-    const popupBlockedMessages = [
-      'popup',
-      'blocked',
-      'closed'
-    ];
-    
-    return popupBlockedCodes.includes(error.code) ||
-           popupBlockedMessages.some(msg => 
-             error.message.toLowerCase().includes(msg)
-           );
-  }
+
 
   // Handle redirect result after authentication
   static async handleRedirectResult() {

@@ -75,10 +75,10 @@ const PublicHomepageContent = memo(() => {
       let errorMessage = error.message;
       let errorType = 'error';
       
-      // Check for popup blocked scenarios
+      // Check for authentication cancelled scenarios
       if (error.message?.includes('popup') && error.message?.includes('blocked')) {
-        errorMessage = 'หน้าต่างการเข้าสู่ระบบถูกบล็อก กรุณาอนุญาตป๊อปอัพในเบราว์เซอร์และลองใหม่';
-        errorType = 'popup-blocked';
+        errorMessage = 'การเข้าสู่ระบบถูกยกเลิก กรุณาลองใหม่';
+        errorType = 'cancelled';
       }
       // Check for popup closed by user
       else if (error.message?.includes('popup') && error.message?.includes('closed')) {
@@ -161,8 +161,6 @@ const PublicHomepageContent = memo(() => {
               <div className={`border rounded-xl p-3 sm:p-4 shadow-sm ${
                 authError.type === 'domain-validation' 
                   ? 'bg-yellow-50 border-yellow-200' 
-                  : authError.type === 'popup-blocked'
-                  ? 'bg-blue-50 border-blue-200'
                   : authError.type === 'cancelled'
                   ? 'bg-gray-50 border-gray-200'
                   : 'bg-red-50 border-red-200'
@@ -172,10 +170,6 @@ const PublicHomepageContent = memo(() => {
                     {authError.type === 'domain-validation' ? (
                       <svg className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                    ) : authError.type === 'popup-blocked' ? (
-                      <svg className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                       </svg>
                     ) : authError.type === 'cancelled' ? (
                       <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
@@ -191,8 +185,6 @@ const PublicHomepageContent = memo(() => {
                     <p className={`text-xs sm:text-sm ${
                       authError.type === 'domain-validation' 
                         ? 'text-yellow-800' 
-                        : authError.type === 'popup-blocked'
-                        ? 'text-blue-800'
                         : authError.type === 'cancelled'
                         ? 'text-gray-800'
                         : 'text-red-800'
@@ -201,13 +193,6 @@ const PublicHomepageContent = memo(() => {
                     </p>
                     
                     {/* Additional help text for specific error types */}
-                    {authError.type === 'popup-blocked' && (
-                      <div className="mt-1 sm:mt-2">
-                        <p className="text-xs text-blue-600 leading-relaxed">
-                          วิธีแก้ไข: คลิกที่ไอคอนป๊อปอัพที่ถูกบล็อกในแถบที่อยู่ของเบราว์เซอร์ แล้วเลือก "อนุญาตป๊อปอัพ"
-                        </p>
-                      </div>
-                    )}
                     
                     {authError.type === 'domain-validation' && (
                       <div className="mt-1 sm:mt-2">
@@ -234,8 +219,6 @@ const PublicHomepageContent = memo(() => {
                       className={`inline-flex p-1 rounded-lg transition-colors duration-200 ${
                         authError.type === 'domain-validation' 
                           ? 'text-yellow-400 hover:text-yellow-600 hover:bg-yellow-100' 
-                          : authError.type === 'popup-blocked'
-                          ? 'text-blue-400 hover:text-blue-600 hover:bg-blue-100'
                           : authError.type === 'cancelled'
                           ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                           : 'text-red-400 hover:text-red-600 hover:bg-red-100'

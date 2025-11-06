@@ -350,7 +350,7 @@ class LabelPrintingService {
       const printWindow = window.open('', '_blank');
       
       if (!printWindow) {
-        throw new Error('ไม่สามารถเปิดหน้าต่างพิมพ์ได้ กรุณาอนุญาต popup');
+        throw new Error('ไม่สามารถเปิดหน้าต่างพิมพ์ได้ กรุณาตรวจสอบการตั้งค่าเบราว์เซอร์');
       }
 
       printWindow.document.write(labelHtml);
