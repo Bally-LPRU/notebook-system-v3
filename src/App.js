@@ -71,6 +71,15 @@ const AppRoutes = () => {
     );
   }
 
+  // Admin redirect - if admin is approved, redirect to admin dashboard
+  if (userProfile?.role === 'admin' && userProfile?.status === 'approved') {
+    return (
+      <Routes>
+        <Route path="*" element={<Navigate to="/admin" replace />} />
+      </Routes>
+    );
+  }
+
 
 
   // Authenticated and approved - show main app
