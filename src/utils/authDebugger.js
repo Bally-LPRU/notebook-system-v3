@@ -108,7 +108,7 @@ export class AuthDebugger {
     try {
       headers.contentSecurityPolicy = document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content || 'Not set';
       headers.xFrameOptions = 'Cannot check from client';
-      headers.httpsOnly = location.protocol === 'https:';
+      headers.httpsOnly = window.location.protocol === 'https:';
       headers.secureContext = window.isSecureContext;
     } catch (error) {
       headers.error = error.message;
