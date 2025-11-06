@@ -28,6 +28,9 @@ const LazyMyRequests = lazy(() => import('./components/requests/MyRequests'));
 const LazyReservationPage = lazy(() => import('./components/reservations/ReservationPage'));
 const LazyReportsPage = lazy(() => import('./components/reports/ReportsPage'));
 
+// Simple login for debugging
+const SimpleLogin = lazy(() => import('./components/auth/SimpleLogin'));
+
 // Main App Routes Component
 const AppRoutes = () => {
   const { user, userProfile, loading, needsProfileSetup } = useAuth();
@@ -49,6 +52,7 @@ const AppRoutes = () => {
       <Routes>
         <Route path="/" element={<PublicHomepage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/simple-login" element={<SimpleLogin />} />
         <Route path="/pending-approval" element={<Navigate to="/login" replace />} />
         <Route path="/account-rejected" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
