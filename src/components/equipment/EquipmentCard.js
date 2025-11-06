@@ -298,6 +298,7 @@ const EquipmentCard = ({
           )}
         </div>
       </div>
+      </div>
     </div>
   );
 };
