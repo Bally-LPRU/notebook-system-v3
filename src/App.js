@@ -76,7 +76,11 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={
         <ProtectedRoute>
-          <LazyDashboard />
+          {userProfile?.role === 'admin' ? (
+            <Navigate to="/admin" replace />
+          ) : (
+            <LazyDashboard />
+          )}
         </ProtectedRoute>
       } />
       
