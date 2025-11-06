@@ -1,5 +1,7 @@
 import { 
-  signInWithPopup, 
+  signInWithRedirect, 
+  signInWithPopup,
+  getRedirectResult,
   signOut, 
   onAuthStateChanged
 } from 'firebase/auth';
@@ -9,6 +11,7 @@ import { logError } from '../utils/errorLogger';
 import { ErrorClassifier } from '../utils/errorClassification';
 import { withRetry, withProfileRetry, withFirestoreRetry } from '../utils/retryHandler';
 import DuplicateDetectionService from './duplicateDetectionService';
+import PopupBlockingDetector from '../utils/popupBlockingDetector';
 
 // Error types for better error handling
 const ERROR_TYPES = {
@@ -23,9 +26,8 @@ const ERROR_TYPES = {
 // Error messages in Thai for user-friendly display
 const ERROR_MESSAGES = {
   NETWORK_ERROR: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต',
-  AUTH_POPUP_BLOCKED: 'หน้าต่างการเข้าสู่ระบบถูกบล็อก กรุณาอนุญาตป๊อปอัพและลองใหม่',
-  AUTH_POPUP_CLOSED: 'หน้าต่างการเข้าสู่ระบบถูกปิด กรุณาลองใหม่',
   AUTH_CANCELLED: 'การเข้าสู่ระบบถูกยกเลิก',
+  AUTH_REDIRECT_ERROR: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่',
   INVALID_EMAIL_DOMAIN: 'อีเมลของคุณไม่ได้รับอนุญาตให้เข้าใช้งานระบบ กรุณาใช้อีเมล @gmail.com หรือ @g.lpru.ac.th',
   PROFILE_FETCH_ERROR: 'ไม่สามารถดึงข้อมูลโปรไฟล์ได้ กรุณาลองใหม่',
   PROFILE_CREATE_ERROR: 'ไม่สามารถสร้างโปรไฟล์ได้ กรุณาลองใหม่',
@@ -64,14 +66,138 @@ class AuthService {
     }
   }
 
-  // Sign in with Google with enhanced error handling and duplicate detection
-  static async signInWithGoogle() {
+  // Sign in with Google using popup with fallback to redirect
+  static async signInWithGoogle(forceRedirect = false) {
     try {
       // Check network connectivity first
       await this._checkNetworkConnectivity();
       
+      // If forced to use redirect or popup is detected as blocked, use redirect
+      if (forceRedirect) {
+        return await this._signInWithRedirect();
+      }
+
+      // Try popup first, fallback to redirect if blocked
+      return await this._signInWithPopupFallback();
+      
+    } catch (error) {
+      const classification = this._handleError(error, 'sign in with google');
+      const errorMessage = ErrorClassifier.getErrorMessage(classification);
+      throw new Error(errorMessage.message);
+    }
+  }
+
+  // Private method for popup authentication with fallback
+  static async _signInWithPopupFallback() {
+    try {
+      // First, detect if popups are likely to be blocked
+      const blockingDetection = await PopupBlockingDetector.detectPopupBlocking();
+      
+      if (blockingDetection.isBlocked && blockingDetection.confidence > 70) {
+        console.log('🚫 Popup blocking detected, using redirect method');
+        return await this._signInWithRedirect();
+      }
+
+      // Try popup authentication
+      console.log('🔐 Attempting popup authentication...');
+      
       return await withRetry(async () => {
         const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+        
+        console.log('✅ Popup sign in successful:', user.email);
+        
+        // Validate email domain
+        if (!this.isValidEmail(user.email)) {
+          await this.signOut();
+          throw new Error(ERROR_MESSAGES.INVALID_EMAIL_DOMAIN);
+        }
+        
+        // Check for duplicate profiles before proceeding
+        const duplicateCheck = await this.checkForDuplicateProfile(user.email);
+        if (duplicateCheck.hasDuplicate) {
+          console.log('🔍 Duplicate profile detected during popup sign in:', duplicateCheck);
+          return user;
+        }
+        
+        // Check if user exists in Firestore with retry logic
+        const userDoc = await withProfileRetry(async () => {
+          return await this.getUserProfile(user.uid);
+        }, { operation: 'get_user_profile_signin' });
+        
+        if (!userDoc) {
+          // Create new user profile with retry logic
+          await withProfileRetry(async () => {
+            await this.createUserProfile(user);
+          }, { operation: 'create_user_profile_signin' });
+        }
+        
+        return user;
+      }, { operation: 'google_sign_in_popup' }, { maxRetries: 1 });
+      
+    } catch (error) {
+      // Check if error is popup-related
+      if (this._isPopupBlockedError(error)) {
+        console.log('🔄 Popup blocked, falling back to redirect method');
+        return await this._signInWithRedirect();
+      }
+      
+      throw error;
+    }
+  }
+
+  // Private method for redirect authentication
+  static async _signInWithRedirect() {
+    try {
+      console.log('🔐 Using redirect authentication...');
+      
+      // Store current path for redirect back after authentication
+      this.storeIntendedPath();
+      
+      return await withRetry(async () => {
+        // Use redirect instead of popup to avoid blocking issues
+        await signInWithRedirect(auth, googleProvider);
+        // Note: This method doesn't return immediately - the page will redirect
+        // The actual user processing happens in handleRedirectResult
+      }, { operation: 'google_sign_in_redirect' }, { maxRetries: 2 });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Check if error is related to popup blocking
+  static _isPopupBlockedError(error) {
+    const popupBlockedCodes = [
+      'auth/popup-blocked',
+      'auth/popup-closed-by-user',
+      'auth/cancelled-popup-request'
+    ];
+    
+    const popupBlockedMessages = [
+      'popup',
+      'blocked',
+      'closed'
+    ];
+    
+    return popupBlockedCodes.includes(error.code) ||
+           popupBlockedMessages.some(msg => 
+             error.message.toLowerCase().includes(msg)
+           );
+  }
+
+  // Handle redirect result after authentication
+  static async handleRedirectResult() {
+    try {
+      await this._checkNetworkConnectivity();
+      
+      return await withRetry(async () => {
+        const result = await getRedirectResult(auth);
+        
+        if (!result) {
+          // No redirect result (user didn't just complete authentication)
+          return null;
+        }
+        
         const user = result.user;
         
         // Validate email domain
@@ -101,11 +227,39 @@ class AuthService {
         }
         
         return user;
-      }, { operation: 'google_sign_in' }, { maxRetries: 3 });
+      }, { operation: 'handle_redirect_result' }, { maxRetries: 3 });
     } catch (error) {
-      const classification = this._handleError(error, 'sign in');
+      const classification = this._handleError(error, 'handle redirect result');
       const errorMessage = ErrorClassifier.getErrorMessage(classification);
       throw new Error(errorMessage.message);
+    }
+  }
+
+  // Store intended path before authentication redirect
+  static storeIntendedPath() {
+    try {
+      const currentPath = window.location.pathname + window.location.search;
+      // Don't store auth-related paths
+      if (!currentPath.includes('/auth') && !currentPath.includes('/login')) {
+        sessionStorage.setItem('auth_intended_path', currentPath);
+      }
+    } catch (error) {
+      console.warn('Failed to store intended path:', error);
+    }
+  }
+
+  // Get and clear stored intended path
+  static getAndClearIntendedPath() {
+    try {
+      const intendedPath = sessionStorage.getItem('auth_intended_path');
+      if (intendedPath) {
+        sessionStorage.removeItem('auth_intended_path');
+        return intendedPath;
+      }
+      return '/';
+    } catch (error) {
+      console.warn('Failed to get intended path:', error);
+      return '/';
     }
   }
 

@@ -13,6 +13,7 @@ import PWAInstallPrompt from './components/common/PWAInstallPrompt';
 import OfflineIndicator from './components/common/OfflineIndicator';
 import { lazy, useEffect, useState } from 'react';
 import { register } from './utils/serviceWorkerRegistration';
+import PopupBlockingDetector from './utils/popupBlockingDetector';
 import './App.css';
 
 // Public components
@@ -135,6 +136,9 @@ function App() {
   const [swRegistration, setSwRegistration] = useState(null);
 
   useEffect(() => {
+    // Initialize popup blocking detection
+    PopupBlockingDetector.initializeInteractionTracking();
+    
     // Register service worker
     register({
       onSuccess: (registration) => {

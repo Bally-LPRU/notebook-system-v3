@@ -110,3 +110,43 @@
   - Test error boundary behavior with different error types
   - Test authentication service error scenarios
   - _Requirements: 1.1, 2.1, 3.2_
+
+- [x] 7. Replace popup authentication with redirect method
+
+  - [x] 7.1 Update AuthService to use signInWithRedirect instead of signInWithPopup
+
+
+    - Modify authentication methods to use Firebase redirect authentication
+    - Remove popup-based authentication code
+    - _Requirements: 4.1, 4.2_
+
+  
+  - [x] 7.2 Implement redirect result handling
+
+    - Add getRedirectResult handling in AuthContext
+    - Handle authentication completion after redirect
+    - _Requirements: 4.2, 4.3_
+  
+  - [x] 7.3 Add navigation state preservation
+
+    - Store intended destination before authentication
+    - Restore user's intended path after successful login
+    - _Requirements: 4.5_
+
+- [x] 8. Add popup blocking detection and fallback
+
+
+  - [x] 8.1 Implement popup blocking detection utility
+
+
+    - Create function to detect if popups are blocked
+    - Add automatic fallback to redirect method
+    - _Requirements: 4.4_
+  
+  - [x] 8.2 Update authentication flow with fallback logic
+
+
+
+    - Try popup first, fallback to redirect if blocked
+    - Provide user feedback about authentication method being used
+    - _Requirements: 4.1, 4.4_

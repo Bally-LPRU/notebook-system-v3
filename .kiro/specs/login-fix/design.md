@@ -23,6 +23,11 @@ This design addresses the login authentication issues by implementing proper err
    - Clear error messages for missing configuration
    - Automatic environment detection
 
+4. **Authentication Method Enhancement**
+   - Replace popup-based authentication with redirect method
+   - Implement popup blocking detection and fallback
+   - Preserve user navigation state during authentication flow
+
 ## Components and Interfaces
 
 ### Firebase Configuration Service
@@ -52,6 +57,18 @@ class ConfigValidator {
   static validateFirebaseConfig(config)
   static getRequiredFields(environment)
   static formatValidationErrors(errors)
+}
+```
+
+### Authentication Service
+```javascript
+// Enhanced authentication with redirect support
+class AuthService {
+  static signInWithRedirect()
+  static getRedirectResult()
+  static detectPopupBlocking()
+  static preserveNavigationState(intendedPath)
+  static restoreNavigationState()
 }
 ```
 
@@ -129,7 +146,12 @@ class ConfigValidator {
 2. Implement graceful degradation for optional services
 3. Add specific error handling for different failure types
 
-### Phase 3: User Experience Improvements
+### Phase 3: Authentication Method Migration
+1. Replace popup authentication with redirect method
+2. Implement popup blocking detection
+3. Add navigation state preservation during auth flow
+
+### Phase 4: User Experience Improvements
 1. Create user-friendly error messages
 2. Add loading states during initialization
 3. Implement retry mechanisms where appropriate

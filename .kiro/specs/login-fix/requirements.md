@@ -48,3 +48,15 @@
 3. IF production configuration is incomplete, THEN THE Authentication_System SHALL fail gracefully with helpful error messages
 4. WHEN switching between environments, THE Firebase_Config SHALL automatically select appropriate configuration
 5. WHILE validating configuration, THE Firebase_Config SHALL ensure all required fields are present and valid
+
+### Requirement 4
+
+**User Story:** As a user, I want to log in without popup blocking issues, so that I can access the system easily without browser configuration changes
+
+#### Acceptance Criteria
+
+1. WHEN a user clicks the login button, THE Authentication_System SHALL use redirect-based authentication instead of popup
+2. WHEN authentication is initiated, THE Authentication_System SHALL redirect to Google's authentication page in the same window
+3. WHEN authentication is completed, THE Authentication_System SHALL redirect back to the application automatically
+4. IF popup blocking is detected, THEN THE Authentication_System SHALL automatically fallback to redirect method
+5. WHILE using redirect authentication, THE Authentication_System SHALL preserve the user's intended destination after login
