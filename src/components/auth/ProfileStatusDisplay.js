@@ -58,8 +58,13 @@ const ProfileStatusDisplay = ({ profile, onRetry, showActions = true }) => {
         // Stay on current page to complete profile
         break;
       case 'approved':
-        const dashboardRoute = DuplicateDetectionService.getDashboardRoute(profile);
-        navigate(dashboardRoute);
+        // Check if user is admin and redirect accordingly
+        if (profile.role === 'admin') {
+          navigate('/admin');
+        } else {
+          const dashboardRoute = DuplicateDetectionService.getDashboardRoute(profile);
+          navigate(dashboardRoute);
+        }
         break;
       default:
         if (onRetry) onRetry();
