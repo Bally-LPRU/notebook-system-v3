@@ -68,13 +68,20 @@ class AuthService {
   // Sign in with Google using redirect method (no popup blocking issues)
   static async signInWithGoogle() {
     try {
+      console.log('🔍 AuthService.signInWithGoogle: Starting...');
+      
       // Check network connectivity first
       await this._checkNetworkConnectivity();
+      console.log('✅ Network connectivity check passed');
       
       // Always use redirect method to avoid popup blocking issues
-      return await this._signInWithRedirect();
+      console.log('🔍 Calling _signInWithRedirect...');
+      const result = await this._signInWithRedirect();
+      console.log('🔍 _signInWithRedirect result:', result);
+      return result;
       
     } catch (error) {
+      console.error('❌ AuthService.signInWithGoogle error:', error);
       const classification = this._handleError(error, 'sign in with google');
       const errorMessage = ErrorClassifier.getErrorMessage(classification);
       throw new Error(errorMessage.message);
@@ -88,16 +95,27 @@ class AuthService {
     try {
       console.log('🔐 Using redirect authentication...');
       
+      // Configure Google provider with additional parameters
+      googleProvider.setCustomParameters({
+        prompt: 'select_account',
+        hd: 'g.lpru.ac.th' // Prefer institutional domain
+      });
+      
+      console.log('🔍 Google provider configured:', googleProvider.customParameters);
+      
       // Store current path for redirect back after authentication
       this.storeIntendedPath();
       
       return await withRetry(async () => {
+        console.log('🔍 Calling signInWithRedirect...');
         // Use redirect instead of popup to avoid blocking issues
         await signInWithRedirect(auth, googleProvider);
+        console.log('🔍 signInWithRedirect called - should redirect now');
         // Note: This method doesn't return immediately - the page will redirect
         // The actual user processing happens in handleRedirectResult
       }, { operation: 'google_sign_in_redirect' }, { maxRetries: 2 });
     } catch (error) {
+      console.error('❌ _signInWithRedirect error:', error);
       throw error;
     }
   }

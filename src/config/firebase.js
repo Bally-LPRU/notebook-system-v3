@@ -60,8 +60,11 @@ try {
 // Initialize Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
-  prompt: 'select_account'
+  prompt: 'select_account',
+  hd: 'g.lpru.ac.th' // Prefer institutional domain but allow others
 });
+
+console.log('✅ Google Auth Provider initialized');
 
 // Service status check
 export const getServiceStatus = () => ({

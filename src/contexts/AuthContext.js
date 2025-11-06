@@ -185,11 +185,22 @@ export const AuthProvider = ({ children }) => {
     try {
       clearErrorState();
       console.log('🔐 Starting Google sign in with redirect...');
+      console.log('🔍 Current auth state:', auth.currentUser);
+      console.log('🔍 Auth domain:', auth.config.authDomain);
       
       // Use AuthService for consistent authentication logic
-      return await AuthService.signInWithGoogle();
+      const result = await AuthService.signInWithGoogle();
+      console.log('🔍 AuthService.signInWithGoogle result:', result);
+      return result;
       
     } catch (error) {
+      console.error('❌ SignIn error in AuthContext:', error);
+      console.error('❌ Error details:', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack
+      });
+      
       // Enhanced error handling
       if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/user-cancelled') {
         error.message = 'การเข้าสู่ระบบถูกยกเลิก';
@@ -197,6 +208,8 @@ export const AuthProvider = ({ children }) => {
         error.message = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่';
       } else if (error.code === 'auth/operation-not-allowed') {
         error.message = 'การเข้าสู่ระบบด้วย Google ไม่ได้รับอนุญาต กรุณาติดต่อผู้ดูแลระบบ';
+      } else if (error.code === 'auth/unauthorized-domain') {
+        error.message = 'โดเมนนี้ไม่ได้รับอนุญาตให้ใช้งาน Firebase Authentication';
       }
       
       // Log failed auth attempt
