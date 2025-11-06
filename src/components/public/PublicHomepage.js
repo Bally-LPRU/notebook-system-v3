@@ -49,6 +49,10 @@ const PublicHomepageContent = memo(() => {
       setAuthLoading(true);
       setAuthError(null);
       
+      // Run quick fix before attempting sign in
+      const { AuthFixer } = await import('../../utils/authFixer');
+      await AuthFixer.quickFix();
+      
       await signIn();
       
       // Redirect logic after successful authentication

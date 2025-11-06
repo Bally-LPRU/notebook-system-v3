@@ -1,19 +1,16 @@
 // Equipment Management System Service Worker
 // Provides offline support, caching, and background sync
 
-const CACHE_NAME = 'equipment-management-v1';
-const STATIC_CACHE_NAME = 'equipment-static-v1';
-const DYNAMIC_CACHE_NAME = 'equipment-dynamic-v1';
-const IMAGE_CACHE_NAME = 'equipment-images-v1';
+const CACHE_NAME = 'equipment-management-v2';
+const STATIC_CACHE_NAME = 'equipment-static-v2';
+const DYNAMIC_CACHE_NAME = 'equipment-dynamic-v2';
+const IMAGE_CACHE_NAME = 'equipment-images-v2';
 
-// Static assets to cache
+// Static assets to cache - updated to be more conservative
 const STATIC_ASSETS = [
   '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
   '/manifest.json',
-  '/favicon.ico',
-  // Add other static assets as needed
+  '/favicon.ico'
 ];
 
 // API endpoints to cache
@@ -35,10 +32,14 @@ self.addEventListener('install', (event) => {
   
   event.waitUntil(
     Promise.all([
-      // Cache static assets
+      // Cache static assets with error handling
       caches.open(STATIC_CACHE_NAME).then((cache) => {
         console.log('Service Worker: Caching static assets');
-        return cache.addAll(STATIC_ASSETS);
+        return cache.addAll(STATIC_ASSETS).catch((error) => {
+          console.warn('Service Worker: Failed to cache some static assets:', error);
+          // Continue installation even if some assets fail to cache
+          return Promise.resolve();
+        });
       }),
       
       // Skip waiting to activate immediately

@@ -38,7 +38,7 @@ function registerValidSW(swUrl, config) {
   navigator.serviceWorker
     .register(swUrl)
     .then((registration) => {
-      console.log('Service Worker registered successfully:', registration);
+      console.log('✅ Service Worker registered successfully:', registration);
       
       // Handle updates
       registration.addEventListener('updatefound', () => {
@@ -51,15 +51,15 @@ function registerValidSW(swUrl, config) {
           if (installingWorker.state === 'installed') {
             if (navigator.serviceWorker.controller) {
               console.log(
-                'New content is available and will be used when all ' +
-                'tabs for this page are closed. See https://cra.link/PWA.'
+                '🔄 New content is available and will be used when all ' +
+                'tabs for this page are closed.'
               );
               
               if (config && config.onUpdate) {
                 config.onUpdate(registration);
               }
             } else {
-              console.log('Content is cached for offline use.');
+              console.log('📱 Content is cached for offline use.');
               
               if (config && config.onSuccess) {
                 config.onSuccess(registration);
@@ -69,15 +69,28 @@ function registerValidSW(swUrl, config) {
         });
       });
       
-      // Set up background sync
-      setupBackgroundSync(registration);
+      // Set up background sync with error handling
+      try {
+        setupBackgroundSync(registration);
+      } catch (error) {
+        console.warn('⚠️ Background sync setup failed:', error);
+      }
       
-      // Set up push notifications
-      setupPushNotifications(registration);
+      // Set up push notifications with error handling
+      try {
+        setupPushNotifications(registration);
+      } catch (error) {
+        console.warn('⚠️ Push notifications setup failed:', error);
+      }
       
     })
     .catch((error) => {
-      console.error('Error during service worker registration:', error);
+      console.error('❌ Error during service worker registration:', error);
+      
+      // Don't let SW registration failure break the app
+      if (config && config.onError) {
+        config.onError(error);
+      }
     });
 }
 

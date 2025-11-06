@@ -6,6 +6,7 @@ import DuplicateDetectionService from '../services/duplicateDetectionService';
 import { ErrorClassifier } from '../utils/errorClassification';
 import { withRetry, withProfileRetry } from '../utils/retryHandler';
 import { logError } from '../utils/errorLogger';
+import { AuthDebugger } from '../utils/authDebugger';
 
 const AuthContext = createContext();
 
@@ -123,11 +124,29 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signIn = async () => {
+    let debugLog = null;
+    
     try {
       clearErrorState();
       console.log('🔐 Starting Google sign in...');
       
-      return await withRetry(async () => {
+      // Log auth attempt
+      debugLog = AuthDebugger.logAuthAttempt('google_signin', false);
+      
+      // Check if popup blockers might be an issue
+      const testPopup = window.open('', '_blank', 'width=1,height=1');
+      if (!testPopup || testPopup.closed || typeof testPopup.closed === 'undefined') {
+        throw new Error('หน้าต่างการเข้าสู่ระบบถูกบล็อก กรุณาอนุญาตป๊อปอัพในเบราว์เซอร์และลองใหม่');
+      }
+      testPopup.close();
+      
+      const result = await withRetry(async () => {
+        // Configure Google provider with additional parameters
+        googleProvider.setCustomParameters({
+          prompt: 'select_account',
+          hd: 'g.lpru.ac.th' // Prefer institutional domain
+        });
+        
         const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
         
@@ -152,8 +171,27 @@ export const AuthProvider = ({ children }) => {
         }
         
         return user;
-      }, { operation: 'google_sign_in' }, { maxRetries: 3 });
+      }, { operation: 'google_sign_in' }, { maxRetries: 2 });
+      
+      // Log successful auth
+      AuthDebugger.logAuthAttempt('google_signin', true);
+      return result;
+      
     } catch (error) {
+      // Enhanced error handling for common auth issues
+      if (error.code === 'auth/popup-blocked') {
+        error.message = 'หน้าต่างการเข้าสู่ระบบถูกบล็อก กรุณาอนุญาตป๊อปอัพในเบราว์เซอร์และลองใหม่';
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        error.message = 'หน้าต่างการเข้าสู่ระบบถูกปิด กรุณาลองใหม่';
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        error.message = 'การเข้าสู่ระบบถูกยกเลิก';
+      } else if (error.code === 'auth/network-request-failed') {
+        error.message = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่';
+      }
+      
+      // Log failed auth attempt
+      AuthDebugger.logAuthAttempt('google_signin', false, error);
+      
       handleError(error, 'sign_in');
       throw error;
     }
