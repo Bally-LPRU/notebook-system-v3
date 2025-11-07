@@ -95,6 +95,12 @@ class AuthService {
     try {
       console.log('🔐 Using redirect authentication...');
       
+      // CRITICAL: Set persistence BEFORE calling signInWithRedirect
+      // This ensures the auth state persists across the redirect
+      const { setPersistence, browserLocalPersistence } = await import('firebase/auth');
+      await setPersistence(auth, browserLocalPersistence);
+      console.log('✅ Auth persistence set to LOCAL before redirect');
+      
       // Configure Google provider with additional parameters
       googleProvider.setCustomParameters({
         prompt: 'select_account',

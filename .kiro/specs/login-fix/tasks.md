@@ -175,6 +175,9 @@
 
   - [x] 10.1 Configure Firebase Auth persistence mode
 
+
+
+
     - Set Firebase Auth persistence to LOCAL in firebase.js
     - Ensure persistence is set before any auth operations
     - _Requirements: 5.1_
