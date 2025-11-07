@@ -78,11 +78,15 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
-  // Handle redirect result on app initialization
+  // Combined effect: Handle redirect result FIRST, then setup auth state listener
   useEffect(() => {
-    const handleRedirectResult = async () => {
+    let unsubscribe;
+    let isInitialLoad = true;
+    
+    const initializeAuth = async () => {
       try {
-        console.log('🔄 Checking for redirect result...');
+        // STEP 1: Handle redirect result FIRST before setting up listener
+        console.log('🔄 Step 1: Checking for redirect result...');
         console.log('🔍 Current URL:', window.location.href);
         console.log('🔍 URL params:', new URLSearchParams(window.location.search).toString());
         
@@ -113,17 +117,11 @@ export const AuthProvider = ({ children }) => {
         });
         handleError(error, 'redirect_result');
       }
-    };
-
-    handleRedirectResult();
-  }, []);
-
-  // Auth state change handler with enhanced error handling and initialization tracking
-  useEffect(() => {
-    console.log('🔥 Setting up auth state listener...');
-    let isInitialLoad = true;
-    
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      
+      // STEP 2: NOW setup auth state listener after redirect is handled
+      console.log('🔥 Step 2: Setting up auth state listener...');
+      
+      unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('🔥 Auth state changed:', user ? 'logged in' : 'logged out');
       console.log('🔍 Is initial load:', isInitialLoad);
       console.log('🔍 User details:', user ? {
@@ -197,12 +195,18 @@ export const AuthProvider = ({ children }) => {
         setAuthInitialized(true);
         isInitialLoad = false;
       }
-      setLoading(false);
-    });
+        setLoading(false);
+      });
+    };
+    
+    // Start initialization
+    initializeAuth();
 
     return () => {
       console.log('🔥 Cleaning up auth state listener');
-      unsubscribe();
+      if (unsubscribe) {
+        unsubscribe();
+      }
     };
   }, []);
 

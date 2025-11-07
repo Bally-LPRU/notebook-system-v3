@@ -132,13 +132,23 @@ class AuthService {
   static async handleRedirectResult() {
     try {
       console.log('🔍 AuthService.handleRedirectResult: Starting...');
+      console.log('🔍 Current auth state:', auth.currentUser);
+      console.log('🔍 Auth config:', {
+        apiKey: auth.config.apiKey?.substring(0, 10) + '...',
+        authDomain: auth.config.authDomain
+      });
+      
       await this._checkNetworkConnectivity();
       
       return await withRetry(async () => {
         console.log('🔍 AuthService: Calling getRedirectResult...');
+        console.log('🔍 Auth instance:', auth);
+        
         const result = await getRedirectResult(auth);
         
         console.log('🔍 AuthService: getRedirectResult returned:', result);
+        console.log('🔍 Result type:', typeof result);
+        console.log('🔍 Result is null?', result === null);
         
         if (!result) {
           // No redirect result (user didn't just complete authentication)
