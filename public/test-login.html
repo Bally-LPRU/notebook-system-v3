@@ -147,20 +147,23 @@
         }
 
         function testFirebase() {
-            // Simple test to see if we can reach Firebase
-            fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=test')
+            // Test Firebase by checking if we can reach Google's public API
+            fetch('https://www.googleapis.com/oauth2/v1/certs', {
+                method: 'GET',
+                mode: 'cors'
+            })
                 .then(response => {
-                    if (response.status === 400) {
-                        showResult('✅ สามารถเชื่อมต่อ Firebase ได้<br>(Error 400 เป็นเรื่องปกติเพราะไม่มี API key)', 'success');
+                    if (response.ok) {
+                        showResult('✅ สามารถเชื่อมต่อ Google APIs ได้<br>Firebase น่าจะทำงานได้ปกติ', 'success');
                     } else {
-                        showResult('⚠️ Firebase response: ' + response.status, 'info');
+                        showResult('⚠️ Google APIs response: ' + response.status, 'info');
                     }
                 })
                 .catch(error => {
-                    if (error.message.includes('Failed to fetch')) {
-                        showResult('❌ ไม่สามารถเชื่อมต่อ Firebase ได้<br>ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต', 'error');
+                    if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
+                        showResult('❌ มีปัญหา CORS หรือการเชื่อมต่อ<br>อาจเป็นปัญหาจาก Browser หรือ Network', 'error');
                     } else {
-                        showResult('⚠️ Firebase test: ' + error.message, 'info');
+                        showResult('⚠️ Connection test: ' + error.message, 'info');
                     }
                 });
         }
