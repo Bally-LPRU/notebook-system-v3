@@ -32,19 +32,17 @@ const LazyReportsPage = lazy(() => import('./components/reports/ReportsPage'));
 const SimpleLogin = lazy(() => import('./components/auth/SimpleLogin'));
 const PopupLogin = lazy(() => import('./components/auth/PopupLogin'));
 
+// Auth initialization loader component
+const AuthInitializingLoader = lazy(() => import('./components/common/AuthInitializingLoader'));
+
 // Main App Routes Component
 const AppRoutes = () => {
-  const { user, userProfile, loading, needsProfileSetup } = useAuth();
+  const { user, userProfile, loading, authInitialized, needsProfileSetup } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">กำลังโหลด...</p>
-        </div>
-      </div>
-    );
+  // Wait for auth to initialize before rendering routes
+  // This ensures we check for persisted auth state before deciding what to show
+  if (!authInitialized || loading) {
+    return <AuthInitializingLoader />;
   }
 
   // Not authenticated - show public homepage

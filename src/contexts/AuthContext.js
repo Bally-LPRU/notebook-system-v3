@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { auth, db } from '../config/firebase';
-import { signOut, onAuthStateChanged } from 'firebase/auth';
+import { signOut, onAuthStateChanged, onIdTokenChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import DuplicateDetectionService from '../services/duplicateDetectionService';
 import AuthService from '../services/authService';
@@ -24,6 +24,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authInitialized, setAuthInitialized] = useState(false);
   const [error, setError] = useState(null);
   const [errorState, setErrorState] = useState({
     hasError: false,
@@ -31,6 +32,10 @@ export const AuthProvider = ({ children }) => {
     retryable: false,
     retryCount: 0
   });
+  
+  // Ref to track token refresh attempts
+  const tokenRefreshAttempts = useRef(0);
+  const maxTokenRefreshAttempts = 3;
 
   // Enhanced error handling helper
   const handleError = (error, context = 'auth_context') => {
@@ -113,10 +118,14 @@ export const AuthProvider = ({ children }) => {
     handleRedirectResult();
   }, []);
 
-  // Auth state change handler with enhanced error handling
+  // Auth state change handler with enhanced error handling and initialization tracking
   useEffect(() => {
+    console.log('🔥 Setting up auth state listener...');
+    let isInitialLoad = true;
+    
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('🔥 Auth state changed:', user ? 'logged in' : 'logged out');
+      console.log('🔍 Is initial load:', isInitialLoad);
       console.log('🔍 User details:', user ? {
         uid: user.uid,
         email: user.email,
@@ -171,12 +180,94 @@ export const AuthProvider = ({ children }) => {
         console.error('❌ Auth state change error:', error);
         handleError(error, 'auth_state_change');
       } finally {
+        // Mark auth as initialized after first state change
+        if (isInitialLoad) {
+          setAuthInitialized(true);
+          console.log('✅ Auth initialization complete');
+          isInitialLoad = false;
+        }
         setLoading(false);
         console.log('🔍 Auth loading set to false');
       }
+    }, (error) => {
+      // Error callback for onAuthStateChanged
+      console.error('❌ Auth state listener error:', error);
+      handleError(error, 'auth_state_listener');
+      if (isInitialLoad) {
+        setAuthInitialized(true);
+        isInitialLoad = false;
+      }
+      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('🔥 Cleaning up auth state listener');
+      unsubscribe();
+    };
+  }, []);
+
+  // Token refresh and expiration handler
+  useEffect(() => {
+    console.log('🔥 Setting up token refresh listener...');
+    
+    const unsubscribe = onIdTokenChanged(auth, async (user) => {
+      if (user) {
+        try {
+          console.log('🔄 Token changed, refreshing...');
+          
+          // Get fresh token to ensure it's valid
+          await user.getIdToken(true);
+          console.log('✅ Token refreshed successfully');
+          
+          // Reset refresh attempts on successful refresh
+          tokenRefreshAttempts.current = 0;
+          
+          // Verify token hasn't expired
+          const tokenResult = await user.getIdTokenResult();
+          const expirationTime = new Date(tokenResult.expirationTime);
+          const now = new Date();
+          const timeUntilExpiry = expirationTime - now;
+          
+          console.log('🔍 Token expiration:', {
+            expiresAt: expirationTime.toISOString(),
+            timeUntilExpiry: `${Math.floor(timeUntilExpiry / 1000 / 60)} minutes`
+          });
+          
+          // If token is about to expire (less than 5 minutes), refresh it proactively
+          if (timeUntilExpiry < 5 * 60 * 1000) {
+            console.log('⚠️ Token expiring soon, refreshing proactively...');
+            await user.getIdToken(true);
+            console.log('✅ Proactive token refresh complete');
+          }
+          
+        } catch (error) {
+          console.error('❌ Token refresh error:', error);
+          tokenRefreshAttempts.current++;
+          
+          // If we've exceeded max refresh attempts, sign out the user
+          if (tokenRefreshAttempts.current >= maxTokenRefreshAttempts) {
+            console.error('❌ Max token refresh attempts exceeded, signing out...');
+            
+            setError('เซสชันของคุณหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+            
+            // Sign out user
+            try {
+              await signOut(auth);
+            } catch (signOutError) {
+              console.error('❌ Error signing out after token refresh failure:', signOutError);
+            }
+          } else {
+            // Log error but don't sign out yet
+            handleError(error, 'token_refresh');
+          }
+        }
+      }
+    });
+    
+    return () => {
+      console.log('🔥 Cleaning up token refresh listener');
+      unsubscribe();
+    };
   }, []);
 
 
@@ -328,10 +419,46 @@ export const AuthProvider = ({ children }) => {
     return DuplicateDetectionService.getStatusDisplayInfo(userProfile);
   };
 
+  // Manually refresh authentication token
+  const refreshToken = async () => {
+    try {
+      if (!user) {
+        throw new Error('No user logged in');
+      }
+      
+      console.log('🔄 Manually refreshing token...');
+      const token = await user.getIdToken(true);
+      console.log('✅ Token manually refreshed');
+      
+      return token;
+    } catch (error) {
+      console.error('❌ Manual token refresh error:', error);
+      handleError(error, 'manual_token_refresh');
+      throw error;
+    }
+  };
+
+  // Check if token is valid and not expired
+  const isTokenValid = async () => {
+    try {
+      if (!user) return false;
+      
+      const tokenResult = await user.getIdTokenResult();
+      const expirationTime = new Date(tokenResult.expirationTime);
+      const now = new Date();
+      
+      return expirationTime > now;
+    } catch (error) {
+      console.error('❌ Token validation error:', error);
+      return false;
+    }
+  };
+
   const value = {
     user,
     userProfile,
     loading,
+    authInitialized,
     error,
     errorState,
     signIn,
@@ -343,6 +470,8 @@ export const AuthProvider = ({ children }) => {
     checkProfileExists,
     getDashboardRoute,
     getStatusDisplayInfo,
+    refreshToken,
+    isTokenValid,
     isAuthenticated: !!user,
     isApproved: userProfile?.status === 'approved',
     isAdmin: userProfile?.role === 'admin',

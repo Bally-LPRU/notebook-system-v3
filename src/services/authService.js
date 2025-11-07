@@ -419,6 +419,57 @@ class AuthService {
     return auth.currentUser;
   }
 
+  // Refresh authentication token
+  static async refreshToken(forceRefresh = false) {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('No user logged in');
+      }
+      
+      console.log('🔄 Refreshing authentication token...');
+      const token = await user.getIdToken(forceRefresh);
+      console.log('✅ Token refreshed successfully');
+      
+      return token;
+    } catch (error) {
+      const classification = this._handleError(error, 'refresh token');
+      const errorMessage = ErrorClassifier.getErrorMessage(classification);
+      throw new Error(errorMessage.message);
+    }
+  }
+
+  // Check if token is valid
+  static async isTokenValid() {
+    try {
+      const user = auth.currentUser;
+      if (!user) return false;
+      
+      const tokenResult = await user.getIdTokenResult();
+      const expirationTime = new Date(tokenResult.expirationTime);
+      const now = new Date();
+      
+      return expirationTime > now;
+    } catch (error) {
+      console.error('Token validation error:', error);
+      return false;
+    }
+  }
+
+  // Get token expiration time
+  static async getTokenExpirationTime() {
+    try {
+      const user = auth.currentUser;
+      if (!user) return null;
+      
+      const tokenResult = await user.getIdTokenResult();
+      return new Date(tokenResult.expirationTime);
+    } catch (error) {
+      console.error('Error getting token expiration:', error);
+      return null;
+    }
+  }
+
   // Expose error types for external use
   static getErrorTypes() {
     return ERROR_TYPES;

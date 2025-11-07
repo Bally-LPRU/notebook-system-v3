@@ -60,3 +60,15 @@
 3. WHEN authentication is completed, THE Authentication_System SHALL redirect back to the application automatically
 4. IF popup blocking is detected, THEN THE Authentication_System SHALL automatically fallback to redirect method
 5. WHILE using redirect authentication, THE Authentication_System SHALL preserve the user's intended destination after login
+
+### Requirement 5
+
+**User Story:** As a user, I want my login session to persist after page refresh, so that I don't have to log in again every time I refresh the browser
+
+#### Acceptance Criteria
+
+1. WHEN a user successfully logs in, THE Authentication_System SHALL store the authentication state persistently
+2. WHEN a user refreshes the page, THE Authentication_System SHALL restore the authentication state from persistent storage
+3. WHEN Firebase Auth state changes, THE Authentication_System SHALL update the application state accordingly
+4. IF the authentication token expires, THEN THE Authentication_System SHALL automatically refresh the token or prompt re-authentication
+5. WHILE checking authentication state on page load, THE Authentication_System SHALL wait for Firebase Auth initialization to complete before determining user status
