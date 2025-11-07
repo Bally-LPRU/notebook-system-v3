@@ -65,7 +65,7 @@ class AuthService {
     }
   }
 
-  // Sign in with Google using redirect method (no popup blocking issues)
+  // Sign in with Google using popup method (properly implemented to avoid blocking)
   static async signInWithGoogle() {
     try {
       console.log('🔍 AuthService.signInWithGoogle: Starting...');
@@ -74,10 +74,10 @@ class AuthService {
       await this._checkNetworkConnectivity();
       console.log('✅ Network connectivity check passed');
       
-      // Always use redirect method to avoid popup blocking issues
-      console.log('🔍 Calling _signInWithRedirect...');
-      const result = await this._signInWithRedirect();
-      console.log('🔍 _signInWithRedirect result:', result);
+      // Use popup method instead of redirect to avoid localStorage issues
+      console.log('🔍 Calling _signInWithPopup...');
+      const result = await this._signInWithPopup();
+      console.log('🔍 _signInWithPopup result:', result);
       return result;
       
     } catch (error) {
@@ -90,16 +90,15 @@ class AuthService {
 
 
 
-  // Private method for redirect authentication
-  static async _signInWithRedirect() {
+  // Private method for popup authentication (properly implemented)
+  static async _signInWithPopup() {
     try {
-      console.log('🔐 Using redirect authentication...');
+      console.log('🔐 Using popup authentication...');
       
-      // CRITICAL: Set persistence BEFORE calling signInWithRedirect
-      // This ensures the auth state persists across the redirect
-      const { setPersistence, browserLocalPersistence } = await import('firebase/auth');
+      // CRITICAL: Set persistence BEFORE calling signInWithPopup
+      const { signInWithPopup, setPersistence, browserLocalPersistence } = await import('firebase/auth');
       await setPersistence(auth, browserLocalPersistence);
-      console.log('✅ Auth persistence set to LOCAL before redirect');
+      console.log('✅ Auth persistence set to LOCAL before popup');
       
       // Configure Google provider with additional parameters
       googleProvider.setCustomParameters({
@@ -109,19 +108,62 @@ class AuthService {
       
       console.log('🔍 Google provider configured:', googleProvider.customParameters);
       
-      // Store current path for redirect back after authentication
-      this.storeIntendedPath();
-      
       return await withRetry(async () => {
-        console.log('🔍 Calling signInWithRedirect...');
-        // Use redirect instead of popup to avoid blocking issues
-        await signInWithRedirect(auth, googleProvider);
-        console.log('🔍 signInWithRedirect called - should redirect now');
-        // Note: This method doesn't return immediately - the page will redirect
-        // The actual user processing happens in handleRedirectResult
-      }, { operation: 'google_sign_in_redirect' }, { maxRetries: 2 });
+        console.log('🔍 Calling signInWithPopup...');
+        // Use popup - this returns immediately with the user
+        const result = await signInWithPopup(auth, googleProvider);
+        console.log('🔍 signInWithPopup returned:', result);
+        
+        const user = result.user;
+        console.log('👤 User from popup:', {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName
+        });
+        
+        // Validate email domain
+        if (!this.isValidEmail(user.email)) {
+          console.log('❌ Invalid email domain:', user.email);
+          await this.signOut();
+          throw new Error(ERROR_MESSAGES.INVALID_EMAIL_DOMAIN);
+        }
+        
+        console.log('✅ Email domain valid');
+        
+        // Check for duplicate profiles
+        console.log('🔍 Checking for duplicates...');
+        const duplicateCheck = await this.checkForDuplicateProfile(user.email);
+        if (duplicateCheck.hasDuplicate) {
+          console.log('🔍 Duplicate profile detected');
+          return user;
+        }
+        
+        console.log('✅ No duplicates found');
+        
+        // Check if user exists in Firestore
+        console.log('🔍 Checking if user profile exists...');
+        const userDoc = await withProfileRetry(async () => {
+          return await this.getUserProfile(user.uid);
+        }, { operation: 'get_user_profile_signin' });
+        
+        console.log('🔍 Existing user profile:', userDoc);
+        
+        if (!userDoc) {
+          // Create new user profile
+          console.log('🔍 Creating new user profile...');
+          await withProfileRetry(async () => {
+            await this.createUserProfile(user);
+          }, { operation: 'create_user_profile_signin' });
+          console.log('✅ New user profile created');
+        } else {
+          console.log('✅ User profile already exists');
+        }
+        
+        console.log('✅ signInWithPopup completed successfully');
+        return user;
+      }, { operation: 'google_sign_in_popup' }, { maxRetries: 2 });
     } catch (error) {
-      console.error('❌ _signInWithRedirect error:', error);
+      console.error('❌ _signInWithPopup error:', error);
       throw error;
     }
   }

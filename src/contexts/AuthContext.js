@@ -78,53 +78,17 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
-  // Combined effect: Handle redirect result FIRST, then setup auth state listener
+  // Setup auth state listener
   useEffect(() => {
     let unsubscribe;
     let isInitialLoad = true;
     
     const initializeAuth = async () => {
-      try {
-        // STEP 1: Handle redirect result FIRST before setting up listener
-        console.log('🔄 Step 1: Checking for redirect result...');
-        console.log('🔍 Current URL:', window.location.href);
-        console.log('🔍 URL params:', new URLSearchParams(window.location.search).toString());
-        
-        // Use AuthService to handle redirect result with full logic
-        const result = await AuthService.handleRedirectResult();
-        
-        console.log('🔍 AuthService.handleRedirectResult returned:', result);
-        
-        if (result) {
-          console.log('✅ Redirect authentication handled by AuthService');
-          console.log('👤 User from redirect:', result);
-          
-          // Navigate to intended path after successful authentication
-          const intendedPath = AuthService.getAndClearIntendedPath();
-          console.log('🔍 Intended path:', intendedPath);
-          if (intendedPath && intendedPath !== '/') {
-            window.history.replaceState(null, '', intendedPath);
-          }
-        } else {
-          console.log('ℹ️ No redirect result found');
-        }
-      } catch (error) {
-        console.error('❌ Redirect result error:', error);
-        console.error('❌ Error details:', {
-          code: error.code,
-          message: error.message,
-          stack: error.stack
-        });
-        handleError(error, 'redirect_result');
-      }
-      
-      // STEP 2: Wait a moment for Firebase to restore session, then setup listener
-      console.log('🔥 Step 2: Waiting for Firebase Auth to restore session...');
-      
-      // Small delay to let Firebase Auth restore the session from localStorage
+      // Wait a moment for Firebase to restore session from localStorage
+      console.log('🔥 Waiting for Firebase Auth to restore session...');
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      console.log('🔥 Step 2: Now setting up auth state listener...');
+      console.log('🔥 Now setting up auth state listener...');
       console.log('🔍 Current auth.currentUser before listener:', auth.currentUser);
       
       unsubscribe = onAuthStateChanged(auth, async (user) => {
