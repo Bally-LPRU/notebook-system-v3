@@ -132,13 +132,21 @@ class AuthService {
         
         // Check for duplicate profiles
         console.log('🔍 Checking for duplicates...');
-        const duplicateCheck = await this.checkForDuplicateProfile(user.email);
-        if (duplicateCheck.hasDuplicate) {
-          console.log('🔍 Duplicate profile detected');
-          return user;
+        try {
+          const duplicateCheck = await this.checkForDuplicateProfile(user.email);
+          console.log('🔍 Duplicate check result:', duplicateCheck);
+          
+          if (duplicateCheck.hasDuplicate) {
+            console.log('🔍 Duplicate profile detected:', duplicateCheck.duplicateType);
+            // User already exists - just return the user, don't create new profile
+            return user;
+          }
+          
+          console.log('✅ No duplicates found');
+        } catch (duplicateError) {
+          // If duplicate check fails, log but continue (don't block login)
+          console.error('⚠️ Duplicate check failed, continuing anyway:', duplicateError);
         }
-        
-        console.log('✅ No duplicates found');
         
         // Check if user exists in Firestore
         console.log('🔍 Checking if user profile exists...');
