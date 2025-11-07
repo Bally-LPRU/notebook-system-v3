@@ -24,6 +24,7 @@ const LazyDashboard = lazy(() => import('./components/Dashboard'));
 const LazyEquipmentList = lazy(() => import('./components/equipment/EquipmentList'));
 const LazyAdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const LazyUserApprovalList = lazy(() => import('./components/admin/UserApprovalList'));
+const LazyAdminEquipmentManagement = lazy(() => import('./components/admin/AdminEquipmentManagement'));
 const LazyMyRequests = lazy(() => import('./components/requests/MyRequests'));
 const LazyReservationPage = lazy(() => import('./components/reservations/ReservationPage'));
 const LazyReportsPage = lazy(() => import('./components/reports/ReportsPage'));
@@ -128,6 +129,12 @@ const AppRoutes = () => {
       <Route path="/admin/users" element={
         <ProtectedRoute requireAdmin={true}>
           <LazyUserApprovalList />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/equipment" element={
+        <ProtectedRoute requireAdmin={true}>
+          <LazyAdminEquipmentManagement />
         </ProtectedRoute>
       } />
 

@@ -6,7 +6,9 @@ import {
   doc, 
   updateDoc, 
   serverTimestamp,
-  orderBy 
+  orderBy,
+  limit as firestoreLimit,
+  startAfter
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -199,14 +201,126 @@ class UserService {
       const suspendedUsersQuery = query(usersRef, where('status', '==', 'suspended'));
       const suspendedUsersSnapshot = await getDocs(suspendedUsersQuery);
       
+      // Get rejected users
+      const rejectedUsersQuery = query(usersRef, where('status', '==', 'rejected'));
+      const rejectedUsersSnapshot = await getDocs(rejectedUsersQuery);
+      
       return {
         total: allUsersSnapshot.size,
         pending: pendingUsersSnapshot.size,
         approved: approvedUsersSnapshot.size,
-        suspended: suspendedUsersSnapshot.size
+        suspended: suspendedUsersSnapshot.size,
+        rejected: rejectedUsersSnapshot.size
       };
     } catch (error) {
       console.error('Error getting user stats:', error);
+      throw error;
+    }
+  }
+
+  // Get users by status with pagination
+  static async getUsersByStatus(status = 'all', limit = 20, lastDoc = null) {
+    try {
+      const usersRef = collection(db, 'users');
+      let q;
+
+      if (status === 'all') {
+        q = query(usersRef, orderBy('createdAt', 'desc'));
+      } else {
+        q = query(
+          usersRef,
+          where('status', '==', status),
+          orderBy('createdAt', 'desc')
+        );
+      }
+
+      // Add pagination
+      if (lastDoc) {
+        q = query(q, startAfter(lastDoc), firestoreLimit(limit));
+      } else {
+        q = query(q, firestoreLimit(limit));
+      }
+
+      const querySnapshot = await getDocs(q);
+      const users = [];
+      let lastVisible = null;
+
+      querySnapshot.forEach((doc) => {
+        users.push({
+          id: doc.id,
+          ...doc.data()
+        });
+        lastVisible = doc;
+      });
+
+      return {
+        users,
+        lastDoc: lastVisible,
+        hasMore: querySnapshot.size === limit
+      };
+    } catch (error) {
+      console.error('Error getting users by status:', error);
+      throw error;
+    }
+  }
+
+  // Search users
+  static async searchUsers(searchTerm, status = 'all') {
+    try {
+      const usersRef = collection(db, 'users');
+      let q;
+
+      if (status === 'all') {
+        q = query(usersRef, orderBy('createdAt', 'desc'));
+      } else {
+        q = query(
+          usersRef,
+          where('status', '==', status),
+          orderBy('createdAt', 'desc')
+        );
+      }
+
+      const querySnapshot = await getDocs(q);
+      const users = [];
+
+      querySnapshot.forEach((doc) => {
+        const userData = { id: doc.id, ...doc.data() };
+        const searchLower = searchTerm.toLowerCase();
+
+        // Search in name, email, department
+        if (
+          userData.displayName?.toLowerCase().includes(searchLower) ||
+          userData.email?.toLowerCase().includes(searchLower) ||
+          userData.firstName?.toLowerCase().includes(searchLower) ||
+          userData.lastName?.toLowerCase().includes(searchLower) ||
+          userData.department?.label?.toLowerCase().includes(searchLower) ||
+          userData.department?.toLowerCase().includes(searchLower)
+        ) {
+          users.push(userData);
+        }
+      });
+
+      return users;
+    } catch (error) {
+      console.error('Error searching users:', error);
+      throw error;
+    }
+  }
+
+  // Update user profile (admin)
+  static async updateUserProfile(userId, updates, updatedBy) {
+    try {
+      const userDocRef = doc(db, 'users', userId);
+
+      await updateDoc(userDocRef, {
+        ...updates,
+        updatedBy: updatedBy,
+        updatedAt: serverTimestamp()
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating user profile:', error);
       throw error;
     }
   }
