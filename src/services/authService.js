@@ -138,6 +138,11 @@ class AuthService {
         authDomain: auth.config.authDomain
       });
       
+      // CRITICAL: Set persistence BEFORE checking redirect result
+      const { setPersistence, browserLocalPersistence } = await import('firebase/auth');
+      await setPersistence(auth, browserLocalPersistence);
+      console.log('✅ Auth persistence set to LOCAL before checking redirect result');
+      
       await this._checkNetworkConnectivity();
       
       return await withRetry(async () => {

@@ -37,15 +37,8 @@ try {
   auth = getAuth(app);
   console.log('✅ Firebase Auth initialized');
   
-  // Set persistence to LOCAL to maintain session across page refreshes
-  setPersistence(auth, browserLocalPersistence)
-    .then(() => {
-      console.log('✅ Firebase Auth persistence set to LOCAL');
-    })
-    .catch((error) => {
-      console.error('⚠️ Failed to set auth persistence:', error);
-      // Don't throw - app can still work without explicit persistence setting
-    });
+  // Note: Persistence will be set in AuthService before each auth operation
+  // to ensure it's applied correctly
 } catch (error) {
   console.error('🚨 Auth initialization failed:', error);
   throw error;
