@@ -45,6 +45,11 @@ const AppRoutes = () => {
     return <AuthInitializingLoader />;
   }
 
+  // If user exists but userProfile is still loading, show loader
+  if (user && !userProfile && loading) {
+    return <AuthInitializingLoader />;
+  }
+
   // Not authenticated - show public homepage
   if (!user) {
     return (
