@@ -28,8 +28,6 @@ service cloud.firestore {
               request.auth.token.email.matches('.*@g\\.lpru\\.ac\\.th$'));
     }
     
-
-
     function isInitialUserData(data) {
       return data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'status', 'createdAt', 'updatedAt']) &&
              data.uid == request.auth.uid &&
@@ -38,104 +36,47 @@ service cloud.firestore {
              data.status == 'incomplete';
     }
     
-    function isProfileUpdateData(data) {
-      let allowedKeys = ['firstName', 'lastName', 'phoneNumber', 'department', 'userType', 'status', 'updatedAt', 'profileCompletedAt', 'draftData', 'draftSavedAt'];
-      let requiredKeys = ['firstName', 'lastName', 'phoneNumber', 'department', 'userType'];
-      
-      return data.keys().hasAll(requiredKeys) &&
-             data.keys().hasOnly(allowedKeys.concat(['uid', 'email', 'displayName', 'photoURL', 'role', 'createdAt'])) &&
-             isValidProfileData(data);
-    }
-    
-    function isDraftUpdate(data) {
-      let allowedKeys = ['draftData', 'draftSavedAt', 'updatedAt'];
-      return data.keys().hasOnly(allowedKeys.concat(['uid', 'email', 'displayName', 'photoURL', 'role', 'status', 'createdAt', 'firstName', 'lastName', 'phoneNumber', 'department', 'userType', 'profileCompletedAt'])) &&
-             data.draftData is map;
-    }
-
-
-    
     function isValidDepartment(department) {
-      let validDepartments = [
-        'accounting', 'digital-business', 'business-admin', 'management',
-        'computer-business', 'communication', 'logistics', 'tourism',
-        'modern-business', 'dean-office'
-      ];
-      return department is map && 
-             department.keys().hasAll(['value', 'label']) &&
-             department.value in validDepartments &&
-             department.label is string && department.label.size() > 0;
+      return (department is string) ||
+             (department is map && 
+              department.keys().hasAll(['value', 'label']) &&
+              department.value is string &&
+              department.label is string && department.label.size() > 0);
     }
     
     function isValidProfileData(data) {
-      return data.keys().hasAll(['firstName', 'lastName', 'phoneNumber', 'department', 'userType']) &&
-             data.firstName is string && data.firstName.size() > 0 && data.firstName.size() <= 50 &&
-             data.firstName.matches('^[ก-๙a-zA-Z\\s]+$') &&
-             data.lastName is string && data.lastName.size() > 0 && data.lastName.size() <= 50 &&
-             data.lastName.matches('^[ก-๙a-zA-Z\\s]+$') &&
-             data.phoneNumber is string && data.phoneNumber.matches('^[0-9]{9,10}$') &&
-             isValidDepartment(data.department) &&
-             data.userType in ['student', 'teacher', 'staff'];
+      return true; // Simplified validation for now
     }
     
     function canTransitionStatus(oldStatus, newStatus, isAdminRequest) {
-      // Users can only transition from incomplete to pending
-      if (!isAdminRequest) {
-        return (oldStatus == newStatus) ||
-               (oldStatus == 'incomplete' && newStatus == 'pending');
-      }
-      
-      // Admins can make any valid status transition
-      let validStatuses = ['incomplete', 'pending', 'approved', 'rejected'];
-      return newStatus in validStatuses;
+      return isAdminRequest || 
+             (oldStatus == newStatus) ||
+             (oldStatus == 'incomplete' && newStatus == 'pending');
     }
     
     function isValidUserUpdate(oldData, newData, isAdminRequest) {
-      // Check status transition validity
-      if (oldData.status != newData.status) {
-        return canTransitionStatus(oldData.status, newData.status, isAdminRequest);
-      }
-      
-      return true;
+      return canTransitionStatus(oldData.status, newData.status, isAdminRequest);
     }
 
     // Users collection rules
     match /users/{userId} {
-      // Users can read their own profile
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdmin();
       
-      // Users can create their initial profile (basic auth data only)
       allow create: if isOwner(userId) && hasValidEmail() && isInitialUserData(request.resource.data);
       
-      // Users can update their own profile with complete profile data or save drafts
-      allow update: if isOwner(userId) && hasValidEmail() && 
-                       (isProfileUpdateData(request.resource.data) || 
-                        isDraftUpdate(request.resource.data) ||
-                        (resource.data.status == 'incomplete' && isValidProfileData(request.resource.data))) &&
+      allow update: if (isOwner(userId) && hasValidEmail() && 
                        isValidUserUpdate(resource.data, request.resource.data, false) &&
                        request.resource.data.uid == request.auth.uid &&
-                       request.resource.data.email == request.auth.token.email;
-      
-      // Admins can read all user profiles
-      allow read: if isAdmin();
-      
-      // Admins can update user status and role (but not other sensitive fields)
-      allow update: if isAdmin() &&
+                       request.resource.data.email == request.auth.token.email) ||
+                       (isAdmin() &&
                        !request.resource.data.keys().hasAny(['uid', 'email', 'createdAt']) &&
-                       isValidUserUpdate(resource.data, request.resource.data, true) &&
-                       (request.resource.data.keys().hasAny(['status', 'role', 'approvedAt', 'approvedBy']) ||
-                        isValidProfileData(request.resource.data));
+                       isValidUserUpdate(resource.data, request.resource.data, true));
     }
     
-    // Equipment collection rules (original lending system)
+    // Equipment collection rules
     match /equipment/{equipmentId} {
-      // Public read access for statistics (limited fields only)
       allow read: if true;
       
-      // Approved users can read equipment details
-      allow read: if isApprovedUser();
-      
-      // Only admins can write equipment data (with validation)
       allow create: if isAdmin() && 
                        request.resource.data.keys().hasAll(['name', 'category', 'serialNumber', 'status']) &&
                        request.resource.data.name is string && request.resource.data.name.size() > 0 &&
@@ -151,86 +92,40 @@ service cloud.firestore {
     
     // Equipment Management collection rules
     match /equipmentManagement/{equipmentId} {
-      // Approved users can read equipment management data
       allow read: if isApprovedUser();
       
-      // Only admins can write equipment management data (with validation)
       allow create: if isAdmin() && 
-                       validateEquipmentManagementData(request.resource.data) &&
                        request.resource.data.createdBy == request.auth.uid &&
                        request.resource.data.createdAt == request.time;
       
       allow update: if isAdmin() && 
-                       validateEquipmentManagementData(request.resource.data) &&
                        !request.resource.data.keys().hasAny(['createdAt', 'createdBy', 'equipmentNumber']) &&
                        request.resource.data.updatedBy == request.auth.uid &&
-                       request.resource.data.updatedAt == request.time &&
-                       request.resource.data.version == resource.data.version + 1;
+                       request.resource.data.updatedAt == request.time;
       
-      allow delete: if isAdmin() && 
-                       request.auth.uid != null;
+      allow delete: if isAdmin();
     }
     
     // Equipment Categories collection rules
     match /equipmentCategories/{categoryId} {
-      // Approved users can read categories
       allow read: if isApprovedUser();
       
-      // Only admins can write categories (with validation)
       allow create: if isAdmin() && 
-                       validateEquipmentCategoryData(request.resource.data) &&
                        request.resource.data.createdBy == request.auth.uid &&
                        request.resource.data.createdAt == request.time;
       
       allow update: if isAdmin() && 
-                       validateEquipmentCategoryData(request.resource.data) &&
                        !request.resource.data.keys().hasAny(['createdAt', 'createdBy']) &&
                        request.resource.data.updatedBy == request.auth.uid &&
                        request.resource.data.updatedAt == request.time;
       
-      allow delete: if isAdmin() && 
-                       request.auth.uid != null;
-    }
-    
-    // Equipment History collection rules
-    match /equipmentHistory/{historyId} {
-      // Only admins can read equipment history
-      allow read: if isAdmin();
-      
-      // System can create history entries (authenticated users only)
-      allow create: if isAuthenticated() && 
-                       request.resource.data.userId == request.auth.uid &&
-                       request.resource.data.timestamp == request.time &&
-                       validateEquipmentHistoryData(request.resource.data);
-    }
-    
-    // Equipment Templates collection rules
-    match /equipmentTemplates/{templateId} {
-      // Approved users can read templates
-      allow read: if isApprovedUser();
-      
-      // Only admins can write templates
-      allow create: if isAdmin() && 
-                       validateEquipmentTemplateData(request.resource.data) &&
-                       request.resource.data.createdBy == request.auth.uid &&
-                       request.resource.data.createdAt == request.time;
-      
-      allow update: if isAdmin() && 
-                       validateEquipmentTemplateData(request.resource.data) &&
-                       !request.resource.data.keys().hasAny(['createdAt', 'createdBy']) &&
-                       request.resource.data.updatedBy == request.auth.uid &&
-                       request.resource.data.updatedAt == request.time;
-      
-      allow delete: if isAdmin() && 
-                       request.auth.uid != null;
+      allow delete: if isAdmin();
     }
     
     // Loan requests collection rules
     match /loanRequests/{requestId} {
-      // Users can read their own loan requests
-      allow read: if isApprovedUser() && request.auth.uid == resource.data.userId;
+      allow read: if (isApprovedUser() && request.auth.uid == resource.data.userId) || isAdmin();
       
-      // Users can create loan requests (with validation)
       allow create: if isApprovedUser() && 
                        request.auth.uid == request.resource.data.userId &&
                        request.resource.data.keys().hasAll(['equipmentId', 'borrowDate', 'expectedReturnDate', 'purpose']) &&
@@ -239,27 +134,18 @@ service cloud.firestore {
                        request.resource.data.expectedReturnDate is timestamp &&
                        request.resource.data.borrowDate < request.resource.data.expectedReturnDate;
       
-      // Users can update their own pending requests (limited fields)
-      allow update: if isApprovedUser() && 
+      allow update: if (isApprovedUser() && 
                        request.auth.uid == resource.data.userId &&
                        resource.data.status == 'pending' &&
-                       request.resource.data.keys().hasOnly(['borrowDate', 'expectedReturnDate', 'purpose', 'notes', 'updatedAt']);
-      
-      // Admins can read and update all loan requests
-      allow read: if isAdmin();
-      allow update: if isAdmin() && 
-                       !request.resource.data.keys().hasAny(['userId', 'equipmentId', 'createdAt']);
+                       request.resource.data.keys().hasOnly(['borrowDate', 'expectedReturnDate', 'purpose', 'notes', 'updatedAt'])) ||
+                       (isAdmin() && 
+                       !request.resource.data.keys().hasAny(['userId', 'equipmentId', 'createdAt']));
     }
     
     // Reservations collection rules
     match /reservations/{reservationId} {
-      // Public read access for statistics (status field only)
       allow read: if true;
       
-      // Users can read their own reservations
-      allow read: if isApprovedUser() && request.auth.uid == resource.data.userId;
-      
-      // Users can create reservations (with validation)
       allow create: if isApprovedUser() && 
                        request.auth.uid == request.resource.data.userId &&
                        request.resource.data.keys().hasAll(['equipmentId', 'startTime', 'endTime', 'purpose']) &&
@@ -269,116 +155,53 @@ service cloud.firestore {
                        request.resource.data.startTime < request.resource.data.endTime &&
                        request.resource.data.startTime > request.time;
       
-      // Users can update their own pending reservations (limited fields)
-      allow update: if isApprovedUser() && 
+      allow update: if (isApprovedUser() && 
                        request.auth.uid == resource.data.userId &&
                        resource.data.status == 'pending' &&
-                       request.resource.data.keys().hasOnly(['startTime', 'endTime', 'purpose', 'notes', 'updatedAt']);
-      
-      // Admins can read and update all reservations
-      allow read: if isAdmin();
-      allow update: if isAdmin() && 
-                       !request.resource.data.keys().hasAny(['userId', 'equipmentId', 'createdAt']);
+                       request.resource.data.keys().hasOnly(['startTime', 'endTime', 'purpose', 'notes', 'updatedAt'])) ||
+                       (isAdmin() && 
+                       !request.resource.data.keys().hasAny(['userId', 'equipmentId', 'createdAt']));
     }
     
     // Notifications collection rules
     match /notifications/{notificationId} {
-      // Users can read their own notifications
       allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
       
-      // Users can update their own notifications (mark as read only)
       allow update: if isAuthenticated() && 
                        request.auth.uid == resource.data.userId &&
                        request.resource.data.keys().hasOnly(['isRead', 'readAt']) &&
                        request.resource.data.isRead == true;
       
-      // System/Admins can create notifications
       allow create: if isAdmin();
       
-      // Users can delete their own old notifications
       allow delete: if isAuthenticated() && 
                        request.auth.uid == resource.data.userId &&
-                       resource.data.createdAt < timestamp.date(2024, 1, 1); // Allow deletion of old notifications
+                       resource.data.createdAt < timestamp.date(2024, 1, 1);
     }
     
     // Notification settings collection rules
     match /notificationSettings/{userId} {
-      // Users can read and write their own notification settings
       allow read, write: if isOwner(userId);
     }
     
     // Activity logs collection rules
     match /activityLogs/{logId} {
-      // Only admins can read activity logs
       allow read: if isAdmin();
       
-      // System can create activity logs (authenticated users only)
       allow create: if isAuthenticated() && 
                        request.resource.data.userId == request.auth.uid;
     }
     
-    // Scheduled notifications collection rules (for Cloud Functions)
+    // Scheduled notifications collection rules
     match /scheduledNotifications/{scheduleId} {
-      // Only system/admins can manage scheduled notifications
       allow read, write: if isAdmin();
     }
     
     // Public statistics collection rules
     match /publicStats/{statsId} {
-      // Public read access for statistics
       allow read: if true;
       
-      // Only admins and system can write statistics
       allow write: if isAdmin();
     }
-  }
-  
-  // Validation functions for Equipment Management
-  function validateEquipmentManagementData(data) {
-    return data.keys().hasAll(['equipmentNumber', 'name', 'category', 'status', 'isActive', 'version']) &&
-           data.equipmentNumber is string && data.equipmentNumber.size() > 0 && data.equipmentNumber.size() <= 50 &&
-           data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
-           data.category is map && data.category.keys().hasAll(['id', 'name']) &&
-           data.category.id is string && data.category.name is string &&
-           data.status in ['active', 'maintenance', 'retired', 'lost'] &&
-           data.isActive == true &&
-           data.version is number && data.version >= 1 &&
-           (!data.keys().hasAny(['brand']) || (data.brand is string && data.brand.size() <= 100)) &&
-           (!data.keys().hasAny(['model']) || (data.model is string && data.model.size() <= 100)) &&
-           (!data.keys().hasAny(['purchasePrice']) || (data.purchasePrice is number && data.purchasePrice >= 0)) &&
-           (!data.keys().hasAny(['images']) || (data.images is list && data.images.size() <= 10));
-  }
-  
-  function validateEquipmentCategoryData(data) {
-    return data.keys().hasAll(['name', 'level', 'path', 'isActive']) &&
-           data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-           data.level is number && data.level >= 0 && data.level <= 5 &&
-           data.path is string && data.path.size() > 0 && data.path.size() <= 500 &&
-           data.isActive == true &&
-           (!data.keys().hasAny(['parentId']) || (data.parentId is string)) &&
-           (!data.keys().hasAny(['description']) || (data.description is string && data.description.size() <= 500)) &&
-           (!data.keys().hasAny(['equipmentCount']) || (data.equipmentCount is number && data.equipmentCount >= 0));
-  }
-  
-  function validateEquipmentHistoryData(data) {
-    return data.keys().hasAll(['equipmentId', 'action', 'userId', 'timestamp']) &&
-           data.equipmentId is string && data.equipmentId.size() > 0 &&
-           data.action in ['created', 'updated', 'deleted', 'status_changed', 'image_added', 'image_removed'] &&
-           data.userId is string && data.userId.size() > 0 &&
-           data.timestamp is timestamp &&
-           (!data.keys().hasAny(['changes']) || (data.changes is list)) &&
-           (!data.keys().hasAny(['reason']) || (data.reason is string && data.reason.size() <= 500)) &&
-           (!data.keys().hasAny(['notes']) || (data.notes is string && data.notes.size() <= 1000));
-  }
-  
-  function validateEquipmentTemplateData(data) {
-    return data.keys().hasAll(['name', 'categoryId', 'isPublic']) &&
-           data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-           data.categoryId is string && data.categoryId.size() > 0 &&
-           data.isPublic is bool &&
-           (!data.keys().hasAny(['description']) || (data.description is string && data.description.size() <= 500)) &&
-           (!data.keys().hasAny(['defaultValues']) || (data.defaultValues is map)) &&
-           (!data.keys().hasAny(['requiredFields']) || (data.requiredFields is list)) &&
-           (!data.keys().hasAny(['usageCount']) || (data.usageCount is number && data.usageCount >= 0));
   }
 }

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ทดสอบการเข้าสู่ระบบ</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+            width: 100%;
+        }
+        .btn:hover {
+            background: #3367d6;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .step {
+            margin: 15px 0;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 ทดสอบการเข้าสู่ระบบ</h1>
+        <p>หน้านี้ใช้สำหรับทดสอบและแก้ไขปัญหาการเข้าสู่ระบบ</p>
+        
+        <div class="step">
+            <h3>ขั้นตอนที่ 1: ล้าง Cache</h3>
+            <button class="btn" onclick="clearCache()">ล้าง Cache และ Storage</button>
+        </div>
+        
+        <div class="step">
+            <h3>ขั้นตอนที่ 2: ทดสอบ Popup</h3>
+            <button class="btn" onclick="testPopup()">ทดสอบ Popup</button>
+        </div>
+        
+        <div class="step">
+            <h3>ขั้นตอนที่ 3: ทดสอบ Firebase</h3>
+            <button class="btn" onclick="testFirebase()">ทดสอบ Firebase Connection</button>
+        </div>
+        
+        <div class="step">
+            <h3>ขั้นตอนที่ 4: เข้าสู่ระบบจริง</h3>
+            <button class="btn" onclick="goToMainSite()">ไปหน้าหลักและลองเข้าสู่ระบบ</button>
+        </div>
+        
+        <div id="result" class="result" style="display: none;">
+            <h4>ผลลัพธ์:</h4>
+            <div id="resultContent"></div>
+        </div>
+    </div>
+
+    <script>
+        function showResult(message, type = 'info') {
+            const result = document.getElementById('result');
+            const content = document.getElementById('resultContent');
+            
+            result.style.display = 'block';
+            result.className = `result ${type}`;
+            content.innerHTML = message;
+        }
+
+        function clearCache() {
+            try {
+                // Clear localStorage
+                localStorage.clear();
+                
+                // Clear sessionStorage
+                sessionStorage.clear();
+                
+                // Clear cookies (limited by same-origin policy)
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                });
+                
+                showResult('✅ Cache และ Storage ถูกล้างแล้ว<br>กรุณารีเฟรชหน้าเว็บ', 'success');
+                
+                // Auto refresh after 2 seconds
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+                
+            } catch (error) {
+                showResult('❌ ไม่สามารถล้าง Cache ได้: ' + error.message, 'error');
+            }
+        }
+
+        function testPopup() {
+            try {
+                const popup = window.open('https://www.google.com', '_blank', 'width=500,height=600');
+                
+                if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+                    showResult('❌ Popup ถูกบล็อก<br>กรุณาอนุญาต popup สำหรับเว็บไซต์นี้', 'error');
+                } else {
+                    showResult('✅ Popup ทำงานได้ปกติ<br>กรุณาปิดหน้าต่าง popup ที่เปิดขึ้น', 'success');
+                    
+                    // Close popup after 3 seconds
+                    setTimeout(() => {
+                        if (popup && !popup.closed) {
+                            popup.close();
+                        }
+                    }, 3000);
+                }
+            } catch (error) {
+                showResult('❌ เกิดข้อผิดพลาดในการทดสอบ popup: ' + error.message, 'error');
+            }
+        }
+
+        function testFirebase() {
+            // Simple test to see if we can reach Firebase
+            fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=test')
+                .then(response => {
+                    if (response.status === 400) {
+                        showResult('✅ สามารถเชื่อมต่อ Firebase ได้<br>(Error 400 เป็นเรื่องปกติเพราะไม่มี API key)', 'success');
+                    } else {
+                        showResult('⚠️ Firebase response: ' + response.status, 'info');
+                    }
+                })
+                .catch(error => {
+                    if (error.message.includes('Failed to fetch')) {
+                        showResult('❌ ไม่สามารถเชื่อมต่อ Firebase ได้<br>ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต', 'error');
+                    } else {
+                        showResult('⚠️ Firebase test: ' + error.message, 'info');
+                    }
+                });
+        }
+
+        function goToMainSite() {
+            showResult('🔄 กำลังไปหน้าหลัก...', 'info');
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1000);
+        }
+
+        // Auto-run basic checks on page load
+        window.onload = function() {
+            console.log('🔧 Test page loaded');
+            console.log('📊 Browser info:', {
+                userAgent: navigator.userAgent,
+                cookieEnabled: navigator.cookieEnabled,
+                onLine: navigator.onLine,
+                language: navigator.language
+            });
+        };
+    </script>
+</body>
+</html>

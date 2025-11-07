@@ -49,11 +49,12 @@ const PublicHomepageContent = memo(() => {
       setAuthLoading(true);
       setAuthError(null);
       
-      // Run quick fix before attempting sign in
-      const { AuthFixer } = await import('../../utils/authFixer');
-      await AuthFixer.quickFix();
+      console.log('🔐 Login button clicked');
       
+      // Call signIn directly without AuthFixer
       await signIn();
+      
+      console.log('✅ SignIn called successfully');
       
       // Redirect logic after successful authentication
       // If user is already authenticated, redirect based on their status
