@@ -359,6 +359,9 @@ export const AuthProvider = ({ children }) => {
   const needsProfileSetup = () => {
     if (!userProfile) return true;
     
+    // If user is already approved (especially admin), don't require profile setup
+    if (userProfile.status === 'approved') return false;
+    
     return (
       userProfile.status === 'incomplete' ||
       !userProfile.firstName ||
