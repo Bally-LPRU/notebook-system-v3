@@ -149,10 +149,12 @@ class AuthService {
         console.log('🔍 AuthService: getRedirectResult returned:', result);
         console.log('🔍 Result type:', typeof result);
         console.log('🔍 Result is null?', result === null);
+        console.log('🔍 Result.user:', result?.user);
         
-        if (!result) {
+        // Check if result has a user (not just if result exists)
+        if (!result || !result.user) {
           // No redirect result (user didn't just complete authentication)
-          console.log('🔍 AuthService: No redirect result found');
+          console.log('🔍 AuthService: No redirect result found (no user in result)');
           return null;
         }
         

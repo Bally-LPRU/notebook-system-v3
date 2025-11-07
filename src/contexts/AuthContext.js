@@ -118,8 +118,14 @@ export const AuthProvider = ({ children }) => {
         handleError(error, 'redirect_result');
       }
       
-      // STEP 2: NOW setup auth state listener after redirect is handled
-      console.log('🔥 Step 2: Setting up auth state listener...');
+      // STEP 2: Wait a moment for Firebase to restore session, then setup listener
+      console.log('🔥 Step 2: Waiting for Firebase Auth to restore session...');
+      
+      // Small delay to let Firebase Auth restore the session from localStorage
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('🔥 Step 2: Now setting up auth state listener...');
+      console.log('🔍 Current auth.currentUser before listener:', auth.currentUser);
       
       unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('🔥 Auth state changed:', user ? 'logged in' : 'logged out');
