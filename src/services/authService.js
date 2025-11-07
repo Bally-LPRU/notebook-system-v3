@@ -148,6 +148,19 @@ class AuthService {
       return await withRetry(async () => {
         console.log('🔍 AuthService: Calling getRedirectResult...');
         console.log('🔍 Auth instance:', auth);
+        console.log('🔍 Auth app name:', auth.app.name);
+        console.log('🔍 Auth config authDomain:', auth.config.authDomain);
+        
+        // Check localStorage for pending redirect
+        const pendingRedirect = localStorage.getItem('firebase:pendingRedirect');
+        console.log('🔍 Pending redirect in localStorage:', pendingRedirect);
+        
+        // Check all firebase keys in localStorage
+        const firebaseKeys = Object.keys(localStorage).filter(key => key.startsWith('firebase:'));
+        console.log('🔍 All Firebase localStorage keys:', firebaseKeys);
+        firebaseKeys.forEach(key => {
+          console.log(`  - ${key}:`, localStorage.getItem(key)?.substring(0, 100));
+        });
         
         const result = await getRedirectResult(auth);
         
@@ -155,6 +168,7 @@ class AuthService {
         console.log('🔍 Result type:', typeof result);
         console.log('🔍 Result is null?', result === null);
         console.log('🔍 Result.user:', result?.user);
+        console.log('🔍 Result.operationType:', result?.operationType);
         
         // Check if result has a user (not just if result exists)
         if (!result || !result.user) {
