@@ -10,10 +10,12 @@ const EquipmentManagementContainer = ({
   onViewEquipment,
   className = ''
 }) => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, refreshToken } = useAuth();
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isPermissionError, setIsPermissionError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Load equipment data
   useEffect(() => {
@@ -24,14 +26,36 @@ const EquipmentManagementContainer = ({
     try {
       setLoading(true);
       setError(null);
+      setIsPermissionError(false);
       
       const result = await EquipmentManagementService.getEquipmentList({});
       setEquipment(result.equipment || []);
     } catch (error) {
       console.error('Error loading equipment:', error);
-      setError('ไม่สามารถโหลดข้อมูลอุปกรณ์ได้: ' + error.message);
+      
+      // Check if it's a permission error
+      if (error.code === 'permission-denied' || error.message.includes('permission') || error.message.includes('Missing or insufficient permissions')) {
+        setIsPermissionError(true);
+        setError('ไม่มีสิทธิ์เข้าถึงข้อมูลอุปกรณ์ อาจเป็นเพราะ auth token หมดอายุ');
+      } else {
+        setError('ไม่สามารถโหลดข้อมูลอุปกรณ์ได้: ' + error.message);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefreshToken = async () => {
+    try {
+      setRefreshing(true);
+      await refreshToken();
+      // Reload equipment after token refresh
+      await loadEquipment();
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      setError('ไม่สามารถ refresh token ได้: ' + error.message);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -54,7 +78,7 @@ const EquipmentManagementContainer = ({
     return (
       <div className={`space-y-6 ${className}`}>
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <div className="flex items-center">
+          <div className="flex items-center mb-4">
             <svg className="w-6 h-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -63,12 +87,47 @@ const EquipmentManagementContainer = ({
               <p className="text-red-700 mt-1">{error}</p>
             </div>
           </div>
-          <button
-            onClick={loadEquipment}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          >
-            ลองใหม่อีกครั้ง
-          </button>
+          
+          {isPermissionError && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <h4 className="text-sm font-medium text-yellow-900 mb-2">💡 วิธีแก้ไข:</h4>
+              <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
+                <li>คลิกปุ่ม "Refresh Token" ด้านล่าง</li>
+                <li>หรือลองออกจากระบบแล้วเข้าสู่ระบบใหม่</li>
+                <li>หรือรีเฟรชหน้าเว็บ (F5)</li>
+              </ul>
+            </div>
+          )}
+          
+          <div className="flex gap-3">
+            {isPermissionError && (
+              <button
+                onClick={handleRefreshToken}
+                disabled={refreshing}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+              >
+                {refreshing ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    กำลัง Refresh...
+                  </>
+                ) : (
+                  <>
+                    🔄 Refresh Token
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              onClick={loadEquipment}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              ลองใหม่อีกครั้ง
+            </button>
+          </div>
         </div>
       </div>
     );
