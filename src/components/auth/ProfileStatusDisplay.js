@@ -1,5 +1,4 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import DuplicateDetectionService from '../../services/duplicateDetectionService';
 import StatusMessage from './StatusMessage';
@@ -9,8 +8,32 @@ import StatusMessage from './StatusMessage';
  * Implements requirements 8.5, 2.4, 2.5
  */
 const ProfileStatusDisplay = ({ profile, onRetry, showActions = true }) => {
-  const navigate = useNavigate();
   const { signOut } = useAuth();
+  const [countdown, setCountdown] = useState(3);
+
+  // Auto redirect when approved
+  useEffect(() => {
+    if (profile?.status === 'approved') {
+      console.log('✅ User approved, starting auto redirect countdown...');
+      
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            console.log('🔄 Redirecting to dashboard...');
+            
+            // Force reload to ensure userProfile is updated in AuthContext
+            window.location.href = profile.role === 'admin' ? '/admin' : '/';
+            
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [profile]);
 
 
 
@@ -60,13 +83,9 @@ const ProfileStatusDisplay = ({ profile, onRetry, showActions = true }) => {
         // Stay on current page to complete profile
         break;
       case 'approved':
-        // Check if user is admin and redirect accordingly
-        if (profile.role === 'admin') {
-          navigate('/admin');
-        } else {
-          const dashboardRoute = DuplicateDetectionService.getDashboardRoute(profile);
-          navigate(dashboardRoute);
-        }
+        // Force reload to dashboard
+        console.log('🚀 Manual redirect to dashboard...');
+        window.location.href = profile.role === 'admin' ? '/admin' : '/';
         break;
       default:
         if (onRetry) onRetry();
@@ -136,6 +155,15 @@ const ProfileStatusDisplay = ({ profile, onRetry, showActions = true }) => {
             </div>
           )}
 
+          {/* Auto Redirect Message for Approved Status */}
+          {statusInfo.status === 'approved' && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-green-800 text-center">
+                กำลังเข้าสู่ระบบอัตโนมัติใน {countdown} วินาที...
+              </p>
+            </div>
+          )}
+
           {/* Action Buttons */}
           {showActions && (
             <div className="space-y-3">
@@ -144,7 +172,7 @@ const ProfileStatusDisplay = ({ profile, onRetry, showActions = true }) => {
                 onClick={handlePrimaryAction}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
               >
-                {getPrimaryActionText()}
+                {statusInfo.status === 'approved' ? 'เข้าสู่ระบบทันที' : getPrimaryActionText()}
               </button>
 
               {/* Secondary Actions */}
