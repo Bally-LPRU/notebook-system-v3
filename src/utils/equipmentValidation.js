@@ -1,6 +1,5 @@
 import { 
   EQUIPMENT_VALIDATION, 
-  EQUIPMENT_CATEGORIES, 
   EQUIPMENT_STATUS 
 } from '../types/equipment';
 
@@ -12,6 +11,15 @@ import {
 export const validateEquipmentForm = (formData) => {
   const errors = {};
 
+  // Validate equipment number
+  if (!formData.equipmentNumber || !formData.equipmentNumber.trim()) {
+    errors.equipmentNumber = 'กรุณากรอกหมายเลขครุภัณฑ์';
+  } else if (formData.equipmentNumber.trim().length < 1) {
+    errors.equipmentNumber = 'หมายเลขครุภัณฑ์ต้องมีอย่างน้อย 1 ตัวอักษร';
+  } else if (formData.equipmentNumber.trim().length > 50) {
+    errors.equipmentNumber = 'หมายเลขครุภัณฑ์ต้องไม่เกิน 50 ตัวอักษร';
+  }
+
   // Validate name
   if (!formData.name || !formData.name.trim()) {
     errors.name = 'กรุณากรอกชื่ออุปกรณ์';
@@ -21,43 +29,24 @@ export const validateEquipmentForm = (formData) => {
     errors.name = `ชื่ออุปกรณ์ต้องไม่เกิน ${EQUIPMENT_VALIDATION.name.maxLength} ตัวอักษร`;
   }
 
-  // Validate category
-  if (!formData.category) {
+  // Validate category (now an object)
+  if (!formData.category || !formData.category.id) {
     errors.category = 'กรุณาเลือกประเภทอุปกรณ์';
-  } else if (!Object.values(EQUIPMENT_CATEGORIES).includes(formData.category)) {
-    errors.category = 'ประเภทอุปกรณ์ไม่ถูกต้อง';
   }
 
-  // Validate brand
-  if (!formData.brand || !formData.brand.trim()) {
-    errors.brand = 'กรุณากรอกยี่ห้อ';
-  } else if (formData.brand.trim().length < EQUIPMENT_VALIDATION.brand.minLength) {
-    errors.brand = `ยี่ห้อต้องมีอย่างน้อย ${EQUIPMENT_VALIDATION.brand.minLength} ตัวอักษร`;
-  } else if (formData.brand.trim().length > EQUIPMENT_VALIDATION.brand.maxLength) {
-    errors.brand = `ยี่ห้อต้องไม่เกิน ${EQUIPMENT_VALIDATION.brand.maxLength} ตัวอักษร`;
+  // Validate brand (optional for management system)
+  if (formData.brand && formData.brand.trim().length > 50) {
+    errors.brand = 'ยี่ห้อต้องไม่เกิน 50 ตัวอักษร';
   }
 
-  // Validate model
-  if (!formData.model || !formData.model.trim()) {
-    errors.model = 'กรุณากรอกรุ่น';
-  } else if (formData.model.trim().length < EQUIPMENT_VALIDATION.model.minLength) {
-    errors.model = `รุ่นต้องมีอย่างน้อย ${EQUIPMENT_VALIDATION.model.minLength} ตัวอักษร`;
-  } else if (formData.model.trim().length > EQUIPMENT_VALIDATION.model.maxLength) {
-    errors.model = `รุ่นต้องไม่เกิน ${EQUIPMENT_VALIDATION.model.maxLength} ตัวอักษร`;
-  }
-
-  // Validate serial number
-  if (!formData.serialNumber || !formData.serialNumber.trim()) {
-    errors.serialNumber = 'กรุณากรอกหมายเลขซีเรียล';
-  } else if (formData.serialNumber.trim().length < EQUIPMENT_VALIDATION.serialNumber.minLength) {
-    errors.serialNumber = `หมายเลขซีเรียลต้องมีอย่างน้อย ${EQUIPMENT_VALIDATION.serialNumber.minLength} ตัวอักษร`;
-  } else if (formData.serialNumber.trim().length > EQUIPMENT_VALIDATION.serialNumber.maxLength) {
-    errors.serialNumber = `หมายเลขซีเรียลต้องไม่เกิน ${EQUIPMENT_VALIDATION.serialNumber.maxLength} ตัวอักษร`;
+  // Validate model (optional for management system)
+  if (formData.model && formData.model.trim().length > 50) {
+    errors.model = 'รุ่นต้องไม่เกิน 50 ตัวอักษร';
   }
 
   // Validate description (optional)
-  if (formData.description && formData.description.trim().length > EQUIPMENT_VALIDATION.description.maxLength) {
-    errors.description = `รายละเอียดต้องไม่เกิน ${EQUIPMENT_VALIDATION.description.maxLength} ตัวอักษร`;
+  if (formData.description && formData.description.trim().length > 1000) {
+    errors.description = 'รายละเอียดต้องไม่เกิน 1000 ตัวอักษร';
   }
 
   // Validate status
@@ -67,13 +56,11 @@ export const validateEquipmentForm = (formData) => {
     errors.status = 'สถานะอุปกรณ์ไม่ถูกต้อง';
   }
 
-  // Validate location
-  if (!formData.location || !formData.location.trim()) {
+  // Validate location (now an object)
+  if (!formData.location || typeof formData.location !== 'object') {
     errors.location = 'กรุณากรอกสถานที่เก็บ';
-  } else if (formData.location.trim().length < EQUIPMENT_VALIDATION.location.minLength) {
-    errors.location = `สถานที่เก็บต้องมีอย่างน้อย ${EQUIPMENT_VALIDATION.location.minLength} ตัวอักษร`;
-  } else if (formData.location.trim().length > EQUIPMENT_VALIDATION.location.maxLength) {
-    errors.location = `สถานที่เก็บต้องไม่เกิน ${EQUIPMENT_VALIDATION.location.maxLength} ตัวอักษร`;
+  } else if (!formData.location.building && !formData.location.floor && !formData.location.room) {
+    errors.location = 'กรุณากรอกสถานที่เก็บอย่างน้อย 1 ช่อง';
   }
 
   // Validate dates
@@ -91,6 +78,11 @@ export const validateEquipmentForm = (formData) => {
     if (warrantyExpiry < purchaseDate) {
       errors.warrantyExpiry = 'วันหมดประกันต้องมาหลังวันที่ซื้อ';
     }
+  }
+
+  // Validate purchase price
+  if (formData.purchasePrice && formData.purchasePrice < 0) {
+    errors.purchasePrice = 'ราคาซื้อต้องไม่ติดลบ';
   }
 
   return {
@@ -136,16 +128,22 @@ export const validateImageFile = (file) => {
  */
 export const sanitizeEquipmentForm = (formData) => {
   return {
+    equipmentNumber: formData.equipmentNumber?.trim().toUpperCase() || '',
     name: formData.name?.trim() || '',
-    category: formData.category || '',
+    category: formData.category || null,
     brand: formData.brand?.trim() || '',
     model: formData.model?.trim() || '',
-    serialNumber: formData.serialNumber?.trim() || '',
     description: formData.description?.trim() || '',
+    specifications: formData.specifications || {},
     status: formData.status || EQUIPMENT_STATUS.AVAILABLE,
-    location: formData.location?.trim() || '',
+    location: formData.location || { building: '', floor: '', room: '', description: '' },
     purchaseDate: formData.purchaseDate || '',
-    warrantyExpiry: formData.warrantyExpiry || ''
+    purchasePrice: formData.purchasePrice || 0,
+    vendor: formData.vendor?.trim() || '',
+    warrantyExpiry: formData.warrantyExpiry || '',
+    responsiblePerson: formData.responsiblePerson || null,
+    tags: formData.tags || [],
+    notes: formData.notes?.trim() || ''
   };
 };
 

@@ -3,11 +3,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { 
   EQUIPMENT_CATEGORY_LABELS,
   EQUIPMENT_STATUS,
-  EQUIPMENT_STATUS_LABELS,
-  DEFAULT_EQUIPMENT_FORM 
+  EQUIPMENT_STATUS_LABELS
 } from '../../types/equipment';
 import { validateEquipmentForm, validateImageFile, sanitizeEquipmentForm } from '../../utils/equipmentValidation';
-import EquipmentService from '../../services/equipmentService';
+import EquipmentManagementService from '../../services/equipmentManagementService';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 const EquipmentForm = ({ 
@@ -17,7 +16,29 @@ const EquipmentForm = ({
   isEdit = false 
 }) => {
   const { user } = useAuth();
-  const [formData, setFormData] = useState(DEFAULT_EQUIPMENT_FORM);
+  const [formData, setFormData] = useState({
+    equipmentNumber: '',
+    name: '',
+    category: null,
+    brand: '',
+    model: '',
+    description: '',
+    specifications: {},
+    status: EQUIPMENT_STATUS.AVAILABLE,
+    location: {
+      building: '',
+      floor: '',
+      room: '',
+      description: ''
+    },
+    purchaseDate: '',
+    purchasePrice: 0,
+    vendor: '',
+    warrantyExpiry: '',
+    responsiblePerson: null,
+    tags: [],
+    notes: ''
+  });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -28,22 +49,32 @@ const EquipmentForm = ({
   useEffect(() => {
     if (isEdit && equipment) {
       setFormData({
+        equipmentNumber: equipment.equipmentNumber || '',
         name: equipment.name || '',
-        category: equipment.category || '',
+        category: equipment.category || null,
         brand: equipment.brand || '',
         model: equipment.model || '',
-        serialNumber: equipment.serialNumber || '',
         description: equipment.description || '',
+        specifications: equipment.specifications || {},
         status: equipment.status || EQUIPMENT_STATUS.AVAILABLE,
-        location: equipment.location || '',
+        location: equipment.location || { building: '', floor: '', room: '', description: '' },
         purchaseDate: equipment.purchaseDate ? 
-          new Date(equipment.purchaseDate.seconds * 1000).toISOString().split('T')[0] : '',
+          (equipment.purchaseDate.seconds ? 
+            new Date(equipment.purchaseDate.seconds * 1000).toISOString().split('T')[0] : 
+            new Date(equipment.purchaseDate).toISOString().split('T')[0]) : '',
+        purchasePrice: equipment.purchasePrice || 0,
+        vendor: equipment.vendor || '',
         warrantyExpiry: equipment.warrantyExpiry ? 
-          new Date(equipment.warrantyExpiry.seconds * 1000).toISOString().split('T')[0] : ''
+          (equipment.warrantyExpiry.seconds ? 
+            new Date(equipment.warrantyExpiry.seconds * 1000).toISOString().split('T')[0] : 
+            new Date(equipment.warrantyExpiry).toISOString().split('T')[0]) : '',
+        responsiblePerson: equipment.responsiblePerson || null,
+        tags: equipment.tags || [],
+        notes: equipment.notes || ''
       });
       
-      if (equipment.imageURL) {
-        setImagePreview(equipment.imageURL);
+      if (equipment.images && equipment.images.length > 0) {
+        setImagePreview(equipment.images[0].url);
       }
     }
   }, [isEdit, equipment]);
@@ -105,32 +136,32 @@ const EquipmentForm = ({
     }
   };
 
-  const checkSerialNumberUniqueness = async (serialNumber) => {
-    if (!serialNumber || serialNumber.length < 1) return;
+  const checkEquipmentNumberUniqueness = async (equipmentNumber) => {
+    if (!equipmentNumber || equipmentNumber.length < 1) return;
     
     setCheckingSerial(true);
     try {
-      const isUnique = await EquipmentService.isSerialNumberUnique(
-        serialNumber, 
+      const isUnique = await EquipmentManagementService.isEquipmentNumberUnique(
+        equipmentNumber, 
         isEdit ? equipment?.id : null
       );
       
       if (!isUnique) {
         setErrors(prev => ({
           ...prev,
-          serialNumber: 'หมายเลขซีเรียลนี้มีอยู่ในระบบแล้ว'
+          equipmentNumber: 'หมายเลขครุภัณฑ์นี้มีอยู่ในระบบแล้ว'
         }));
       }
     } catch (error) {
-      console.error('Error checking serial number:', error);
+      console.error('Error checking equipment number:', error);
     } finally {
       setCheckingSerial(false);
     }
   };
 
-  const handleSerialNumberBlur = () => {
-    if (formData.serialNumber && formData.serialNumber.trim()) {
-      checkSerialNumberUniqueness(formData.serialNumber.trim());
+  const handleEquipmentNumberBlur = () => {
+    if (formData.equipmentNumber && formData.equipmentNumber.trim()) {
+      checkEquipmentNumberUniqueness(formData.equipmentNumber.trim());
     }
   };
 
@@ -165,17 +196,20 @@ const EquipmentForm = ({
     try {
       let result;
       if (isEdit) {
-        result = await EquipmentService.updateEquipment(
+        result = await EquipmentManagementService.updateEquipment(
           equipment.id,
           sanitizedData,
-          imageFile,
-          user.uid
+          imageFile ? [imageFile] : [],
+          [],
+          user.uid,
+          { role: 'admin' }
         );
       } else {
-        result = await EquipmentService.createEquipment(
+        result = await EquipmentManagementService.createEquipment(
           sanitizedData,
-          imageFile,
-          user.uid
+          imageFile ? [imageFile] : [],
+          user.uid,
+          { role: 'admin' }
         );
       }
 
@@ -285,8 +319,16 @@ const EquipmentForm = ({
                 <div className="mt-1">
                   <select
                     id="category"
-                    value={formData.category}
-                    onChange={(e) => handleInputChange('category', e.target.value)}
+                    value={formData.category?.id || ''}
+                    onChange={(e) => {
+                      const selectedValue = e.target.value;
+                      const categoryLabel = EQUIPMENT_CATEGORY_LABELS[selectedValue];
+                      handleInputChange('category', selectedValue ? {
+                        id: selectedValue,
+                        name: categoryLabel,
+                        icon: 'default'
+                      } : null);
+                    }}
                     className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
                       errors.category ? 'border-red-300' : ''
                     }`}
@@ -378,22 +420,22 @@ const EquipmentForm = ({
                 </div>
               </div>
 
-              {/* Serial Number */}
+              {/* Equipment Number */}
               <div className="sm:col-span-2">
-                <label htmlFor="serialNumber" className="block text-sm font-medium text-gray-700">
-                  หมายเลขซีเรียล <span className="text-red-500">*</span>
+                <label htmlFor="equipmentNumber" className="block text-sm font-medium text-gray-700">
+                  หมายเลขครุภัณฑ์ <span className="text-red-500">*</span>
                 </label>
                 <div className="mt-1 relative">
                   <input
                     type="text"
-                    id="serialNumber"
-                    value={formData.serialNumber}
-                    onChange={(e) => handleInputChange('serialNumber', e.target.value)}
-                    onBlur={handleSerialNumberBlur}
+                    id="equipmentNumber"
+                    value={formData.equipmentNumber}
+                    onChange={(e) => handleInputChange('equipmentNumber', e.target.value.toUpperCase())}
+                    onBlur={handleEquipmentNumberBlur}
                     className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
-                      errors.serialNumber ? 'border-red-300' : ''
+                      errors.equipmentNumber ? 'border-red-300' : ''
                     }`}
-                    placeholder="เช่น ABC123456789"
+                    placeholder="เช่น EQ-2024-001"
                     disabled={loading}
                   />
                   {checkingSerial && (
@@ -401,31 +443,98 @@ const EquipmentForm = ({
                       <LoadingSpinner size="sm" />
                     </div>
                   )}
-                  {errors.serialNumber && (
-                    <p className="mt-2 text-sm text-red-600">{errors.serialNumber}</p>
+                  {errors.equipmentNumber && (
+                    <p className="mt-2 text-sm text-red-600">{errors.equipmentNumber}</p>
                   )}
                 </div>
               </div>
 
               {/* Location */}
               <div className="sm:col-span-2">
-                <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   สถานที่เก็บ <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="อาคาร"
+                      value={formData.location?.building || ''}
+                      onChange={(e) => handleInputChange('location', { ...formData.location, building: e.target.value })}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      disabled={loading}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="ชั้น"
+                      value={formData.location?.floor || ''}
+                      onChange={(e) => handleInputChange('location', { ...formData.location, floor: e.target.value })}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      disabled={loading}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="ห้อง"
+                      value={formData.location?.room || ''}
+                      onChange={(e) => handleInputChange('location', { ...formData.location, room: e.target.value })}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+                {errors.location && (
+                  <p className="mt-2 text-sm text-red-600">{errors.location}</p>
+                )}
+              </div>
+
+              {/* Purchase Price */}
+              <div>
+                <label htmlFor="purchasePrice" className="block text-sm font-medium text-gray-700">
+                  ราคาซื้อ (บาท)
+                </label>
+                <div className="mt-1">
+                  <input
+                    type="number"
+                    id="purchasePrice"
+                    min="0"
+                    step="0.01"
+                    value={formData.purchasePrice}
+                    onChange={(e) => handleInputChange('purchasePrice', parseFloat(e.target.value) || 0)}
+                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+                      errors.purchasePrice ? 'border-red-300' : ''
+                    }`}
+                    placeholder="0.00"
+                    disabled={loading}
+                  />
+                  {errors.purchasePrice && (
+                    <p className="mt-2 text-sm text-red-600">{errors.purchasePrice}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Vendor */}
+              <div>
+                <label htmlFor="vendor" className="block text-sm font-medium text-gray-700">
+                  ผู้จำหน่าย
                 </label>
                 <div className="mt-1">
                   <input
                     type="text"
-                    id="location"
-                    value={formData.location}
-                    onChange={(e) => handleInputChange('location', e.target.value)}
+                    id="vendor"
+                    value={formData.vendor}
+                    onChange={(e) => handleInputChange('vendor', e.target.value)}
                     className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
-                      errors.location ? 'border-red-300' : ''
+                      errors.vendor ? 'border-red-300' : ''
                     }`}
-                    placeholder="เช่น ห้อง IT-101, ตู้ A-1"
+                    placeholder="เช่น บริษัท ABC จำกัด"
                     disabled={loading}
                   />
-                  {errors.location && (
-                    <p className="mt-2 text-sm text-red-600">{errors.location}</p>
+                  {errors.vendor && (
+                    <p className="mt-2 text-sm text-red-600">{errors.vendor}</p>
                   )}
                 </div>
               </div>

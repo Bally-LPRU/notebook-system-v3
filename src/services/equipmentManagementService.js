@@ -899,13 +899,13 @@ class EquipmentManagementService {
   /**
    * Update category equipment count
    * @param {string} categoryId - Category ID
-   * @param {number} increment - Increment value
+   * @param {number} incrementValue - Increment value
    */
-  static async updateCategoryCount(categoryId, increment) {
+  static async updateCategoryCount(categoryId, incrementValue) {
     try {
       const categoryRef = doc(db, this.CATEGORIES_COLLECTION, categoryId);
       await updateDoc(categoryRef, {
-        equipmentCount: increment(increment)
+        equipmentCount: increment(incrementValue)
       });
     } catch (error) {
       console.error('Error updating category count:', error);

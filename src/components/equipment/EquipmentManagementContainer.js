@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import EquipmentService from '../../services/equipmentService';
+import EquipmentManagementService from '../../services/equipmentManagementService';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmptyState from '../common/EmptyState';
 
@@ -25,11 +25,11 @@ const EquipmentManagementContainer = ({
       setLoading(true);
       setError(null);
       
-      const result = await EquipmentService.getEquipmentList({});
+      const result = await EquipmentManagementService.getEquipmentList({});
       setEquipment(result.equipment || []);
     } catch (error) {
       console.error('Error loading equipment:', error);
-      setError('ไม่สามารถโหลดข้อมูลอุปกรณ์ได้');
+      setError('ไม่สามารถโหลดข้อมูลอุปกรณ์ได้: ' + error.message);
     } finally {
       setLoading(false);
     }

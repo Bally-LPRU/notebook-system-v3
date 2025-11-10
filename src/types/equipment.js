@@ -152,17 +152,28 @@ export const EQUIPMENT_VALIDATION = {
  * Default equipment form values
  */
 export const DEFAULT_EQUIPMENT_FORM = {
+  equipmentNumber: '',
   name: '',
-  category: '',
+  category: null,
   brand: '',
   model: '',
-  serialNumber: '',
   description: '',
+  specifications: {},
   imageFile: null,
   status: EQUIPMENT_STATUS.AVAILABLE,
-  location: '',
+  location: {
+    building: '',
+    floor: '',
+    room: '',
+    description: ''
+  },
   purchaseDate: '',
-  warrantyExpiry: ''
+  purchasePrice: 0,
+  vendor: '',
+  warrantyExpiry: '',
+  responsiblePerson: null,
+  tags: [],
+  notes: ''
 };
 
 /**
