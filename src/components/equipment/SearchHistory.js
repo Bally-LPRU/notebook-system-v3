@@ -1,4 +1,4 @@
-import { ClockIcon, BookmarkIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ClockIcon, BookmarkIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const SearchHistory = ({
   history = [],

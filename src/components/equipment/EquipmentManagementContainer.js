@@ -9,7 +9,7 @@ import LabelPrintingModal from './LabelPrintingModal';
 import { useBulkSelection } from '../../hooks/useBulkSelection';
 import { useEquipmentSearch } from '../../hooks/useEquipmentSearch';
 import EquipmentManagementService from '../../services/equipmentManagementService';
-import { CameraIcon, QrCodeIcon, PlusIcon } from 'lucide-react';
+import { CameraIcon, PlusIcon } from 'lucide-react';
 
 const EquipmentManagementContainer = ({
   onAddEquipment,
@@ -17,7 +17,7 @@ const EquipmentManagementContainer = ({
   onViewEquipment,
   className = ''
 }) => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin } = useAuth();
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -41,7 +41,6 @@ const EquipmentManagementContainer = ({
 
   const {
     selectedItems,
-    isAllSelected,
     handleSelectItem,
     handleSelectAll,
     handleClearSelection,

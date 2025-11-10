@@ -568,6 +568,9 @@ class ReservationService {
           case RESERVATION_STATUS.EXPIRED:
             stats.expired++;
             break;
+          default:
+            // Unknown status
+            break;
         }
       });
       

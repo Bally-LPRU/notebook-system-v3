@@ -227,6 +227,9 @@ class LabelPrintingService {
         case 'barcode':
           // Future implementation for barcode
           break;
+        default:
+          // Unknown element type
+          break;
       }
     });
 
@@ -527,6 +530,9 @@ class LabelPrintingService {
               ${element.field}
             </div>
           `;
+          break;
+        default:
+          // Unknown element type
           break;
       }
     });

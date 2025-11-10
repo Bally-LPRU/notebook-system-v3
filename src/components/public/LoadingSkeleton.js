@@ -183,16 +183,7 @@ export const ErrorState = ({
     return icons[type] || icons.general;
   };
 
-  const getErrorColor = (type) => {
-    const colors = {
-      network: 'text-blue-600',
-      firestore: 'text-orange-600',
-      permission: 'text-red-600',
-      quota: 'text-yellow-600',
-      general: 'text-gray-600'
-    };
-    return colors[type] || colors.general;
-  };
+
 
   return (
     <div className="text-center py-8 sm:py-12">

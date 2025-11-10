@@ -12,13 +12,12 @@ import EmptyState from '../common/EmptyState';
 import { canDeleteEquipment } from '../../utils/equipmentValidation';
 
 const EquipmentManagement = () => {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState(null);
   const [deletingEquipment, setDeletingEquipment] = useState(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [formLoading, setFormLoading] = useState(false);
 
   const {
     equipment,

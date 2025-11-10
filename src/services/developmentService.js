@@ -230,6 +230,9 @@ class DevelopmentService {
         case RESERVATION_STATUS.EXPIRED:
           await NotificationReservationService.notifyReservationExpired(updatedReservation);
           break;
+        default:
+          // No notification for other statuses
+          break;
       }
     }
 
@@ -293,6 +296,9 @@ class DevelopmentService {
           break;
         case RESERVATION_STATUS.EXPIRED:
           stats.expired++;
+          break;
+        default:
+          // Unknown status
           break;
       }
     });

@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useEquipmentReservations } from '../../hooks/useReservations';
 import { 
   RESERVATION_STATUS_COLORS,
   RESERVATION_STATUS_LABELS,
-  generateTimeSlots,
   formatReservationDate,
   formatReservationTime,
   TIME_SLOTS_CONFIG
@@ -37,7 +36,6 @@ const ReservationCalendar = ({
     const month = currentMonth.getMonth();
     
     const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
     
