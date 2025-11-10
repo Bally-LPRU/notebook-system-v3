@@ -1,6 +1,10 @@
 import { Layout } from '../layout';
 import EquipmentManagementContainer from '../equipment/EquipmentManagementContainer';
 
+/**
+ * Admin Equipment Management Page
+ * Provides interface for managing equipment in the system
+ */
 const AdminEquipmentManagement = () => {
   return (
     <Layout>
