@@ -1,4 +1,3 @@
-import { useAuth } from '../../contexts/AuthContext';
 import EquipmentCard from './EquipmentCard';
 import BulkActionBar from './BulkActionBar';
 import LoadingSpinner from '../common/LoadingSpinner';
