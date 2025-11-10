@@ -33,8 +33,6 @@ const EquipmentGrid = ({
   onGenerateQRCodes,
   onPrintLabels
 }) => {
-  const { } = useAuth();
-  
   // Use bulk selection hook
   const {
     selectedItems: bulkSelectedItems,

@@ -123,6 +123,7 @@ const LoanRequestList = () => {
 
         case 'markReturned':
           // Implementation would depend on your loan service
+          // eslint-disable-next-line no-unused-vars
           for (const _itemId of itemIds) {
             // await markLoanAsReturned(_itemId);
           }
