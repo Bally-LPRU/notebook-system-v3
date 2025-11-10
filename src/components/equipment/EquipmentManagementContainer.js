@@ -41,10 +41,10 @@ const EquipmentManagementContainer = ({
 
   const {
     selectedItems,
-    handleSelectItem,
-    handleSelectAll,
-    handleClearSelection,
-    getSelectedEquipment
+    toggleItem: handleSelectItem,
+    selectAll: handleSelectAll,
+    clearSelection: handleClearSelection,
+    getSelectedItems: getSelectedEquipment
   } = useBulkSelection(equipment);
 
   // Load equipment data
