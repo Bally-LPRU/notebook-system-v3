@@ -8,7 +8,7 @@ import QRCodeScanner from './QRCodeScanner';
 import LabelPrintingModal from './LabelPrintingModal';
 import { useBulkSelection } from '../../hooks/useBulkSelection';
 import { useEquipmentSearch } from '../../hooks/useEquipmentSearch';
-import EquipmentManagementService from '../../services/equipmentManagementService';
+import EquipmentService from '../../services/equipmentService';
 import { CameraIcon, PlusIcon } from 'lucide-react';
 
 const EquipmentManagementContainer = ({
@@ -57,7 +57,7 @@ const EquipmentManagementContainer = ({
       setLoading(true);
       setError(null);
       
-      const result = await EquipmentManagementService.getEquipmentList(filters);
+      const result = await EquipmentService.getEquipmentList(filters);
       setEquipment(result.equipment);
       setPagination(result.pagination);
     } catch (error) {
@@ -94,7 +94,7 @@ const EquipmentManagementContainer = ({
           
           if (!foundEquipment) {
             // Try to load equipment from service
-            foundEquipment = await EquipmentManagementService.getEquipmentById(equipmentId);
+            foundEquipment = await EquipmentService.getEquipmentById(equipmentId);
           }
           
           if (foundEquipment) {
