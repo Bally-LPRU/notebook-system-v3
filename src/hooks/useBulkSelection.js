@@ -133,4 +133,5 @@ const useBulkSelection = (items = [], keyField = 'id') => {
   };
 };
 
+export { useBulkSelection };
 export default useBulkSelection;
