@@ -75,13 +75,13 @@ export class AuthDebugger {
   static async testFirebaseConnection() {
     try {
       // Test Firebase Auth endpoint
-      const authTest = await fetch('https://identitytoolkit.googleapis.com/v1/projects', {
+      await fetch('https://identitytoolkit.googleapis.com/v1/projects', {
         method: 'HEAD',
         mode: 'no-cors'
       });
 
       // Test Firestore endpoint
-      const firestoreTest = await fetch('https://firestore.googleapis.com/v1/projects', {
+      await fetch('https://firestore.googleapis.com/v1/projects', {
         method: 'HEAD',
         mode: 'no-cors'
       });

@@ -181,9 +181,11 @@ export const initializeMockData = async () => {
   }
 };
 
-export default {
+const mockData = {
   mockEquipment,
   mockUsers,
   mockReservations,
   initializeMockData
 };
+
+export default mockData;

@@ -7,8 +7,7 @@ export const useEquipmentSearch = (options = {}) => {
     initialQuery = '',
     autoSearch = true,
     debounceMs = 300,
-    enableSuggestions = true,
-    enableHistory = true
+    enableSuggestions = true
   } = options;
 
   const [query, setQuery] = useState(initialQuery);
@@ -19,6 +18,7 @@ export const useEquipmentSearch = (options = {}) => {
   const [totalCount, setTotalCount] = useState(0);
 
   // Debounced search function
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedSearch = useCallback(
     debounce(async (searchQuery) => {
       if (!searchQuery || searchQuery.length < 2) {

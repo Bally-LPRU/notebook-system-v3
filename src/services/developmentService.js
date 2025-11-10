@@ -3,7 +3,7 @@
  * Provides mock data and services for development without Firebase
  */
 
-import { mockEquipment, mockUsers, mockReservations } from '../utils/mockData';
+import { mockEquipment, mockReservations } from '../utils/mockData';
 import { EQUIPMENT_STATUS } from '../types/equipment';
 import { RESERVATION_STATUS } from '../types/reservation';
 import NotificationReservationService from './notificationReservationService';

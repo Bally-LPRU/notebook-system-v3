@@ -9,10 +9,8 @@ import {
   query, 
   where, 
   orderBy, 
-  limit, 
   startAfter,
   serverTimestamp,
-  writeBatch,
   increment
 } from 'firebase/firestore';
 import { 
@@ -24,7 +22,6 @@ import {
 import { db, storage } from '../config/firebase';
 import { 
   EQUIPMENT_MANAGEMENT_STATUS,
-  EQUIPMENT_ACTIONS,
   EQUIPMENT_MANAGEMENT_PAGINATION,
   IMAGE_CONFIG
 } from '../types/equipmentManagement';
@@ -649,7 +646,6 @@ class EquipmentManagementService {
       this.validateImageFile(imageFile);
 
       const imageId = this.generateImageId();
-      const timestamp = Date.now();
       const fileExtension = imageFile.name.split('.').pop().toLowerCase();
       
       // Create file names

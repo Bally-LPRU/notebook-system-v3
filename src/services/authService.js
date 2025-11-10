@@ -1,5 +1,4 @@
 import { 
-  signInWithRedirect, 
   getRedirectResult,
   signOut, 
   onAuthStateChanged

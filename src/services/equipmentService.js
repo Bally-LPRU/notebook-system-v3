@@ -9,7 +9,6 @@ import {
   query, 
   where, 
   orderBy, 
-  limit, 
   startAfter,
   serverTimestamp,
   writeBatch
@@ -23,7 +22,6 @@ import {
 import { db, storage } from '../config/firebase';
 import { 
   EQUIPMENT_STATUS, 
-  EQUIPMENT_CATEGORIES,
   EQUIPMENT_PAGINATION 
 } from '../types/equipment';
 

@@ -3,7 +3,7 @@
  * จัดการการแจ้งเตือนสำหรับระบบจองอุปกรณ์
  */
 
-import { RESERVATION_STATUS } from '../types/reservation';
+// import { RESERVATION_STATUS } from '../types/reservation';
 
 class NotificationReservationService {
   /**
