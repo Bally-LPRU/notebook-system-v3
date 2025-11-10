@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
-  EQUIPMENT_CATEGORY_LABELS
+  EQUIPMENT_CATEGORY_LABELS,
+  EQUIPMENT_STATUS_LABELS
 } from '../../types/equipment';
 import { LOAN_REQUEST_STATUS_LABELS } from '../../types/loanRequest';
 import { RESERVATION_STATUS_LABELS } from '../../types/reservation';
