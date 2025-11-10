@@ -188,6 +188,7 @@ class QRScannerService {
    */
   static async detectWithBarcodeDetector(imageData) {
     try {
+      // eslint-disable-next-line no-undef
       const barcodeDetector = new BarcodeDetector({
         formats: ['qr_code']
       });
