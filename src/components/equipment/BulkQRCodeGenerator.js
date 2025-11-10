@@ -112,7 +112,6 @@ const BulkQRCodeGenerator = ({
       // Create print layout
       const printWindow = window.open('', '_blank');
       const qrCodesPerRow = 3;
-      const rows = Math.ceil(validPrintQRCodes.length / qrCodesPerRow);
 
       let printContent = `
         <!DOCTYPE html>

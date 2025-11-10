@@ -11,14 +11,13 @@ const OfflineIndicator = ({
   const [pendingActions, setPendingActions] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [networkManager, setNetworkManager] = useState(null);
+
   const [offlineManager, setOfflineManager] = useState(null);
 
   useEffect(() => {
     const netManager = new NetworkStatusManager();
     const offManager = new OfflineDataManager();
     
-    setNetworkManager(netManager);
     setOfflineManager(offManager);
     
     // Update online status
@@ -45,6 +44,7 @@ const OfflineIndicator = ({
     return () => {
       clearInterval(interval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadPendingCounts = async (manager) => {

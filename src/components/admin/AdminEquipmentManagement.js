@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { Layout } from '../layout';
 import EquipmentManagementContainer from '../equipment/EquipmentManagementContainer';
 

@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import EquipmentCard from './EquipmentCard';
 import BulkActionBar from './BulkActionBar';
@@ -34,7 +33,7 @@ const EquipmentGrid = ({
   onGenerateQRCodes,
   onPrintLabels
 }) => {
-  const { isAdmin } = useAuth();
+  const { } = useAuth();
   
   // Use bulk selection hook
   const {
@@ -45,7 +44,6 @@ const EquipmentGrid = ({
     toggleItem,
     selectAll,
     deselectAll,
-    toggleAll,
     selectFiltered,
     clearSelection,
     getSelectedItems,
@@ -93,10 +91,6 @@ const EquipmentGrid = ({
   // Filter-based selection handlers
   const handleSelectByStatus = (status) => {
     selectFiltered(item => item.status === status);
-  };
-
-  const handleSelectByCategory = (category) => {
-    selectFiltered(item => item.category === category);
   };
 
   // Bulk operation handlers

@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLoanRequests } from '../../hooks/useLoanRequests';
 import { 
-  LOAN_REQUEST_STATUS_LABELS, 
-  LOAN_REQUEST_STATUS_COLORS
+  LOAN_REQUEST_STATUS_LABELS
 } from '../../types/loanRequest';
 import LoanRequestCard from './LoanRequestCard';
 import BulkActions from '../common/BulkActions';
@@ -124,8 +123,8 @@ const LoanRequestList = () => {
 
         case 'markReturned':
           // Implementation would depend on your loan service
-          for (const itemId of itemIds) {
-            // await markLoanAsReturned(itemId);
+          for (const _itemId of itemIds) {
+            // await markLoanAsReturned(_itemId);
           }
           break;
 

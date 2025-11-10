@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
-  EQUIPMENT_CATEGORIES, 
   EQUIPMENT_CATEGORY_LABELS,
   EQUIPMENT_STATUS,
   EQUIPMENT_STATUS_LABELS,
