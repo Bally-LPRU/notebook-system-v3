@@ -1,138 +1,51 @@
-import { useState, useEffect, useCallback } from 'react';
-import { debounce } from 'lodash';
-import EquipmentSearchService from '../services/equipmentSearchService';
+import { useState, useCallback } from 'react';
+import EquipmentService from '../services/equipmentService';
 
-export const useEquipmentSearch = (options = {}) => {
-  const {
-    initialQuery = '',
-    autoSearch = true,
-    debounceMs = 300,
-    enableSuggestions = true
-  } = options;
+export const useEquipmentSearch = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState(null);
 
-  const [query, setQuery] = useState(initialQuery);
-  const [results, setResults] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [totalCount, setTotalCount] = useState(0);
-
-  // Debounced search function
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const debouncedSearch = useCallback(
-    debounce(async (searchQuery) => {
-      if (!searchQuery || searchQuery.length < 2) {
-        setResults([]);
-        setSuggestions([]);
-        setTotalCount(0);
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const searchResults = await EquipmentSearchService.searchWithSuggestions(
-          searchQuery,
-          {
-            includeSuggestions: enableSuggestions,
-            includeCategories: true,
-            includeBrands: true
-          }
-        );
-
-        setResults(searchResults.equipment);
-        setSuggestions(searchResults.suggestions);
-        setTotalCount(searchResults.totalCount);
-      } catch (err) {
-        console.error('Search error:', err);
-        setError('เกิดข้อผิดพลาดในการค้นหา');
-        setResults([]);
-        setSuggestions([]);
-        setTotalCount(0);
-      } finally {
-        setLoading(false);
-      }
-    }, debounceMs),
-    [debounceMs, enableSuggestions]
-  );
-
-  // Auto search when query changes
-  useEffect(() => {
-    if (autoSearch) {
-      debouncedSearch(query);
-    }
-  }, [query, autoSearch, debouncedSearch]);
-
-  // Manual search function
-  const search = useCallback(async (searchQuery = query) => {
-    setQuery(searchQuery);
+  // Simple search function
+  const handleSearch = useCallback(async (query) => {
+    setSearchQuery(query);
     
-    if (!autoSearch) {
-      debouncedSearch(searchQuery);
+    if (!query || query.trim().length < 2) {
+      setSearchResults([]);
+      setSearchError(null);
+      return;
     }
-  }, [query, autoSearch, debouncedSearch]);
 
-  // Advanced search function
-  const advancedSearch = useCallback(async (criteria) => {
-    setLoading(true);
-    setError(null);
+    setIsSearching(true);
+    setSearchError(null);
 
     try {
-      const searchResults = await EquipmentSearchService.advancedSearch(criteria);
-      setResults(searchResults.equipment);
-      setTotalCount(searchResults.totalCount);
-      setSuggestions([]);
-      
-      // Update query if there's a text query in criteria
-      if (criteria.query) {
-        setQuery(criteria.query);
-      }
+      const results = await EquipmentService.searchEquipment(query.trim(), 50);
+      setSearchResults(results);
     } catch (err) {
-      console.error('Advanced search error:', err);
-      setError('เกิดข้อผิดพลาดในการค้นหาขั้นสูง');
-      setResults([]);
-      setTotalCount(0);
+      console.error('Search error:', err);
+      setSearchError('เกิดข้อผิดพลาดในการค้นหา');
+      setSearchResults([]);
     } finally {
-      setLoading(false);
+      setIsSearching(false);
     }
   }, []);
 
   // Clear search
   const clearSearch = useCallback(() => {
-    setQuery('');
-    setResults([]);
-    setSuggestions([]);
-    setTotalCount(0);
-    setError(null);
-  }, []);
-
-  // Get autocomplete suggestions
-  const getAutocompleteSuggestions = useCallback(async (partialQuery) => {
-    try {
-      const autocompleteSuggestions = await EquipmentSearchService.getAutocompleteSuggestions(partialQuery);
-      return autocompleteSuggestions;
-    } catch (err) {
-      console.error('Autocomplete error:', err);
-      return [];
-    }
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchError(null);
   }, []);
 
   return {
-    // State
-    query,
-    results,
-    suggestions,
-    loading,
-    error,
-    totalCount,
-    
-    // Actions
-    setQuery,
-    search,
-    advancedSearch,
-    clearSearch,
-    getAutocompleteSuggestions
+    searchQuery,
+    searchResults,
+    isSearching,
+    searchError,
+    handleSearch,
+    clearSearch
   };
 };
 
