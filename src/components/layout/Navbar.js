@@ -118,46 +118,9 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation - Removed to prevent duplication */}
           <div className="hidden md:flex items-center space-x-4">
-            {navigationItems.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                  isActivePath(item.href)
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                {getIcon(item.icon)}
-                <span className="ml-2">{item.name}</span>
-              </Link>
-            ))}
-
-            {isAdmin && (
-              <div className="border-l border-gray-300 pl-4 ml-4">
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ผู้ดูแลระบบ
-                </span>
-                <div className="flex items-center space-x-2 mt-1">
-                  {adminNavigationItems.slice(0, 2).map((item) => (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className={`flex items-center px-2 py-1 rounded-md text-xs font-medium transition-colors duration-200 ${
-                        isActivePath(item.href)
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      {getIcon(item.icon)}
-                      <span className="ml-1">{item.name}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Navigation moved to Sidebar for consistency */}
           </div>
 
           {/* User Profile Dropdown */}
@@ -218,30 +181,6 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
                     >
                       ตั้งค่า
                     </Link>
-
-                    {isAdmin && (
-                      <>
-                        <div className="border-t border-gray-100 my-1"></div>
-                        <div className="px-4 py-1">
-                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            เมนูผู้ดูแลระบบ
-                          </p>
-                        </div>
-                        {adminNavigationItems.map((item) => (
-                          <Link
-                            key={item.name}
-                            to={item.href}
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            onClick={() => setIsProfileDropdownOpen(false)}
-                          >
-                            <div className="flex items-center">
-                              {getIcon(item.icon)}
-                              <span className="ml-2">{item.name}</span>
-                            </div>
-                          </Link>
-                        ))}
-                      </>
-                    )}
 
                     <div className="border-t border-gray-100 my-1"></div>
                     <button

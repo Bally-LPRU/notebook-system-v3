@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ทดสอบ Incognito Mode</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 20px;
+      background: #f9f9f9;
+      border-left: 4px solid #2196F3;
+      border-radius: 4px;
+    }
+    .test-section h2 {
+      margin-top: 0;
+      color: #2196F3;
+    }
+    .status {
+      display: inline-block;
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-weight: bold;
+      margin: 5px 0;
+    }
+    .status.pass {
+      background: #4CAF50;
+      color: white;
+    }
+    .status.fail {
+      background: #f44336;
+      color: white;
+    }
+    .status.pending {
+      background: #FF9800;
+      color: white;
+    }
+    button {
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #1976D2;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .log {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin: 10px 0;
+    }
+    .log-entry {
+      margin: 5px 0;
+      padding: 5px;
+      border-left: 3px solid transparent;
+    }
+    .log-entry.info {
+      border-left-color: #2196F3;
+    }
+    .log-entry.success {
+      border-left-color: #4CAF50;
+    }
+    .log-entry.warning {
+      border-left-color: #FF9800;
+    }
+    .log-entry.error {
+      border-left-color: #f44336;
+    }
+    .metric {
+      display: inline-block;
+      margin: 10px 20px 10px 0;
+      padding: 10px 20px;
+      background: #e3f2fd;
+      border-radius: 4px;
+    }
+    .metric-label {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+    }
+    .metric-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #2196F3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 ทดสอบ Incognito Mode</h1>
+    
+    <div class="test-section">
+      <h2>📋 สถานะการทดสอบ</h2>
+      <div id="test-status">
+        <span class="status pending">รอการทดสอบ...</span>
+      </div>
+      <button onclick="runAllTests()">▶️ เริ่มทดสอบ</button>
+      <button onclick="clearLogs()">🗑️ ล้างล็อก</button>
+    </div>
+
+    <div class="test-section">
+      <h2>📊 เมตริก</h2>
+      <div id="metrics">
+        <div class="metric">
+          <div class="metric-label">Token Refresh</div>
+          <div class="metric-value" id="token-refresh-count">0</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Duplicate Elements</div>
+          <div class="metric-value" id="duplicate-count">0</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Errors</div>
+          <div class="metric-value" id="error-count">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h2>📝 ล็อก</h2>
+      <div id="log" class="log"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>🔍 การทดสอบแต่ละส่วน</h2>
+      <button onclick="testDuplicateElements()">1️⃣ ทดสอบ Duplicate Elements</button>
+      <button onclick="testTokenRefresh()">2️⃣ ทดสอบ Token Refresh</button>
+      <button onclick="testEquipmentPage()">3️⃣ ทดสอบหน้าอุปกรณ์</button>
+      <button onclick="testFirebaseConnection()">4️⃣ ทดสอบ Firebase</button>
+    </div>
+
+    <div class="test-section">
+      <h2>ℹ️ คำแนะนำ</h2>
+      <ul>
+        <li>เปิดหน้านี้ใน <strong>Incognito/Private Mode</strong></li>
+        <li>เปิด Developer Console (F12) เพื่อดูรายละเอียดเพิ่มเติม</li>
+        <li>คลิก "เริ่มทดสอบ" เพื่อทดสอบทั้งหมด</li>
+        <li>ตรวจสอบเมตริกและล็อกเพื่อหาปัญหา</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    let tokenRefreshCount = 0;
+    let errorCount = 0;
+    let duplicateCount = 0;
+    let lastTokenRefreshTime = Date.now();
+
+    function log(message, type = 'info') {
+      const logDiv = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      
+      const timestamp = new Date().toLocaleTimeString('th-TH');
+      const icon = {
+        info: 'ℹ️',
+        success: '✅',
+        warning: '⚠️',
+        error: '❌'
+      }[type] || 'ℹ️';
+      
+      entry.textContent = `[${timestamp}] ${icon} ${message}`;
+      logDiv.appendChild(entry);
+      logDiv.scrollTop = logDiv.scrollHeight;
+      
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+
+    function updateMetric(id, value) {
+      const element = document.getElementById(id);
+      if (element) {
+        element.textContent = value;
+      }
+    }
+
+    function updateStatus(status, type) {
+      const statusDiv = document.getElementById('test-status');
+      statusDiv.innerHTML = `<span class="status ${type}">${status}</span>`;
+    }
+
+    function clearLogs() {
+      document.getElementById('log').innerHTML = '';
+      log('ล็อกถูกล้างแล้ว', 'info');
+    }
+
+    function testDuplicateElements() {
+      log('🔍 กำลังตรวจสอบ Duplicate Elements...', 'info');
+      
+      const navbars = document.querySelectorAll('nav');
+      const sidebars = document.querySelectorAll('[role="navigation"]');
+      const headers = document.querySelectorAll('header');
+      
+      duplicateCount = 0;
+      
+      if (navbars.length > 1) {
+        duplicateCount++;
+        log(`พบ Navbar ซ้ำ: ${navbars.length} รายการ`, 'warning');
+      } else {
+        log(`Navbar: ${navbars.length} รายการ (ปกติ)`, 'success');
+      }
+      
+      if (sidebars.length > 1) {
+        duplicateCount++;
+        log(`พบ Sidebar ซ้ำ: ${sidebars.length} รายการ`, 'warning');
+      } else {
+        log(`Sidebar: ${sidebars.length} รายการ (ปกติ)`, 'success');
+      }
+      
+      if (headers.length > 1) {
+        duplicateCount++;
+        log(`พบ Header ซ้ำ: ${headers.length} รายการ`, 'warning');
+      } else {
+        log(`Header: ${headers.length} รายการ (ปกติ)`, 'success');
+      }
+      
+      updateMetric('duplicate-count', duplicateCount);
+      
+      if (duplicateCount === 0) {
+        log('✅ ไม่พบ Duplicate Elements', 'success');
+        return true;
+      } else {
+        log(`❌ พบ Duplicate Elements ${duplicateCount} รายการ`, 'error');
+        errorCount++;
+        updateMetric('error-count', errorCount);
+        return false;
+      }
+    }
+
+    function testTokenRefresh() {
+      log('🔍 กำลังตรวจสอบ Token Refresh...', 'info');
+      
+      // Monitor console for token refresh messages
+      const originalLog = console.log;
+      console.log = function(...args) {
+        const message = args.join(' ');
+        
+        if (message.includes('Token changed') || message.includes('Token refresh') || message.includes('🔄')) {
+          tokenRefreshCount++;
+          const now = Date.now();
+          const timeSinceLastRefresh = now - lastTokenRefreshTime;
+          
+          updateMetric('token-refresh-count', tokenRefreshCount);
+          
+          if (timeSinceLastRefresh < 1000) {
+            log(`⚠️ Token refresh ถี่เกินไป! (${timeSinceLastRefresh}ms)`, 'warning');
+            errorCount++;
+            updateMetric('error-count', errorCount);
+          } else {
+            log(`Token refresh #${tokenRefreshCount} (${timeSinceLastRefresh}ms)`, 'info');
+          }
+          
+          lastTokenRefreshTime = now;
+        }
+        
+        originalLog.apply(console, args);
+      };
+      
+      log('✅ เริ่มตรวจสอบ Token Refresh (ดูที่ Console)', 'success');
+      return true;
+    }
+
+    function testEquipmentPage() {
+      log('🔍 กำลังทดสอบหน้าอุปกรณ์...', 'info');
+      
+      // Check if we're on equipment page
+      const isEquipmentPage = window.location.pathname.includes('/equipment');
+      
+      if (isEquipmentPage) {
+        log('อยู่ในหน้าอุปกรณ์', 'info');
+        
+        // Check for error messages
+        const errorMessages = document.querySelectorAll('[class*="error"], [class*="Error"]');
+        if (errorMessages.length > 0) {
+          log(`❌ พบข้อความ error ${errorMessages.length} รายการ`, 'error');
+          errorCount++;
+          updateMetric('error-count', errorCount);
+          return false;
+        }
+        
+        // Check for loading state
+        const loadingElements = document.querySelectorAll('[class*="loading"], [class*="Loading"]');
+        if (loadingElements.length > 0) {
+          log(`⏳ กำลังโหลด... (${loadingElements.length} elements)`, 'warning');
+        }
+        
+        log('✅ หน้าอุปกรณ์ทำงานปกติ', 'success');
+        return true;
+      } else {
+        log('ไม่ได้อยู่ในหน้าอุปกรณ์', 'warning');
+        return false;
+      }
+    }
+
+    function testFirebaseConnection() {
+      log('🔍 กำลังทดสอบ Firebase Connection...', 'info');
+      
+      // Check for Firebase errors in console
+      const hasFirebaseError = window.performance
+        .getEntriesByType('resource')
+        .some(entry => entry.name.includes('firebase') && entry.responseStatus >= 400);
+      
+      if (hasFirebaseError) {
+        log('❌ พบปัญหาการเชื่อมต่อ Firebase', 'error');
+        errorCount++;
+        updateMetric('error-count', errorCount);
+        return false;
+      }
+      
+      log('✅ Firebase Connection ปกติ', 'success');
+      return true;
+    }
+
+    async function runAllTests() {
+      log('🚀 เริ่มการทดสอบทั้งหมด...', 'info');
+      updateStatus('กำลังทดสอบ...', 'pending');
+      
+      // Reset counters
+      tokenRefreshCount = 0;
+      errorCount = 0;
+      duplicateCount = 0;
+      updateMetric('token-refresh-count', 0);
+      updateMetric('duplicate-count', 0);
+      updateMetric('error-count', 0);
+      
+      const results = [];
+      
+      // Run tests
+      results.push(testDuplicateElements());
+      results.push(testTokenRefresh());
+      results.push(testEquipmentPage());
+      results.push(testFirebaseConnection());
+      
+      // Wait a bit for async operations
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Summary
+      const allPassed = results.every(r => r === true);
+      
+      if (allPassed) {
+        log('✅ การทดสอบทั้งหมดผ่าน!', 'success');
+        updateStatus('ผ่านทั้งหมด ✅', 'pass');
+      } else {
+        log('❌ มีบางการทดสอบที่ไม่ผ่าน', 'error');
+        updateStatus('มีปัญหา ❌', 'fail');
+      }
+      
+      log(`📊 สรุป: ${results.filter(r => r).length}/${results.length} ผ่าน`, 'info');
+    }
+
+    // Auto-run on load
+    window.addEventListener('load', () => {
+      log('🎯 หน้าทดสอบพร้อมใช้งาน', 'success');
+      log('คลิก "เริ่มทดสอบ" เพื่อเริ่มการทดสอบ', 'info');
+    });
+
+    // Monitor errors
+    window.addEventListener('error', (event) => {
+      log(`❌ JavaScript Error: ${event.message}`, 'error');
+      errorCount++;
+      updateMetric('error-count', errorCount);
+    });
+
+    // Monitor unhandled promise rejections
+    window.addEventListener('unhandledrejection', (event) => {
+      log(`❌ Unhandled Promise Rejection: ${event.reason}`, 'error');
+      errorCount++;
+      updateMetric('error-count', errorCount);
+    });
+  </script>
+</body>
+</html>

@@ -36,6 +36,8 @@ export const AuthProvider = ({ children }) => {
   // Ref to track token refresh attempts
   const tokenRefreshAttempts = useRef(0);
   const maxTokenRefreshAttempts = 3;
+  const tokenRefreshInProgress = useRef(false);
+  const lastTokenRefreshTime = useRef(0);
 
   // Enhanced error handling helper
   const handleError = (error, context = 'auth_context') => {
@@ -180,26 +182,33 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // Token refresh and expiration handler
+  // Token refresh and expiration handler with debounce
   useEffect(() => {
     console.log('🔥 Setting up token refresh listener...');
     
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
       if (user) {
+        // Prevent multiple simultaneous refreshes
+        if (tokenRefreshInProgress.current) {
+          console.log('⏭️ Token refresh already in progress, skipping...');
+          return;
+        }
+
+        // Debounce: Don't refresh if we just refreshed less than 30 seconds ago
+        const now = Date.now();
+        const timeSinceLastRefresh = now - lastTokenRefreshTime.current;
+        if (timeSinceLastRefresh < 30000) {
+          console.log('⏭️ Token refreshed recently, skipping...');
+          return;
+        }
+
         try {
-          console.log('🔄 Token changed, refreshing...');
+          tokenRefreshInProgress.current = true;
+          console.log('🔄 Token changed, checking validity...');
           
-          // Get fresh token to ensure it's valid
-          await user.getIdToken(true);
-          console.log('✅ Token refreshed successfully');
-          
-          // Reset refresh attempts on successful refresh
-          tokenRefreshAttempts.current = 0;
-          
-          // Verify token hasn't expired
-          const tokenResult = await user.getIdTokenResult();
+          // Check if token is still valid before refreshing
+          const tokenResult = await user.getIdTokenResult(false); // Don't force refresh yet
           const expirationTime = new Date(tokenResult.expirationTime);
-          const now = new Date();
           const timeUntilExpiry = expirationTime - now;
           
           console.log('🔍 Token expiration:', {
@@ -207,12 +216,18 @@ export const AuthProvider = ({ children }) => {
             timeUntilExpiry: `${Math.floor(timeUntilExpiry / 1000 / 60)} minutes`
           });
           
-          // If token is about to expire (less than 5 minutes), refresh it proactively
+          // Only refresh if token is about to expire (less than 5 minutes)
           if (timeUntilExpiry < 5 * 60 * 1000) {
-            console.log('⚠️ Token expiring soon, refreshing proactively...');
+            console.log('⚠️ Token expiring soon, refreshing...');
             await user.getIdToken(true);
-            console.log('✅ Proactive token refresh complete');
+            lastTokenRefreshTime.current = Date.now();
+            console.log('✅ Token refreshed successfully');
+          } else {
+            console.log('✅ Token still valid, no refresh needed');
           }
+          
+          // Reset refresh attempts on successful check
+          tokenRefreshAttempts.current = 0;
           
         } catch (error) {
           console.error('❌ Token refresh error:', error);
@@ -234,6 +249,8 @@ export const AuthProvider = ({ children }) => {
             // Log error but don't sign out yet
             handleError(error, 'token_refresh');
           }
+        } finally {
+          tokenRefreshInProgress.current = false;
         }
       }
     });

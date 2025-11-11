@@ -48,12 +48,24 @@ const EquipmentManagementContainer = ({
   const handleRefreshToken = async () => {
     try {
       setRefreshing(true);
+      setError(null);
+      setIsPermissionError(false);
+      
+      console.log('🔄 กำลัง refresh token...');
       await refreshToken();
+      
+      // Wait a moment for token to propagate
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Reload equipment after token refresh
+      console.log('📥 กำลังโหลดข้อมูลอุปกรณ์ใหม่...');
       await loadEquipment();
+      
+      console.log('✅ Refresh token และโหลดข้อมูลสำเร็จ');
     } catch (error) {
       console.error('Error refreshing token:', error);
       setError('ไม่สามารถ refresh token ได้: ' + error.message);
+      console.error('❌ Refresh token ล้มเหลว:', error.message);
     } finally {
       setRefreshing(false);
     }
