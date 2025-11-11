@@ -11,7 +11,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import NotFound from './components/NotFound';
 import PWAInstallPrompt from './components/common/PWAInstallPrompt';
 import OfflineIndicator from './components/common/OfflineIndicator';
-import { lazy, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { register } from './utils/serviceWorkerRegistration';
 import PopupBlockingDetector from './utils/popupBlockingDetector';
 import './App.css';
@@ -84,16 +84,17 @@ const AppRoutes = () => {
 
   // Authenticated and approved - show main app
   return (
-    <Routes>
-      <Route path="/" element={
-        <ProtectedRoute>
-          {userProfile?.role === 'admin' ? (
-            <Navigate to="/admin" replace />
-          ) : (
-            <LazyDashboard />
-          )}
-        </ProtectedRoute>
-      } />
+    <Suspense fallback={<AuthInitializingLoader />}>
+      <Routes>
+        <Route path="/" element={
+          <ProtectedRoute>
+            {userProfile?.role === 'admin' ? (
+              <Navigate to="/admin" replace />
+            ) : (
+              <LazyDashboard />
+            )}
+          </ProtectedRoute>
+        } />
       
       <Route path="/equipment" element={
         <ProtectedRoute>
@@ -143,7 +144,8 @@ const AppRoutes = () => {
       <Route path="/account-rejected" element={<Navigate to="/" replace />} />
       
       <Route path="*" element={<NotFound />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 };
 
