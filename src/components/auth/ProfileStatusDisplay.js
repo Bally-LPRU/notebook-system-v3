@@ -77,17 +77,29 @@ const ProfileStatusDisplay = ({ profile, onRetry, showActions = true }) => {
 
   const statusInfo = DuplicateDetectionService.getStatusDisplayInfo(profile);
 
+  // Debug logging
+  console.log('ProfileStatusDisplay - profile:', profile);
+  console.log('ProfileStatusDisplay - statusInfo:', statusInfo);
+
   const handlePrimaryAction = () => {
+    console.log('🔘 Primary action clicked');
+    console.log('Status:', statusInfo.status);
+    console.log('Profile role:', profile?.role);
+    
     switch (statusInfo.status) {
       case 'incomplete':
         // Stay on current page to complete profile
+        console.log('Status is incomplete');
         break;
       case 'approved':
         // Force reload to dashboard
         console.log('🚀 Manual redirect to dashboard...');
-        window.location.href = profile.role === 'admin' ? '/admin' : '/';
+        const redirectUrl = profile.role === 'admin' ? '/admin' : '/';
+        console.log('Redirecting to:', redirectUrl);
+        window.location.href = redirectUrl;
         break;
       default:
+        console.log('Default case, calling onRetry');
         if (onRetry) onRetry();
         break;
     }
