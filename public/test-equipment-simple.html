@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ทดสอบข้อมูลอุปกรณ์</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    button {
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #1976D2;
+    }
+    .result {
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 4px;
+      margin: 20px 0;
+      border-left: 4px solid #2196F3;
+    }
+    .error {
+      background: #ffebee;
+      border-left-color: #f44336;
+      color: #c62828;
+    }
+    .success {
+      background: #e8f5e9;
+      border-left-color: #4CAF50;
+      color: #2e7d32;
+    }
+    pre {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 14px;
+    }
+    .equipment-card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 10px 0;
+    }
+    .equipment-card h3 {
+      margin: 0 0 10px 0;
+      color: #2196F3;
+    }
+    .equipment-card p {
+      margin: 5px 0;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 ทดสอบข้อมูลอุปกรณ์</h1>
+    
+    <div>
+      <button onclick="testFirebaseConnection()">1️⃣ ทดสอบ Firebase Connection</button>
+      <button onclick="testEquipmentData()">2️⃣ ทดสอบข้อมูลอุปกรณ์</button>
+      <button onclick="testEquipmentService()">3️⃣ ทดสอบ Service</button>
+      <button onclick="clearResults()">🗑️ ล้างผลลัพธ์</button>
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, collection, getDocs, query, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+    // Firebase config (ใช้ค่าจาก .env)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDGNYi9mkKoCbS3Mm1auxbr3mBJ3",
+      authDomain: "equipment-lending-system.firebaseapp.com",
+      projectId: "equipment-lending-system",
+      storageBucket: "equipment-lending-system.firebasestorage.app",
+      messagingSenderId: "1069310872",
+      appId: "1:1069310872:web:f1e9f3c3e3e3e3e3e3e3e3"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // Make available globally
+    window.db = db;
+    window.auth = auth;
+    window.collection = collection;
+    window.getDocs = getDocs;
+    window.query = query;
+    window.limit = limit;
+
+    console.log('✅ Firebase initialized');
+  </script>
+
+  <script>
+    function showResult(message, type = 'info') {
+      const results = document.getElementById('results');
+      const div = document.createElement('div');
+      div.className = `result ${type}`;
+      div.innerHTML = message;
+      results.appendChild(div);
+    }
+
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+    }
+
+    async function testFirebaseConnection() {
+      showResult('🔍 กำลังทดสอบ Firebase Connection...', 'info');
+      
+      try {
+        if (!window.db) {
+          throw new Error('Firebase not initialized');
+        }
+        
+        showResult('✅ Firebase Connection สำเร็จ!', 'success');
+        
+        // Check auth
+        const user = window.auth.currentUser;
+        if (user) {
+          showResult(`✅ User logged in: ${user.email}`, 'success');
+        } else {
+          showResult('⚠️ User not logged in', 'info');
+        }
+      } catch (error) {
+        showResult(`❌ Error: ${error.message}`, 'error');
+        console.error(error);
+      }
+    }
+
+    async function testEquipmentData() {
+      showResult('🔍 กำลังโหลดข้อมูลอุปกรณ์...', 'info');
+      
+      try {
+        const equipmentRef = window.collection(window.db, 'equipmentManagement');
+        const q = window.query(equipmentRef, window.limit(10));
+        const snapshot = await window.getDocs(q);
+        
+        if (snapshot.empty) {
+          showResult('⚠️ ไม่พบข้อมูลอุปกรณ์', 'info');
+          return;
+        }
+        
+        showResult(`✅ พบข้อมูลอุปกรณ์ ${snapshot.size} รายการ`, 'success');
+        
+        let html = '<div style="margin-top: 20px;">';
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          html += `
+            <div class="equipment-card">
+              <h3>${data.name || 'ไม่มีชื่อ'}</h3>
+              <p><strong>ID:</strong> ${doc.id}</p>
+              <p><strong>หมายเลข:</strong> ${data.equipmentNumber || 'N/A'}</p>
+              <p><strong>สถานะ:</strong> ${data.status || 'N/A'}</p>
+              <p><strong>หมวดหมู่:</strong> ${data.category?.name || 'N/A'}</p>
+              <p><strong>Active:</strong> ${data.isActive !== false ? 'Yes' : 'No'}</p>
+              <p><strong>Images:</strong> ${Array.isArray(data.images) ? `Array(${data.images.length})` : typeof data.images}</p>
+              <p><strong>Tags:</strong> ${Array.isArray(data.tags) ? `Array(${data.tags.length})` : typeof data.tags}</p>
+              <p><strong>Keywords:</strong> ${Array.isArray(data.searchKeywords) ? `Array(${data.searchKeywords.length})` : typeof data.searchKeywords}</p>
+            </div>
+          `;
+        });
+        html += '</div>';
+        
+        showResult(html, 'success');
+        
+        // Check for issues
+        let issues = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (!Array.isArray(data.images)) issues.push(`${doc.id}: images is not an array`);
+          if (!Array.isArray(data.tags)) issues.push(`${doc.id}: tags is not an array`);
+          if (!Array.isArray(data.searchKeywords)) issues.push(`${doc.id}: searchKeywords is not an array`);
+        });
+        
+        if (issues.length > 0) {
+          showResult(`⚠️ พบปัญหา:<br>${issues.join('<br>')}`, 'error');
+        } else {
+          showResult('✅ ข้อมูลทั้งหมดถูกต้อง!', 'success');
+        }
+        
+      } catch (error) {
+        showResult(`❌ Error: ${error.message}`, 'error');
+        console.error(error);
+      }
+    }
+
+    async function testEquipmentService() {
+      showResult('🔍 กำลังทดสอบ Equipment Service...', 'info');
+      
+      try {
+        // Try to import the service
+        showResult('⏳ กำลัง import service...', 'info');
+        
+        // This won't work in production, but shows the attempt
+        showResult('⚠️ ไม่สามารถ import service ได้ในหน้า HTML นี้', 'info');
+        showResult('💡 ใช้ Console ใน main app แทน:', 'info');
+        showResult(`<pre>
+// ใน Browser Console ของ main app
+try {
+  const result = await EquipmentManagementService.getEquipmentList({});
+  console.log('Equipment:', result);
+} catch (error) {
+  console.error('Error:', error);
+}
+</pre>`, 'info');
+        
+      } catch (error) {
+        showResult(`❌ Error: ${error.message}`, 'error');
+        console.error(error);
+      }
+    }
+
+    // Auto-run on load
+    window.addEventListener('load', () => {
+      showResult('✅ หน้าทดสอบพร้อมใช้งาน', 'success');
+      showResult('💡 คลิกปุ่มด้านบนเพื่อเริ่มทดสอบ', 'info');
+    });
+  </script>
+</body>
+</html>
