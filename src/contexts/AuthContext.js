@@ -376,9 +376,15 @@ export const AuthProvider = ({ children }) => {
   const needsProfileSetup = () => {
     if (!userProfile) return true;
     
-    // If user is already approved (especially admin), don't require profile setup
+    // If user is already approved, don't require profile setup
+    // This is especially important for admin users
     if (userProfile.status === 'approved') return false;
     
+    // If user is pending or rejected, don't require profile setup
+    // They should see the status page instead
+    if (userProfile.status === 'pending' || userProfile.status === 'rejected') return false;
+    
+    // Only require profile setup if status is incomplete or missing required fields
     return (
       userProfile.status === 'incomplete' ||
       !userProfile.firstName ||
