@@ -547,9 +547,17 @@ class EquipmentManagementService {
       querySnapshot.forEach((doc, index) => {
         if (index < limit) {
           const data = doc.data();
+          
+          // Ensure arrays are always arrays (defensive programming)
           equipment.push({
             id: doc.id,
-            ...data
+            ...data,
+            images: Array.isArray(data.images) ? data.images : [],
+            tags: Array.isArray(data.tags) ? data.tags : [],
+            searchKeywords: Array.isArray(data.searchKeywords) ? data.searchKeywords : [],
+            specifications: data.specifications || {},
+            location: data.location || {},
+            responsiblePerson: data.responsiblePerson || null
           });
         } else {
           hasNextPage = true;
