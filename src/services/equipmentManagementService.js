@@ -9,6 +9,7 @@ import {
   query, 
   where, 
   orderBy, 
+  limit,
   startAfter,
   serverTimestamp,
   increment
