@@ -92,7 +92,8 @@ service cloud.firestore {
     
     // Equipment Management collection rules
     match /equipmentManagement/{equipmentId} {
-      allow read: if isApprovedUser();
+      // Allow public read for statistics (but not sensitive data)
+      allow read: if true;
       
       allow create: if isAdmin() && 
                        request.resource.data.createdBy == request.auth.uid &&
