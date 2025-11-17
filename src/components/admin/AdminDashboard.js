@@ -7,15 +7,34 @@ import LoanRequestList from './LoanRequestList';
 import BorrowedEquipmentList from './BorrowedEquipmentList';
 import { ReservationManagement } from '../reservations';
 import { useLoanRequestStats } from '../../hooks/useLoanRequests';
-import { useEquipment } from '../../hooks/useEquipment';
+import StatisticsService from '../../services/statisticsService';
 
 const AdminDashboard = () => {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [equipmentStats, setEquipmentStats] = useState({ total: 0 });
+  const [equipmentLoading, setEquipmentLoading] = useState(true);
   
   // Get statistics
   const { stats: loanStats, loading: loanStatsLoading } = useLoanRequestStats();
-  const { equipment, loading: equipmentLoading } = useEquipment({ limit: 1 });
+  
+  // Load equipment statistics using StatisticsService (same as homepage)
+  useEffect(() => {
+    const loadEquipmentStats = async () => {
+      try {
+        setEquipmentLoading(true);
+        const stats = await StatisticsService.getPublicStats();
+        setEquipmentStats(stats.equipment);
+      } catch (error) {
+        console.error('Error loading equipment stats:', error);
+        setEquipmentStats({ total: 0 });
+      } finally {
+        setEquipmentLoading(false);
+      }
+    };
+    
+    loadEquipmentStats();
+  }, []);
 
   // Determine active tab from URL
   useEffect(() => {
@@ -128,7 +147,7 @@ const AdminDashboard = () => {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-500">อุปกรณ์ทั้งหมด</p>
                     <p className="text-2xl font-semibold text-gray-900">
-                      {equipmentLoading ? '...' : equipment.length}
+                      {equipmentLoading ? '...' : equipmentStats.total}
                     </p>
                   </div>
                 </div>
