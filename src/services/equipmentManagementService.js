@@ -430,7 +430,14 @@ class EquipmentManagementService {
 
         const equipment = {
           id: equipmentDoc.id,
-          ...data
+          ...data,
+          // Ensure arrays are always arrays (defensive programming)
+          images: Array.isArray(data.images) ? data.images : [],
+          tags: Array.isArray(data.tags) ? data.tags : [],
+          searchKeywords: Array.isArray(data.searchKeywords) ? data.searchKeywords : [],
+          specifications: data.specifications || {},
+          location: data.location || {},
+          responsiblePerson: data.responsiblePerson || null
         };
 
         // Cache the equipment
