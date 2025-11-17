@@ -46,7 +46,7 @@ const RecentActivity = () => {
           const loanData = doc.data();
           
           // Get equipment details
-          const equipmentRef = collection(db, 'equipment');
+          const equipmentRef = collection(db, 'equipmentManagement');
           const equipmentQuery = query(equipmentRef, where('__name__', '==', loanData.equipmentId));
           const equipmentSnapshot = await getDocs(equipmentQuery);
           const equipment = equipmentSnapshot.docs[0]?.data();
@@ -100,7 +100,7 @@ const RecentActivity = () => {
           const reservationData = doc.data();
           
           // Get equipment details
-          const equipmentRef = collection(db, 'equipment');
+          const equipmentRef = collection(db, 'equipmentManagement');
           const equipmentQuery = query(equipmentRef, where('__name__', '==', reservationData.equipmentId));
           const equipmentSnapshot = await getDocs(equipmentQuery);
           const equipment = equipmentSnapshot.docs[0]?.data();
