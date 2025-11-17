@@ -24,7 +24,7 @@ const AdminDashboard = () => {
       try {
         setEquipmentLoading(true);
         const stats = await StatisticsService.getPublicStats();
-        setEquipmentStats(stats.equipment);
+        setEquipmentStats(stats?.equipment || { total: 0 });
       } catch (error) {
         console.error('Error loading equipment stats:', error);
         setEquipmentStats({ total: 0 });
