@@ -5,7 +5,7 @@ import {
   where 
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { EQUIPMENT_STATUS } from '../types/equipment';
+import { EQUIPMENT_MANAGEMENT_STATUS } from '../types/equipmentManagement';
 import { RESERVATION_STATUS } from '../types/reservation';
 
 class StatisticsService {
@@ -152,7 +152,7 @@ class StatisticsService {
    */
   static async getEquipmentStatistics() {
     try {
-      const equipmentRef = collection(db, 'equipment');
+      const equipmentRef = collection(db, 'equipmentManagement');
       const querySnapshot = await getDocs(equipmentRef);
       
       const stats = {
@@ -165,24 +165,28 @@ class StatisticsService {
       
       querySnapshot.forEach((doc) => {
         const equipment = doc.data();
-        stats.total++;
         
-        switch (equipment.status) {
-          case EQUIPMENT_STATUS.AVAILABLE:
-            stats.available++;
-            break;
-          case EQUIPMENT_STATUS.BORROWED:
-            stats.borrowed++;
-            break;
-          case EQUIPMENT_STATUS.MAINTENANCE:
-            stats.maintenance++;
-            break;
-          case EQUIPMENT_STATUS.RETIRED:
-            stats.retired++;
-            break;
-          default:
-            // Handle any unknown status as available
-            stats.available++;
+        // Only count active equipment
+        if (equipment.isActive !== false) {
+          stats.total++;
+          
+          switch (equipment.status) {
+            case EQUIPMENT_MANAGEMENT_STATUS.ACTIVE:
+              stats.available++;
+              break;
+            case EQUIPMENT_MANAGEMENT_STATUS.MAINTENANCE:
+              stats.maintenance++;
+              break;
+            case EQUIPMENT_MANAGEMENT_STATUS.RETIRED:
+              stats.retired++;
+              break;
+            case EQUIPMENT_MANAGEMENT_STATUS.LOST:
+              // Don't count lost equipment in any category
+              break;
+            default:
+              // Handle any unknown status as available
+              stats.available++;
+          }
         }
       });
       
