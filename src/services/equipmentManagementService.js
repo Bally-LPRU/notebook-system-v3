@@ -477,7 +477,7 @@ class EquipmentManagementService {
       } = filters;
 
       // Ensure limit doesn't exceed maximum
-      const limit = Math.min(pageLimit, EQUIPMENT_MANAGEMENT_PAGINATION.MAX_LIMIT);
+      const itemsLimit = Math.min(pageLimit, EQUIPMENT_MANAGEMENT_PAGINATION.MAX_LIMIT);
 
       // Check cache first (only for simple queries without lastDoc)
       if (!lastDoc) {
@@ -542,7 +542,7 @@ class EquipmentManagementService {
         queryConstraints.push(startAfter(lastDoc));
       }
       
-      queryConstraints.push(limit(limit + 1)); // Get one extra to check if there's next page
+      queryConstraints.push(limit(itemsLimit + 1)); // Get one extra to check if there's next page
 
       // Build query
       equipmentQuery = query(equipmentQuery, ...queryConstraints);
@@ -553,7 +553,7 @@ class EquipmentManagementService {
       let hasNextPage = false;
       
       querySnapshot.forEach((doc, index) => {
-        if (index < limit) {
+        if (index < itemsLimit) {
           const data = doc.data();
           
           // Ensure arrays are always arrays (defensive programming)
@@ -578,9 +578,9 @@ class EquipmentManagementService {
           currentPage: page,
           hasNextPage,
           totalItems: equipment.length,
-          limit
+          limit: itemsLimit
         },
-        lastDoc: equipment.length > 0 ? querySnapshot.docs[Math.min(equipment.length - 1, limit - 1)] : null
+        lastDoc: equipment.length > 0 ? querySnapshot.docs[Math.min(equipment.length - 1, itemsLimit - 1)] : null
       };
 
       // Cache the result (only for simple queries without lastDoc)
