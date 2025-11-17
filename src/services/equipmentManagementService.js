@@ -107,17 +107,21 @@ class EquipmentManagementService {
       // Add to Firestore
       const docRef = await addDoc(collection(db, this.COLLECTION_NAME), equipment);
       
-      // Log activity with enhanced audit trail
-      await ActivityLoggerService.logEquipmentActivity(
-        ActivityLoggerService.ACTIVITY_TYPES.EQUIPMENT_CREATED,
-        {
-          equipmentId: docRef.id,
-          equipmentNumber: equipment.equipmentNumber,
-          equipmentName: equipment.name,
-          reason: 'สร้างอุปกรณ์ใหม่'
-        },
-        createdBy
-      );
+      // Log activity with enhanced audit trail (non-blocking)
+      try {
+        await ActivityLoggerService.logEquipmentActivity(
+          ActivityLoggerService.ACTIVITY_TYPES.EQUIPMENT_CREATED,
+          {
+            equipmentId: docRef.id,
+            equipmentNumber: equipment.equipmentNumber,
+            equipmentName: equipment.name,
+            reason: 'สร้างอุปกรณ์ใหม่'
+          },
+          createdBy
+        );
+      } catch (logError) {
+        console.warn('Failed to log activity (non-critical):', logError);
+      }
 
       // Update category count
       if (equipment.category?.id) {
@@ -236,28 +240,32 @@ class EquipmentManagementService {
       // Update in Firestore
       await updateDoc(equipmentRef, updateData);
       
-      // Log activity with enhanced audit trail
+      // Log activity with enhanced audit trail (non-blocking)
       if (changes.length > 0) {
-        await ActivityLoggerService.logEquipmentActivity(
-          ActivityLoggerService.ACTIVITY_TYPES.EQUIPMENT_UPDATED,
-          {
-            equipmentId,
-            equipmentNumber: updateData.equipmentNumber,
-            equipmentName: updateData.name,
-            changes: changes,
-            previousValues: changes.reduce((acc, change) => {
-              acc[change.field] = change.oldValue;
-              return acc;
-            }, {}),
-            newValues: changes.reduce((acc, change) => {
-              acc[change.field] = change.newValue;
-              return acc;
-            }, {}),
-            affectedFields: changes.map(change => change.field),
-            reason: 'แก้ไขข้อมูลอุปกรณ์'
-          },
-          updatedBy
-        );
+        try {
+          await ActivityLoggerService.logEquipmentActivity(
+            ActivityLoggerService.ACTIVITY_TYPES.EQUIPMENT_UPDATED,
+            {
+              equipmentId,
+              equipmentNumber: updateData.equipmentNumber,
+              equipmentName: updateData.name,
+              changes: changes,
+              previousValues: changes.reduce((acc, change) => {
+                acc[change.field] = change.oldValue;
+                return acc;
+              }, {}),
+              newValues: changes.reduce((acc, change) => {
+                acc[change.field] = change.newValue;
+                return acc;
+              }, {}),
+              affectedFields: changes.map(change => change.field),
+              reason: 'แก้ไขข้อมูลอุปกรณ์'
+            },
+            updatedBy
+          );
+        } catch (logError) {
+          console.warn('Failed to log activity (non-critical):', logError);
+        }
       }
 
       // Update category counts if category changed
@@ -323,17 +331,21 @@ class EquipmentManagementService {
         await Promise.all(equipment.images.map(img => this.deleteImage(img)));
       }
 
-      // Log activity before deletion with enhanced audit trail
-      await ActivityLoggerService.logEquipmentActivity(
-        ActivityLoggerService.ACTIVITY_TYPES.EQUIPMENT_DELETED,
-        {
-          equipmentId,
-          equipmentNumber: equipment.equipmentNumber,
-          equipmentName: equipment.name,
-          reason: 'ลบอุปกรณ์ออกจากระบบ'
-        },
-        deletedBy
-      );
+      // Log activity before deletion with enhanced audit trail (non-blocking)
+      try {
+        await ActivityLoggerService.logEquipmentActivity(
+          ActivityLoggerService.ACTIVITY_TYPES.EQUIPMENT_DELETED,
+          {
+            equipmentId,
+            equipmentNumber: equipment.equipmentNumber,
+            equipmentName: equipment.name,
+            reason: 'ลบอุปกรณ์ออกจากระบบ'
+          },
+          deletedBy
+        );
+      } catch (logError) {
+        console.warn('Failed to log activity (non-critical):', logError);
+      }
 
       // Delete from Firestore
       const equipmentRef = doc(db, this.COLLECTION_NAME, equipmentId);
@@ -375,15 +387,19 @@ class EquipmentManagementService {
             lastViewed: serverTimestamp()
           });
 
-          await ActivityLoggerService.logEquipmentActivity(
-            ActivityLoggerService.ACTIVITY_TYPES.EQUIPMENT_VIEWED,
-            {
-              equipmentId,
-              equipmentNumber: cachedEquipment.equipmentNumber,
-              equipmentName: cachedEquipment.name
-            },
-            userId
-          );
+          try {
+            await ActivityLoggerService.logEquipmentActivity(
+              ActivityLoggerService.ACTIVITY_TYPES.EQUIPMENT_VIEWED,
+              {
+                equipmentId,
+                equipmentNumber: cachedEquipment.equipmentNumber,
+                equipmentName: cachedEquipment.name
+              },
+              userId
+            );
+          } catch (logError) {
+            console.warn('Failed to log activity (non-critical):', logError);
+          }
         }
         return cachedEquipment;
       }
@@ -416,17 +432,21 @@ class EquipmentManagementService {
           lastViewed: serverTimestamp()
         });
 
-        // Log view activity if user is provided
+        // Log view activity if user is provided (non-blocking)
         if (userId) {
-          await ActivityLoggerService.logEquipmentActivity(
-            ActivityLoggerService.ACTIVITY_TYPES.EQUIPMENT_VIEWED,
-            {
-              equipmentId,
-              equipmentNumber: data.equipmentNumber,
-              equipmentName: data.name
-            },
-            userId
-          );
+          try {
+            await ActivityLoggerService.logEquipmentActivity(
+              ActivityLoggerService.ACTIVITY_TYPES.EQUIPMENT_VIEWED,
+              {
+                equipmentId,
+                equipmentNumber: data.equipmentNumber,
+                equipmentName: data.name
+              },
+              userId
+            );
+          } catch (logError) {
+            console.warn('Failed to log activity (non-critical):', logError);
+          }
         }
 
         const equipment = {
