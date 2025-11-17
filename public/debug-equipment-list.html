@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debug Equipment List</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1000px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #results {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 4px;
+      border-left: 4px solid #4CAF50;
+      white-space: pre-wrap;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    .loading {
+      color: #666;
+      font-style: italic;
+    }
+    .error {
+      color: #d32f2f;
+      border-left-color: #d32f2f;
+    }
+    .success {
+      color: #2e7d32;
+    }
+    .warning {
+      color: #f57c00;
+    }
+    .info {
+      background: #e3f2fd;
+      border-left-color: #2196F3;
+      color: #1565c0;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Debug Equipment List</h1>
+    <div>
+      <button onclick="testSimpleQuery()">1. ทดสอบ Query ธรรมดา</button>
+      <button onclick="testWithFilters()">2. ทดสอบ Query + Filters</button>
+      <button onclick="testPermissions()">3. ทดสอบ Permissions</button>
+      <button onclick="checkAuth()">4. ตรวจสอบ Auth Status</button>
+    </div>
+    <div id="results" class="loading">คลิกปุ่มด้านบนเพื่อเริ่มทดสอบ</div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { 
+      getAuth,
+      onAuthStateChanged,
+      signInWithPopup,
+      GoogleAuthProvider
+    } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { 
+      getFirestore, 
+      collection, 
+      getDocs,
+      query,
+      where,
+      orderBy,
+      limit
+    } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    // ⚠️ แทนที่ด้วย Firebase config ของคุณ
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "equipment-lending-system-41b49.firebaseapp.com",
+      projectId: "equipment-lending-system-41b49",
+      storageBucket: "equipment-lending-system-41b49.firebasestorage.app",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    let currentUser = null;
+
+    // Monitor auth state
+    onAuthStateChanged(auth, (user) => {
+      currentUser = user;
+      if (user) {
+        console.log('✅ User logged in:', user.email);
+      } else {
+        console.log('❌ No user logged in');
+      }
+    });
+
+    function log(message, type = 'info') {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.className = type;
+      resultsDiv.textContent += message + '\n';
+      console.log(message);
+    }
+
+    function clearLog() {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.textContent = '';
+      resultsDiv.className = '';
+    }
+
+    window.checkAuth = async function() {
+      clearLog();
+      log('🔐 ตรวจสอบสถานะการเข้าสู่ระบบ...\n');
+
+      if (currentUser) {
+        log(`✅ เข้าสู่ระบบแล้ว`);
+        log(`   Email: ${currentUser.email}`);
+        log(`   UID: ${currentUser.uid}`);
+        log(`   Display Name: ${currentUser.displayName || 'ไม่มี'}\n`);
+
+        // Get ID token
+        try {
+          const token = await currentUser.getIdToken();
+          const tokenResult = await currentUser.getIdTokenResult();
+          log(`📝 Token Info:`);
+          log(`   Claims: ${JSON.stringify(tokenResult.claims, null, 2)}\n`);
+        } catch (error) {
+          log(`❌ ไม่สามารถดึง token ได้: ${error.message}`, 'error');
+        }
+      } else {
+        log('❌ ยังไม่ได้เข้าสู่ระบบ', 'warning');
+        log('\n💡 คลิกปุ่มด้านล่างเพื่อเข้าสู่ระบบ\n');
+        
+        const loginBtn = document.createElement('button');
+        loginBtn.textContent = 'เข้าสู่ระบบด้วย Google';
+        loginBtn.onclick = async () => {
+          try {
+            const provider = new GoogleAuthProvider();
+            await signInWithPopup(auth, provider);
+            log('✅ เข้าสู่ระบบสำเร็จ!', 'success');
+            setTimeout(() => checkAuth(), 1000);
+          } catch (error) {
+            log(`❌ เข้าสู่ระบบล้มเหลว: ${error.message}`, 'error');
+          }
+        };
+        document.getElementById('results').appendChild(loginBtn);
+      }
+    };
+
+    window.testSimpleQuery = async function() {
+      clearLog();
+      log('📦 ทดสอบ Query ธรรมดา (equipmentManagement)\n');
+
+      try {
+        log('1️⃣ กำลังดึงข้อมูลทั้งหมด...');
+        const equipmentRef = collection(db, 'equipmentManagement');
+        const snapshot = await getDocs(equipmentRef);
+        
+        log(`✅ สำเร็จ! พบ ${snapshot.size} รายการ\n`);
+
+        if (snapshot.empty) {
+          log('⚠️  Collection ว่างเปล่า', 'warning');
+        } else {
+          log('📋 รายการอุปกรณ์:');
+          snapshot.forEach((doc, index) => {
+            const data = doc.data();
+            log(`\n${index + 1}. ID: ${doc.id}`);
+            log(`   ชื่อ: ${data.name || 'ไม่มี'}`);
+            log(`   หมายเลข: ${data.equipmentNumber || 'ไม่มี'}`);
+            log(`   สถานะ: ${data.status || 'ไม่มี'}`);
+            log(`   isActive: ${data.isActive}`);
+            log(`   Category: ${JSON.stringify(data.category)}`);
+          });
+        }
+
+      } catch (error) {
+        log(`\n❌ เกิดข้อผิดพลาด:`, 'error');
+        log(`   Code: ${error.code}`);
+        log(`   Message: ${error.message}`);
+        log(`   Stack: ${error.stack}`);
+      }
+    };
+
+    window.testWithFilters = async function() {
+      clearLog();
+      log('🔍 ทดสอบ Query + Filters\n');
+
+      try {
+        log('1️⃣ Query: isActive == true + orderBy updatedAt');
+        const equipmentRef = collection(db, 'equipmentManagement');
+        const q = query(
+          equipmentRef,
+          where('isActive', '==', true),
+          orderBy('updatedAt', 'desc'),
+          limit(10)
+        );
+        
+        const snapshot = await getDocs(q);
+        log(`✅ สำเร็จ! พบ ${snapshot.size} รายการ\n`);
+
+        if (snapshot.empty) {
+          log('⚠️  ไม่พบข้อมูลที่ตรงกับเงื่อนไข', 'warning');
+          log('\n💡 ลองตรวจสอบ:');
+          log('   - มีข้อมูลที่ isActive = true หรือไม่?');
+          log('   - มี field updatedAt หรือไม่?');
+          log('   - มี index สำหรับ query นี้หรือไม่?');
+        } else {
+          log('📋 รายการอุปกรณ์ที่ active:');
+          snapshot.forEach((doc, index) => {
+            const data = doc.data();
+            log(`\n${index + 1}. ${data.name || 'ไม่มีชื่อ'}`);
+            log(`   ID: ${doc.id}`);
+            log(`   Status: ${data.status}`);
+            log(`   Updated: ${data.updatedAt?.toDate?.() || 'ไม่มี'}`);
+          });
+        }
+
+      } catch (error) {
+        log(`\n❌ เกิดข้อผิดพลาด:`, 'error');
+        log(`   Code: ${error.code}`);
+        log(`   Message: ${error.message}`);
+        
+        if (error.code === 'failed-precondition') {
+          log('\n💡 ต้องสร้าง Index:');
+          log('   Collection: equipmentManagement');
+          log('   Fields: isActive (ASC), updatedAt (DESC)');
+        }
+      }
+    };
+
+    window.testPermissions = async function() {
+      clearLog();
+      log('🔐 ทดสอบ Permissions\n');
+
+      if (!currentUser) {
+        log('❌ ต้องเข้าสู่ระบบก่อน', 'error');
+        return;
+      }
+
+      try {
+        log('1️⃣ ทดสอบอ่านข้อมูล users...');
+        const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', currentUser.uid)));
+        if (!userDoc.empty) {
+          const userData = userDoc.docs[0].data();
+          log(`✅ อ่านได้`);
+          log(`   Role: ${userData.role}`);
+          log(`   Status: ${userData.status}\n`);
+        } else {
+          log(`⚠️  ไม่พบข้อมูล user\n`, 'warning');
+        }
+
+        log('2️⃣ ทดสอบอ่านข้อมูล equipmentManagement...');
+        const equipmentSnapshot = await getDocs(query(collection(db, 'equipmentManagement'), limit(1)));
+        log(`✅ อ่านได้ (${equipmentSnapshot.size} รายการ)\n`);
+
+      } catch (error) {
+        log(`\n❌ Permission denied:`, 'error');
+        log(`   ${error.message}`);
+      }
+    };
+  </script>
+</body>
+</html>

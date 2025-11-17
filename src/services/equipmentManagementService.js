@@ -476,8 +476,9 @@ class EquipmentManagementService {
         lastDoc = null
       } = filters;
 
-      // Ensure limit doesn't exceed maximum
-      const itemsLimit = Math.min(pageLimit, EQUIPMENT_MANAGEMENT_PAGINATION.MAX_LIMIT);
+      // Ensure limit doesn't exceed maximum and is at least 1
+      const itemsLimit = Math.max(1, Math.min(pageLimit, EQUIPMENT_MANAGEMENT_PAGINATION.MAX_LIMIT));
+      console.log('📊 Pagination settings:', { page, pageLimit, itemsLimit });
 
       // Check cache first (only for simple queries without lastDoc)
       if (!lastDoc) {
@@ -534,8 +535,14 @@ class EquipmentManagementService {
         queryConstraints.push(where('searchKeywords', 'array-contains-any', searchKeywords));
       }
 
-      // Add sorting
-      queryConstraints.push(orderBy(sortBy, sortOrder));
+      // Add sorting (only if no other complex filters to avoid index issues)
+      // For simple queries, we can sort. For complex queries, we'll sort in memory
+      const hasComplexFilters = categories.length > 0 || statuses.length > 0 || 
+                                dateRange || priceRange || location || responsiblePerson || search;
+      
+      if (!hasComplexFilters) {
+        queryConstraints.push(orderBy(sortBy, sortOrder));
+      }
       
       // Add pagination
       if (lastDoc) {
@@ -548,13 +555,20 @@ class EquipmentManagementService {
       equipmentQuery = query(equipmentQuery, ...queryConstraints);
       
       // Execute query
+      console.log('🔍 Executing equipment query with constraints:', queryConstraints.length);
+      console.log('📊 Items limit:', itemsLimit);
       const querySnapshot = await getDocs(equipmentQuery);
+      console.log('📦 Query returned:', querySnapshot.size, 'documents');
+      
       const equipment = [];
       let hasNextPage = false;
+      let index = 0;
       
-      querySnapshot.forEach((doc, index) => {
+      querySnapshot.forEach((doc) => {
+        console.log(`📄 Processing doc ${index}:`, doc.id, 'itemsLimit:', itemsLimit);
         if (index < itemsLimit) {
           const data = doc.data();
+          console.log('✅ Adding equipment:', data.name);
           
           // Ensure arrays are always arrays (defensive programming)
           equipment.push({
@@ -568,9 +582,35 @@ class EquipmentManagementService {
             responsiblePerson: data.responsiblePerson || null
           });
         } else {
+          console.log('⏭️  Skipping (hasNextPage)');
           hasNextPage = true;
         }
+        index++;
       });
+
+      // Sort in memory if we couldn't sort in query
+      if (hasComplexFilters && equipment.length > 0) {
+        equipment.sort((a, b) => {
+          const aValue = a[sortBy];
+          const bValue = b[sortBy];
+          
+          if (aValue === bValue) return 0;
+          if (aValue === null || aValue === undefined) return 1;
+          if (bValue === null || bValue === undefined) return -1;
+          
+          // Handle dates
+          if (aValue?.toDate) {
+            const comparison = aValue.toDate() - bValue.toDate();
+            return sortOrder === 'desc' ? -comparison : comparison;
+          }
+          
+          // Handle other types
+          const comparison = aValue < bValue ? -1 : 1;
+          return sortOrder === 'desc' ? -comparison : comparison;
+        });
+      }
+
+      console.log('✅ Processed equipment list:', equipment.length, 'items');
 
       const result = {
         equipment,

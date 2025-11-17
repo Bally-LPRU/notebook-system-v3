@@ -11,8 +11,8 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   const adminNavigationItems = [
     {
-      name: 'แดshboard',
-      href: '/admin/dashboard',
+      name: 'แดชบอร์ด',
+      href: '/admin',
       icon: 'dashboard',
       description: 'ภาพรวมระบบ'
     },

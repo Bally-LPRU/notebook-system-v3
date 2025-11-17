@@ -28,10 +28,22 @@ const EquipmentManagementContainer = ({
       setError(null);
       setIsPermissionError(false);
       
+      console.log('🔄 กำลังโหลดข้อมูลอุปกรณ์...');
       const result = await EquipmentManagementService.getEquipmentList({});
+      console.log('📦 ผลลัพธ์จาก getEquipmentList:', result);
+      console.log('📊 จำนวนอุปกรณ์:', result.equipment?.length || 0);
+      
+      if (result.equipment && result.equipment.length > 0) {
+        console.log('✅ พบอุปกรณ์:', result.equipment);
+      } else {
+        console.warn('⚠️  ไม่พบอุปกรณ์ในผลลัพธ์');
+      }
+      
       setEquipment(result.equipment || []);
     } catch (error) {
-      console.error('Error loading equipment:', error);
+      console.error('❌ Error loading equipment:', error);
+      console.error('   Error code:', error.code);
+      console.error('   Error message:', error.message);
       
       // Check if it's a permission error
       if (error.code === 'permission-denied' || error.message.includes('permission') || error.message.includes('Missing or insufficient permissions')) {

@@ -24,10 +24,16 @@ const AdminDashboard = () => {
       try {
         setEquipmentLoading(true);
         const stats = await StatisticsService.getPublicStats();
-        setEquipmentStats(stats?.equipment || { total: 0 });
+        console.log('📊 Admin Dashboard - Equipment stats:', stats);
+        // StatisticsService returns { totalEquipment, availableEquipment, ... }
+        setEquipmentStats({ 
+          total: stats?.totalEquipment || 0,
+          available: stats?.availableEquipment || 0,
+          borrowed: stats?.borrowedEquipment || 0
+        });
       } catch (error) {
         console.error('Error loading equipment stats:', error);
-        setEquipmentStats({ total: 0 });
+        setEquipmentStats({ total: 0, available: 0, borrowed: 0 });
       } finally {
         setEquipmentLoading(false);
       }
