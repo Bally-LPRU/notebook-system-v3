@@ -222,24 +222,24 @@ class UserService {
   static async getUsersByStatus(status = 'all', limit = 20, lastDoc = null) {
     try {
       const usersRef = collection(db, 'users');
-      let q;
+      const queryConstraints = [];
 
-      if (status === 'all') {
-        q = query(usersRef, orderBy('createdAt', 'desc'));
-      } else {
-        q = query(
-          usersRef,
-          where('status', '==', status),
-          orderBy('createdAt', 'desc')
-        );
+      // Add status filter
+      if (status !== 'all') {
+        queryConstraints.push(where('status', '==', status));
       }
+
+      // Add ordering
+      queryConstraints.push(orderBy('createdAt', 'desc'));
 
       // Add pagination
       if (lastDoc) {
-        q = query(q, startAfter(lastDoc), firestoreLimit(limit));
-      } else {
-        q = query(q, firestoreLimit(limit));
+        queryConstraints.push(startAfter(lastDoc));
       }
+      queryConstraints.push(firestoreLimit(limit));
+
+      // Build query once
+      const q = query(usersRef, ...queryConstraints);
 
       const querySnapshot = await getDocs(q);
       const users = [];
@@ -307,16 +307,22 @@ class UserService {
     }
   }
 
-  // Update user profile (admin)
-  static async updateUserProfile(userId, updates, updatedBy) {
+  // Update user profile (can be used by user themselves or admin)
+  static async updateUserProfile(userId, updates, updatedBy = null) {
     try {
       const userDocRef = doc(db, 'users', userId);
 
-      await updateDoc(userDocRef, {
+      const updateData = {
         ...updates,
-        updatedBy: updatedBy,
         updatedAt: serverTimestamp()
-      });
+      };
+
+      // Only add updatedBy if provided (for admin updates)
+      if (updatedBy) {
+        updateData.updatedBy = updatedBy;
+      }
+
+      await updateDoc(userDocRef, updateData);
 
       return { success: true };
     } catch (error) {

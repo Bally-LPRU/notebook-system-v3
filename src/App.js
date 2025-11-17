@@ -25,9 +25,12 @@ const LazyEquipmentList = lazy(() => import('./components/equipment/EquipmentLis
 const LazyAdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const LazyUserApprovalList = lazy(() => import('./components/admin/UserApprovalList'));
 const LazyAdminEquipmentManagement = lazy(() => import('./components/admin/AdminEquipmentManagement'));
+const LazyLoanRequestList = lazy(() => import('./components/admin/LoanRequestList'));
+const LazyReservationManagement = lazy(() => import('./components/reservations/ReservationManagement'));
 const LazyMyRequests = lazy(() => import('./components/requests/MyRequests'));
 const LazyReservationPage = lazy(() => import('./components/reservations/ReservationPage'));
 const LazyReportsPage = lazy(() => import('./components/reports/ReportsPage'));
+const LazyProfilePage = lazy(() => import('./components/profile/ProfilePage'));
 
 // Simple login for debugging
 const SimpleLogin = lazy(() => import('./components/auth/SimpleLogin'));
@@ -120,6 +123,12 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
       
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <LazyProfilePage />
+        </ProtectedRoute>
+      } />
+      
       {/* Admin Routes */}
       <Route path="/admin" element={
         <ProtectedRoute requireAdmin={true}>
@@ -136,6 +145,24 @@ const AppRoutes = () => {
       <Route path="/admin/equipment" element={
         <ProtectedRoute requireAdmin={true}>
           <LazyAdminEquipmentManagement />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/loan-requests" element={
+        <ProtectedRoute requireAdmin={true}>
+          <LazyLoanRequestList />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/reservations" element={
+        <ProtectedRoute requireAdmin={true}>
+          <LazyReservationManagement />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/reports" element={
+        <ProtectedRoute requireAdmin={true}>
+          <LazyReportsPage />
         </ProtectedRoute>
       } />
 
