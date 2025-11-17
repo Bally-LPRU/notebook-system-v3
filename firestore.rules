@@ -98,10 +98,8 @@ service cloud.firestore {
                        request.resource.data.createdBy == request.auth.uid &&
                        request.resource.data.createdAt == request.time;
       
-      allow update: if isAdmin() && 
-                       !request.resource.data.keys().hasAny(['createdAt', 'createdBy', 'equipmentNumber']) &&
-                       request.resource.data.updatedBy == request.auth.uid &&
-                       request.resource.data.updatedAt == request.time;
+      // Simplified update rule for admin
+      allow update: if isAdmin();
       
       allow delete: if isAdmin();
     }

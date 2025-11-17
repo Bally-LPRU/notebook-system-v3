@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>แก้ไขโครงสร้างข้อมูล Equipment</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    .status {
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    .info { background: #E3F2FD; color: #1976D2; }
+    .success { background: #E8F5E9; color: #388E3C; }
+    .error { background: #FFEBEE; color: #C62828; }
+    .warning { background: #FFF3E0; color: #F57C00; }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover { background: #45a049; }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #log {
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 5px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+    .log-item {
+      margin: 5px 0;
+      padding: 5px;
+    }
+    .log-success { color: #388E3C; }
+    .log-error { color: #C62828; }
+    .log-info { color: #1976D2; }
+    .summary {
+      background: #f0f0f0;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 5px;
+      border-left: 4px solid #4CAF50;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 แก้ไขโครงสร้างข้อมูล Equipment Management</h1>
+    
+    <div id="loginSection">
+      <div class="status warning">
+        <strong>⚠️ ต้อง Login ก่อน:</strong><br>
+        คุณต้อง login ด้วยบัญชี Admin เพื่อแก้ไขข้อมูล
+      </div>
+      <div>
+        <button onclick="loginWithGoogle()">🔐 Login ด้วย Google</button>
+      </div>
+      <div id="userInfo" style="display: none; margin-top: 15px; padding: 10px; background: #E8F5E9; border-radius: 5px;">
+        <strong>👤 ผู้ใช้:</strong> <span id="userName"></span><br>
+        <strong>📧 อีเมล:</strong> <span id="userEmail"></span><br>
+        <strong>🎭 สถานะ:</strong> <span id="userRole"></span>
+      </div>
+    </div>
+
+    <div id="mainSection" style="display: none;">
+      <div class="status info">
+        <strong>ℹ️ คำแนะนำ:</strong><br>
+        1. ตรวจสอบข้อมูลก่อนแก้ไข<br>
+        2. กดปุ่ม "แก้ไขข้อมูล" เพื่อแก้ไขทั้งหมด<br>
+        3. ตรวจสอบผลลัพธ์ใน log ด้านล่าง
+      </div>
+
+      <div>
+        <button id="validateBtn" onclick="validateData()">🔍 ตรวจสอบข้อมูล</button>
+        <button id="fixBtn" onclick="fixData()" disabled>🔧 แก้ไขข้อมูล</button>
+        <button id="validateAfterBtn" onclick="validateData()" disabled>✅ ตรวจสอบอีกครั้ง</button>
+      </div>
+    </div>
+
+    <div id="log"></div>
+    <div id="summary" class="summary" style="display: none;"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getFirestore, collection, getDocs, doc, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+    import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA9D6ReIlhiaaJ1g1Obd-dcjp2R0LO_eyo",
+      authDomain: "equipment-lending-system-41b49.firebaseapp.com",
+      projectId: "equipment-lending-system-41b49",
+      storageBucket: "equipment-lending-system-41b49.firebasestorage.app",
+      messagingSenderId: "47770598089",
+      appId: "1:47770598089:web:9d898f247f742fe1686b18"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const googleProvider = new GoogleAuthProvider();
+
+    let currentUser = null;
+
+    // ตรวจสอบสถานะ login
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        currentUser = user;
+        document.getElementById('userName').textContent = user.displayName || 'ไม่ระบุ';
+        document.getElementById('userEmail').textContent = user.email;
+        document.getElementById('userRole').textContent = 'กำลังตรวจสอบ...';
+        document.getElementById('userInfo').style.display = 'block';
+        
+        // ตรวจสอบว่าเป็น admin หรือไม่
+        try {
+          const userDoc = await getDocs(collection(db, 'users'));
+          const userData = userDoc.docs.find(d => d.id === user.uid)?.data();
+          if (userData && userData.role === 'admin') {
+            document.getElementById('userRole').textContent = '✅ Admin';
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('mainSection').style.display = 'block';
+          } else {
+            document.getElementById('userRole').textContent = '❌ ไม่ใช่ Admin';
+            alert('คุณต้องเป็น Admin เท่านั้น');
+          }
+        } catch (error) {
+          console.error('Error checking user role:', error);
+          document.getElementById('userRole').textContent = '⚠️ ไม่สามารถตรวจสอบได้';
+        }
+      } else {
+        currentUser = null;
+        document.getElementById('loginSection').style.display = 'block';
+        document.getElementById('mainSection').style.display = 'none';
+        document.getElementById('userInfo').style.display = 'none';
+      }
+    });
+
+    window.loginWithGoogle = async function() {
+      try {
+        await signInWithPopup(auth, googleProvider);
+      } catch (error) {
+        alert('Login ล้มเหลว: ' + error.message);
+        console.error(error);
+      }
+    };
+
+    const STATUS_MAPPING = {
+      'available': 'active',
+      'in_use': 'active',
+      'unavailable': 'maintenance',
+      'broken': 'maintenance',
+      'retired': 'retired',
+      'lost': 'lost'
+    };
+
+    const VALID_STATUSES = ['active', 'maintenance', 'retired', 'lost'];
+
+    function log(message, type = 'info') {
+      const logDiv = document.getElementById('log');
+      const logItem = document.createElement('div');
+      logItem.className = `log-item log-${type}`;
+      logItem.textContent = message;
+      logDiv.appendChild(logItem);
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+      document.getElementById('summary').style.display = 'none';
+    }
+
+    window.validateData = async function() {
+      if (!currentUser) {
+        alert('กรุณา login ก่อน');
+        return;
+      }
+
+      clearLog();
+      log('🔍 เริ่มตรวจสอบข้อมูล...', 'info');
+      
+      try {
+        const querySnapshot = await getDocs(collection(db, 'equipmentManagement'));
+        
+        if (querySnapshot.empty) {
+          log('⚠️ ไม่พบข้อมูลใน collection equipmentManagement', 'error');
+          return;
+        }
+
+        log(`📊 พบข้อมูล ${querySnapshot.size} รายการ\n`, 'info');
+
+        let validCount = 0;
+        let invalidCount = 0;
+        const issues = [];
+
+        querySnapshot.forEach((docSnapshot) => {
+          const data = docSnapshot.data();
+          const docIssues = [];
+          
+          log(`\n📄 ตรวจสอบ: ${data.name || docSnapshot.id}`, 'info');
+
+          // ตรวจสอบ required fields
+          if (!data.equipmentNumber) docIssues.push('ขาด equipmentNumber');
+          if (!data.name) docIssues.push('ขาด name');
+          if (!data.category || !data.category.id || !data.category.name) {
+            docIssues.push('category ไม่สมบูรณ์');
+          }
+          if (!VALID_STATUSES.includes(data.status)) {
+            docIssues.push(`status ผิด: ${data.status}`);
+          }
+          if (!data.location || typeof data.location !== 'object') {
+            docIssues.push('ขาด location');
+          }
+          if (!data.responsiblePerson || !data.responsiblePerson.uid) {
+            docIssues.push('ขาด responsiblePerson');
+          }
+          if (!Array.isArray(data.images)) docIssues.push('images ไม่ใช่ array');
+          if (!Array.isArray(data.tags)) docIssues.push('tags ไม่ใช่ array');
+          if (!Array.isArray(data.searchKeywords)) docIssues.push('searchKeywords ไม่ใช่ array');
+
+          if (docIssues.length === 0) {
+            log('   ✅ ข้อมูลถูกต้อง', 'success');
+            validCount++;
+          } else {
+            log('   ⚠️ พบปัญหา: ' + docIssues.join(', '), 'error');
+            invalidCount++;
+            issues.push({ id: docSnapshot.id, name: data.name, issues: docIssues });
+          }
+        });
+
+        // แสดงสรุป
+        const summaryDiv = document.getElementById('summary');
+        summaryDiv.style.display = 'block';
+        summaryDiv.innerHTML = `
+          <strong>📊 สรุปผลการตรวจสอบ:</strong><br>
+          ✅ ถูกต้อง: ${validCount} รายการ<br>
+          ⚠️ มีปัญหา: ${invalidCount} รายการ
+        `;
+
+        if (invalidCount > 0) {
+          log('\n💡 พบปัญหา กดปุ่ม "แก้ไขข้อมูล" เพื่อแก้ไข', 'warning');
+          document.getElementById('fixBtn').disabled = false;
+        } else {
+          log('\n✨ ข้อมูลทั้งหมดถูกต้อง!', 'success');
+        }
+
+      } catch (error) {
+        log(`❌ เกิดข้อผิดพลาด: ${error.message}`, 'error');
+        console.error(error);
+      }
+    };
+
+    window.fixData = async function() {
+      if (!currentUser) {
+        alert('กรุณา login ก่อน');
+        return;
+      }
+
+      if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการแก้ไขข้อมูล?')) {
+        return;
+      }
+
+      clearLog();
+      log('🔧 เริ่มแก้ไขข้อมูล...', 'info');
+      document.getElementById('fixBtn').disabled = true;
+
+      try {
+        const querySnapshot = await getDocs(collection(db, 'equipmentManagement'));
+        
+        if (querySnapshot.empty) {
+          log('⚠️ ไม่พบข้อมูลใน collection equipmentManagement', 'error');
+          return;
+        }
+
+        log(`📊 พบข้อมูล ${querySnapshot.size} รายการ\n`, 'info');
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const docSnapshot of querySnapshot.docs) {
+          try {
+            const data = docSnapshot.data();
+            log(`\n🔍 กำลังแก้ไข: ${data.name || docSnapshot.id}`, 'info');
+
+            // เตรียมข้อมูลที่จะอัปเดต (ไม่รวม createdAt, createdBy, equipmentNumber)
+            const fixedData = {
+              name: data.name || 'ไม่ระบุชื่อ',
+              category: {
+                id: data.category?.id || 'computers',
+                name: data.category?.name || 'คอมพิวเตอร์',
+                icon: data.category?.icon || '💻'
+              },
+              brand: data.brand || '',
+              model: data.model || '',
+              description: data.description || '',
+              specifications: data.specifications || {},
+              status: STATUS_MAPPING[data.status] || 'active',
+              location: data.location || {
+                building: '',
+                floor: '',
+                room: '',
+                description: ''
+              },
+              purchaseDate: data.purchaseDate || null,
+              purchasePrice: data.purchasePrice || 0,
+              vendor: data.vendor || '',
+              warrantyExpiry: data.warrantyExpiry || null,
+              responsiblePerson: data.responsiblePerson || {
+                uid: currentUser.uid,
+                name: currentUser.displayName || 'ไม่ระบุ',
+                email: currentUser.email || '',
+                department: ''
+              },
+              images: Array.isArray(data.images) ? data.images : [],
+              qrCode: data.qrCode || null,
+              tags: Array.isArray(data.tags) ? data.tags : [],
+              searchKeywords: Array.isArray(data.searchKeywords) 
+                ? data.searchKeywords 
+                : [
+                    data.equipmentNumber?.toLowerCase() || '',
+                    data.name?.toLowerCase() || ''
+                  ].filter(Boolean),
+              notes: data.notes || '',
+              updatedAt: serverTimestamp(),
+              updatedBy: currentUser.uid,  // ต้องเป็น current user
+              version: (data.version || 0) + 1,
+              isActive: data.isActive !== false,
+              viewCount: data.viewCount || 0,
+              lastViewed: data.lastViewed || null
+            };
+
+            const docRef = doc(db, 'equipmentManagement', docSnapshot.id);
+            await updateDoc(docRef, fixedData);
+            
+            log(`   ✅ แก้ไขสำเร็จ - Status: ${data.status} → ${fixedData.status}`, 'success');
+            successCount++;
+          } catch (error) {
+            log(`   ❌ เกิดข้อผิดพลาด: ${error.message}`, 'error');
+            errorCount++;
+          }
+        }
+
+        const summaryDiv = document.getElementById('summary');
+        summaryDiv.style.display = 'block';
+        summaryDiv.innerHTML = `
+          <strong>📊 สรุปผลการแก้ไข:</strong><br>
+          ✅ สำเร็จ: ${successCount} รายการ<br>
+          ❌ ล้มเหลว: ${errorCount} รายการ
+        `;
+
+        if (successCount > 0) {
+          log('\n✨ แก้ไขข้อมูลเสร็จสิ้น! หน้าจัดการอุปกรณ์ควรใช้งานได้แล้ว', 'success');
+          document.getElementById('validateAfterBtn').disabled = false;
+        }
+
+      } catch (error) {
+        log(`❌ เกิดข้อผิดพลาด: ${error.message}`, 'error');
+        console.error(error);
+      }
+    };
+  </script>
+</body>
+</html>
