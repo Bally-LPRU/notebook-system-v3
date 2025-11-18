@@ -153,8 +153,8 @@ class PermissionService {
       return result;
     }
 
-    // Check if user profile is approved
-    if (user.status !== 'approved') {
+    // Check if user profile is approved (skip for admin)
+    if (user.role !== this.ROLES.ADMIN && user.status !== 'approved') {
       result.reason = 'บัญชีผู้ใช้ยังไม่ได้รับการอนุมัติ';
       result.requiredRole = this.ROLES.VIEWER;
       return result;
