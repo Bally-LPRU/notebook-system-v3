@@ -25,8 +25,10 @@ const LazyEquipmentList = lazy(() => import('./components/equipment/EquipmentLis
 const LazyAdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const LazyUserApprovalList = lazy(() => import('./components/admin/UserApprovalList'));
 const LazyAdminEquipmentManagement = lazy(() => import('./components/admin/AdminEquipmentManagement'));
-const LazyCategoryManagement = lazy(() => import('./components/admin/CategoryManagement'));
 const LazyLoanRequestList = lazy(() => import('./components/admin/LoanRequestList'));
+
+// Direct import for CategoryManagement (temporary fix for 404 issue)
+import CategoryManagement from './components/admin/CategoryManagement';
 const LazyReservationManagement = lazy(() => import('./components/reservations/ReservationManagement'));
 const LazyMyRequests = lazy(() => import('./components/requests/MyRequests'));
 const LazyReservationPage = lazy(() => import('./components/reservations/ReservationPage'));
@@ -151,7 +153,7 @@ const AppRoutes = () => {
       
       <Route path="/admin/categories" element={
         <ProtectedRoute requireAdmin={true}>
-          <LazyCategoryManagement />
+          <CategoryManagement />
         </ProtectedRoute>
       } />
       
