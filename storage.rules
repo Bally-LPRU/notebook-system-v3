@@ -1,7 +1,7 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Equipment images for lending system
+    // Equipment images - simplified rules for admin access
     match /equipment-images/{allPaths=**} {
       // Read: authenticated users
       allow read: if request.auth != null;
@@ -12,28 +12,8 @@ service firebase.storage {
                       isValidImageFile();
     }
     
-    // Equipment management images
-    match /equipment-images/{equipmentId}/{imageType}/{fileName} {
-      // Read: approved users only
-      allow read: if request.auth != null && 
-                     isApprovedUser() &&
-                     imageType in ['original', 'thumbnails', 'medium'];
-      
-      // Write: admin users only with validation
-      allow write: if request.auth != null && 
-                      isAdmin() &&
-                      isValidEquipmentImage() &&
-                      imageType in ['original', 'thumbnails', 'medium'] &&
-                      equipmentId.matches('^[a-zA-Z0-9_-]+$') &&
-                      fileName.matches('^[a-zA-Z0-9_.-]+\\.(jpg|jpeg|png|webp)$');
-      
-      // Delete: admin users only
-      allow delete: if request.auth != null && 
-                       isAdmin();
-    }
-    
     // QR Code images for equipment
-    match /qr-codes/{equipmentId}.png {
+    match /qr-codes/{equipmentId} {
       // Read: approved users only
       allow read: if request.auth != null && 
                      isApprovedUser();
@@ -62,20 +42,17 @@ service firebase.storage {
 
 // Helper functions
 function isAdmin() {
-  return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+  let userData = firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+  return userData.role == 'admin';
 }
 
 function isApprovedUser() {
-  return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'approved';
+  let userData = firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+  // Admin users don't need approval status check
+  return userData.role == 'admin' || userData.status == 'approved';
 }
 
 function isValidImageFile() {
   return request.resource.contentType.matches('image/.*') &&
          request.resource.size < 5 * 1024 * 1024; // 5MB limit
-}
-
-function isValidEquipmentImage() {
-  return request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp'] &&
-         request.resource.size < 5 * 1024 * 1024 && // 5MB limit
-         request.resource.size > 1024; // Minimum 1KB to prevent empty files
 }
