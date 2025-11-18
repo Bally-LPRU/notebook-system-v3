@@ -109,14 +109,11 @@ service cloud.firestore {
     match /equipmentCategories/{categoryId} {
       allow read: if isApprovedUser();
       
-      allow create: if isAdmin() && 
-                       request.resource.data.createdBy == request.auth.uid &&
-                       request.resource.data.createdAt == request.time;
+      // Allow admin to create categories (flexible createdBy for system seeding)
+      allow create: if isAdmin();
       
-      allow update: if isAdmin() && 
-                       !request.resource.data.keys().hasAny(['createdAt', 'createdBy']) &&
-                       request.resource.data.updatedBy == request.auth.uid &&
-                       request.resource.data.updatedAt == request.time;
+      // Allow admin to update categories
+      allow update: if isAdmin();
       
       allow delete: if isAdmin();
     }

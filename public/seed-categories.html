@@ -116,13 +116,19 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { 
+      getAuth,
+      onAuthStateChanged
+    } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { 
       getFirestore, 
       collection, 
       addDoc, 
       getDocs, 
       query,
       where,
-      serverTimestamp
+      serverTimestamp,
+      doc,
+      getDoc
     } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
     // Firebase config
@@ -137,6 +143,37 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    let currentUser = null;
+    let isAdmin = false;
+
+    // Check authentication status
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user;
+      const seedBtn = document.getElementById('seedBtn');
+      
+      if (user) {
+        // Check if user is admin
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          isAdmin = userDoc.data().role === 'admin';
+          if (isAdmin) {
+            seedBtn.disabled = false;
+            seedBtn.textContent = 'เริ่มเพิ่มประเภทอุปกรณ์';
+            seedBtn.style.background = '#4CAF50';
+          } else {
+            seedBtn.disabled = true;
+            seedBtn.textContent = 'ต้องเป็น Admin เท่านั้น';
+            seedBtn.style.background = '#f44336';
+          }
+        }
+      } else {
+        seedBtn.disabled = true;
+        seedBtn.textContent = 'กรุณา Login ก่อน';
+        seedBtn.style.background = '#ff9800';
+      }
+    });
 
     // Default categories
     const DEFAULT_CATEGORIES = [
@@ -203,6 +240,19 @@
     window.seedCategories = async function() {
       const resultsDiv = document.getElementById('results');
       const seedBtn = document.getElementById('seedBtn');
+      
+      // Check authentication
+      if (!currentUser) {
+        resultsDiv.innerHTML = '❌ กรุณา Login ก่อนใช้งาน\n\nกรุณาเปิดหน้าเว็บหลักและ login เป็น admin ก่อน แล้วกลับมาที่หน้านี้อีกครั้ง';
+        resultsDiv.className = 'error';
+        return;
+      }
+
+      if (!isAdmin) {
+        resultsDiv.innerHTML = '❌ ต้องเป็น Admin เท่านั้น\n\nคุณต้องมีสิทธิ์ admin จึงจะสามารถเพิ่มประเภทอุปกรณ์ได้';
+        resultsDiv.className = 'error';
+        return;
+      }
       
       resultsDiv.innerHTML = '<div class="loading">กำลังเพิ่มประเภทอุปกรณ์...</div>';
       seedBtn.disabled = true;
