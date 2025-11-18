@@ -19,6 +19,9 @@ import './App.css';
 // Public components
 import PublicHomepage from './components/public/PublicHomepage';
 
+// Direct import for CategoryManagement (temporary fix for 404 issue)
+import CategoryManagement from './components/admin/CategoryManagement';
+
 // Lazy loaded components
 const LazyDashboard = lazy(() => import('./components/Dashboard'));
 const LazyEquipmentList = lazy(() => import('./components/equipment/EquipmentList'));
@@ -26,9 +29,6 @@ const LazyAdminDashboard = lazy(() => import('./components/admin/AdminDashboard'
 const LazyUserApprovalList = lazy(() => import('./components/admin/UserApprovalList'));
 const LazyAdminEquipmentManagement = lazy(() => import('./components/admin/AdminEquipmentManagement'));
 const LazyLoanRequestList = lazy(() => import('./components/admin/LoanRequestList'));
-
-// Direct import for CategoryManagement (temporary fix for 404 issue)
-import CategoryManagement from './components/admin/CategoryManagement';
 const LazyReservationManagement = lazy(() => import('./components/reservations/ReservationManagement'));
 const LazyMyRequests = lazy(() => import('./components/requests/MyRequests'));
 const LazyReservationPage = lazy(() => import('./components/reservations/ReservationPage'));
