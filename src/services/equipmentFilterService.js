@@ -12,7 +12,7 @@ import { db } from '../config/firebase';
 import EquipmentSearchService from './equipmentSearchService';
 
 class EquipmentFilterService {
-  static COLLECTION_NAME = 'equipmentManagement';
+  static COLLECTION_NAME = 'equipmentManagement'; // Correct collection name where data exists
 
   /**
    * Apply filters and get paginated results

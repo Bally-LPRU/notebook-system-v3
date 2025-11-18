@@ -10,7 +10,7 @@ import { db } from '../config/firebase';
 import CacheService from './cacheService';
 
 class EquipmentSearchService {
-  static COLLECTION_NAME = 'equipmentManagement';
+  static COLLECTION_NAME = 'equipmentManagement'; // Correct collection name where data exists
   static CATEGORIES_COLLECTION = 'equipmentCategories';
 
   /**

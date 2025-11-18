@@ -26,7 +26,7 @@ import {
 } from '../types/equipment';
 
 class EquipmentService {
-  static COLLECTION_NAME = 'equipment';
+  static COLLECTION_NAME = 'equipmentManagement'; // Correct collection name where data exists
   static STORAGE_PATH = 'equipment-images';
 
   /**
