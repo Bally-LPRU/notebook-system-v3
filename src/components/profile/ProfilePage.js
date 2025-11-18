@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Layout } from '../layout';
+import Layout from '../layout/Layout';
 import UserService from '../../services/userService';
 import DepartmentSelector from '../common/DepartmentSelector';
 
@@ -13,12 +13,25 @@ const ProfilePage = () => {
   
   // Form state
   const [formData, setFormData] = useState({
-    firstName: userProfile?.firstName || '',
-    lastName: userProfile?.lastName || '',
-    phoneNumber: userProfile?.phoneNumber || '',
-    position: userProfile?.position || '',
-    department: userProfile?.department || ''
+    firstName: '',
+    lastName: '',
+    phoneNumber: '',
+    position: '',
+    department: ''
   });
+
+  // Update form data when userProfile loads
+  useEffect(() => {
+    if (userProfile) {
+      setFormData({
+        firstName: userProfile.firstName || '',
+        lastName: userProfile.lastName || '',
+        phoneNumber: userProfile.phoneNumber || '',
+        position: userProfile.position || '',
+        department: userProfile.department || ''
+      });
+    }
+  }, [userProfile]);
 
   if (!user || !userProfile) {
     return (

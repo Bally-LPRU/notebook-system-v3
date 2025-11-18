@@ -48,6 +48,30 @@ const EquipmentForm = ({
   // Initialize form data for editing
   useEffect(() => {
     if (isEdit && equipment) {
+      // Sanitize status
+      let status = equipment.status || EQUIPMENT_STATUS.AVAILABLE;
+      
+      // If status is an object, extract the value
+      if (typeof status === 'object' && status !== null) {
+        status = status.value || status.id || EQUIPMENT_STATUS.AVAILABLE;
+      }
+      
+      // Ensure status is a string and lowercase
+      status = String(status).toLowerCase();
+      
+      // Validate status
+      const validStatuses = Object.values(EQUIPMENT_STATUS);
+      if (!validStatuses.includes(status)) {
+        console.warn('Invalid status from equipment:', status, 'Using default:', EQUIPMENT_STATUS.AVAILABLE);
+        status = EQUIPMENT_STATUS.AVAILABLE;
+      }
+      
+      console.log('Loading equipment for edit:', {
+        id: equipment.id,
+        originalStatus: equipment.status,
+        sanitizedStatus: status
+      });
+      
       setFormData({
         equipmentNumber: equipment.equipmentNumber || '',
         name: equipment.name || '',
@@ -56,7 +80,7 @@ const EquipmentForm = ({
         model: equipment.model || '',
         description: equipment.description || '',
         specifications: equipment.specifications || {},
-        status: equipment.status || EQUIPMENT_STATUS.AVAILABLE,
+        status: status, // Use sanitized status
         location: equipment.location || { building: '', floor: '', room: '', description: '' },
         purchaseDate: equipment.purchaseDate ? 
           (equipment.purchaseDate.seconds ? 

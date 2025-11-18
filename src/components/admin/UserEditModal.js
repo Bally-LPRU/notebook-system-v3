@@ -19,11 +19,19 @@ const UserEditModal = ({ user, onClose, onSave }) => {
 
   useEffect(() => {
     if (user) {
+      // Handle department - extract label if it's an object
+      let departmentValue = '';
+      if (typeof user.department === 'object' && user.department !== null) {
+        departmentValue = user.department.label || user.department.value || '';
+      } else {
+        departmentValue = user.department || '';
+      }
+
       setFormData({
         displayName: user.displayName || '',
         firstName: user.firstName || '',
         lastName: user.lastName || '',
-        department: user.department?.label || user.department || '',
+        department: departmentValue,
         role: user.role || 'user',
         status: user.status || 'pending'
       });

@@ -29,14 +29,6 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
     { name: 'คำขอของฉัน', href: '/my-requests', icon: 'requests' },
   ];
 
-  const adminNavigationItems = [
-    { name: 'จัดการผู้ใช้', href: '/admin/users', icon: 'users' },
-    { name: 'จัดการอุปกรณ์', href: '/admin/equipment', icon: 'equipment-admin' },
-    { name: 'คำขอยืม', href: '/admin/loan-requests', icon: 'loan-requests' },
-    { name: 'การจอง', href: '/admin/reservations', icon: 'reservations' },
-    { name: 'รายงาน', href: '/admin/reports', icon: 'reports' },
-  ];
-
   const getIcon = (iconName) => {
     const icons = {
       dashboard: (
@@ -133,11 +125,23 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                 className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                <img
-                  className="h-8 w-8 rounded-full"
-                  src={user?.photoURL || '/default-avatar.png'}
-                  alt={user?.displayName}
-                />
+                {user?.photoURL ? (
+                  <img
+                    className="h-8 w-8 rounded-full object-cover"
+                    src={user.photoURL}
+                    alt={user?.displayName || 'User avatar'}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div 
+                  className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold"
+                  style={{ display: user?.photoURL ? 'none' : 'flex' }}
+                >
+                  {(user?.displayName || user?.email || '?').charAt(0).toUpperCase()}
+                </div>
                 <span className="ml-2 text-gray-700 font-medium hidden sm:block">
                   {user?.displayName}
                 </span>

@@ -138,7 +138,9 @@ const UserManagementTable = ({ users, onUserUpdate, onLoadMore, hasMore, loading
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {user.department?.label || user.department || '-'}
+                    {typeof user.department === 'object' && user.department !== null
+                      ? user.department.label || user.department.value || '-'
+                      : user.department || '-'}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

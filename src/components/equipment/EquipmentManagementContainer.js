@@ -12,10 +12,16 @@ const EquipmentManagementContainer = ({
 }) => {
   const { isAdmin, refreshToken } = useAuth();
   const [equipment, setEquipment] = useState([]);
+  const [filteredEquipment, setFilteredEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isPermissionError, setIsPermissionError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
 
   // Load equipment data
   useEffect(() => {
@@ -39,7 +45,9 @@ const EquipmentManagementContainer = ({
         console.warn('⚠️  ไม่พบอุปกรณ์ในผลลัพธ์');
       }
       
-      setEquipment(result.equipment || []);
+      const equipmentData = result.equipment || [];
+      setEquipment(equipmentData);
+      setFilteredEquipment(equipmentData);
     } catch (error) {
       console.error('❌ Error loading equipment:', error);
       console.error('   Error code:', error.code);
@@ -81,6 +89,44 @@ const EquipmentManagementContainer = ({
     } finally {
       setRefreshing(false);
     }
+  };
+
+  // Filter equipment based on search and filters
+  useEffect(() => {
+    let filtered = [...equipment];
+
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.name?.toLowerCase().includes(search) ||
+        item.brand?.toLowerCase().includes(search) ||
+        item.model?.toLowerCase().includes(search) ||
+        item.equipmentNumber?.toLowerCase().includes(search) ||
+        item.serialNumber?.toLowerCase().includes(search)
+      );
+    }
+
+    // Apply category filter
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(item => {
+        const itemCategory = typeof item.category === 'object' ? item.category?.id : item.category;
+        return itemCategory === selectedCategory;
+      });
+    }
+
+    // Apply status filter
+    if (selectedStatus !== 'all') {
+      filtered = filtered.filter(item => item.status === selectedStatus);
+    }
+
+    setFilteredEquipment(filtered);
+  }, [searchTerm, selectedCategory, selectedStatus, equipment]);
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSelectedCategory('all');
+    setSelectedStatus('all');
   };
 
 
@@ -180,6 +226,107 @@ const EquipmentManagementContainer = ({
         )}
       </div>
 
+      {/* Search and Filters */}
+      {equipment.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="md:col-span-2">
+              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+                ค้นหา
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  id="search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="ค้นหาชื่อ, ยี่ห้อ, รุ่น, หมายเลข..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <svg className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Category Filter */}
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+                ประเภท
+              </label>
+              <select
+                id="category"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">ทั้งหมด</option>
+                <option value="laptop">โน็คบุค</option>
+                <option value="desktop">คอมพิวเตอร์ตั้งโต๊ะ</option>
+                <option value="tablet">แท็บเล็ต</option>
+                <option value="monitor">จอมอนิเตอร์</option>
+                <option value="projector">โปรเจคเตอร์</option>
+                <option value="camera">กล้อง</option>
+                <option value="audio">อุปกรณ์เสียง</option>
+                <option value="network">อุปกรณ์เครือข่าย</option>
+                <option value="accessories">อุปกรณ์เสริม</option>
+                <option value="other">อื่นๆ</option>
+              </select>
+            </div>
+
+            {/* Status Filter */}
+            <div>
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                สถานะ
+              </label>
+              <select
+                id="status"
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">ทั้งหมด</option>
+                <option value="available">พร้อมใช้งาน</option>
+                <option value="borrowed">ถูกยืม</option>
+                <option value="maintenance">ซ่อมบำรุง</option>
+                <option value="retired">เลิกใช้งาน</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Active Filters Summary */}
+          {(searchTerm || selectedCategory !== 'all' || selectedStatus !== 'all') && (
+            <div className="mt-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-gray-600">ตัวกรองที่ใช้:</span>
+                {searchTerm && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    ค้นหา: "{searchTerm}"
+                  </span>
+                )}
+                {selectedCategory !== 'all' && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                    ประเภท: {document.querySelector(`#category option[value="${selectedCategory}"]`)?.text}
+                  </span>
+                )}
+                {selectedStatus !== 'all' && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    สถานะ: {document.querySelector(`#status option[value="${selectedStatus}"]`)?.text}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={handleClearFilters}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                ล้างตัวกรอง
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Equipment List */}
       {equipment.length === 0 ? (
         <EmptyState
@@ -204,9 +351,23 @@ const EquipmentManagementContainer = ({
             )
           }
         />
+      ) : filteredEquipment.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <h3 className="mt-4 text-lg font-medium text-gray-900">ไม่พบอุปกรณ์ที่ตรงกับเงื่อนไข</h3>
+          <p className="mt-2 text-gray-500">ลองเปลี่ยนคำค้นหาหรือตัวกรอง</p>
+          <button
+            onClick={handleClearFilters}
+            className="mt-4 inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          >
+            ล้างตัวกรอง
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {equipment.map((item) => (
+          {filteredEquipment.map((item) => (
             <div
               key={item.id}
               className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
@@ -255,7 +416,7 @@ const EquipmentManagementContainer = ({
       {/* Results Summary */}
       {equipment.length > 0 && (
         <div className="text-center text-sm text-gray-500">
-          แสดง {equipment.length} รายการ
+          แสดง {filteredEquipment.length} จาก {equipment.length} รายการ
         </div>
       )}
     </div>

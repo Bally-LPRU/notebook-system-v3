@@ -5,7 +5,7 @@ import Sidebar from './Sidebar';
 import Footer from './Footer';
 
 const ResponsiveLayout = ({ children, showSidebar = false }) => {
-  const { isMobile, isTablet, getSpacing } = useResponsive();
+  const { isMobile, isTablet, getSpacing, isClient } = useResponsive();
   const { 
     isMobileMenuOpen, 
     shouldShowMobileMenu, 
@@ -14,6 +14,31 @@ const ResponsiveLayout = ({ children, showSidebar = false }) => {
   } = useResponsiveNavigation();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Prevent hydration mismatch by not rendering responsive content until client-side
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Navbar 
+          onMenuToggle={() => {}}
+          showMenuButton={showSidebar}
+          isMobile={false}
+        />
+        <div className="flex flex-1">
+          <div className="flex-1 flex flex-col min-w-0">
+            <main className="flex-1 relative overflow-hidden">
+              <div className="h-full overflow-auto p-8">
+                <div className="mx-auto max-w-7xl">
+                  {children}
+                </div>
+              </div>
+            </main>
+            <Footer />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleSidebarToggle = () => {
     if (shouldShowMobileMenu) {

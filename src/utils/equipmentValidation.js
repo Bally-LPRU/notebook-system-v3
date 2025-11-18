@@ -52,8 +52,12 @@ export const validateEquipmentForm = (formData) => {
   // Validate status
   if (!formData.status) {
     errors.status = 'กรุณาเลือกสถานะอุปกรณ์';
-  } else if (!Object.values(EQUIPMENT_STATUS).includes(formData.status)) {
-    errors.status = 'สถานะอุปกรณ์ไม่ถูกต้อง';
+  } else {
+    const validStatuses = Object.values(EQUIPMENT_STATUS);
+    if (!validStatuses.includes(formData.status)) {
+      console.error('Invalid status:', formData.status, 'Valid statuses:', validStatuses);
+      errors.status = `สถานะอุปกรณ์ไม่ถูกต้อง (ได้รับ: ${formData.status})`;
+    }
   }
 
   // Validate location (now an object)
@@ -127,6 +131,24 @@ export const validateImageFile = (file) => {
  * @returns {Object} Sanitized form data
  */
 export const sanitizeEquipmentForm = (formData) => {
+  // Sanitize status
+  let status = formData.status || EQUIPMENT_STATUS.AVAILABLE;
+  
+  // If status is an object, extract the value
+  if (typeof status === 'object' && status !== null) {
+    status = status.value || status.id || EQUIPMENT_STATUS.AVAILABLE;
+  }
+  
+  // Ensure status is a string
+  status = String(status).toLowerCase();
+  
+  // Ensure status is valid
+  const validStatuses = Object.values(EQUIPMENT_STATUS);
+  if (!validStatuses.includes(status)) {
+    console.warn('Invalid status:', status, 'Using default:', EQUIPMENT_STATUS.AVAILABLE);
+    status = EQUIPMENT_STATUS.AVAILABLE;
+  }
+  
   return {
     equipmentNumber: formData.equipmentNumber?.trim().toUpperCase() || '',
     name: formData.name?.trim() || '',
@@ -135,7 +157,7 @@ export const sanitizeEquipmentForm = (formData) => {
     model: formData.model?.trim() || '',
     description: formData.description?.trim() || '',
     specifications: formData.specifications || {},
-    status: formData.status || EQUIPMENT_STATUS.AVAILABLE,
+    status: status, // Use sanitized status
     location: formData.location || { building: '', floor: '', room: '', description: '' },
     purchaseDate: formData.purchaseDate || '',
     purchasePrice: formData.purchasePrice || 0,

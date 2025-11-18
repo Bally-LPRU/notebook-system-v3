@@ -15,13 +15,17 @@ const breakpoints = {
  */
 export const useResponsive = () => {
   const [screenSize, setScreenSize] = useState({
-    width: typeof window !== 'undefined' ? window.innerWidth : 0,
-    height: typeof window !== 'undefined' ? window.innerHeight : 0
+    width: 1024, // Default to desktop size to prevent hydration mismatch
+    height: 768
   });
 
-  const [currentBreakpoint, setCurrentBreakpoint] = useState('xs');
+  const [currentBreakpoint, setCurrentBreakpoint] = useState('lg');
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    // Mark that we're on the client
+    setIsClient(true);
+
     const handleResize = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
@@ -146,6 +150,7 @@ export const useResponsive = () => {
     // Screen info
     screenSize,
     currentBreakpoint,
+    isClient,
     
     // Device type checks
     isMobile,

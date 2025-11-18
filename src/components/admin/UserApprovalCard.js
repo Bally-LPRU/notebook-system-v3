@@ -76,7 +76,9 @@ const UserApprovalCard = ({ user, onApprove, onReject }) => {
               <p className="text-sm text-gray-600">{user.email}</p>
               <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
                 <span>📱 {user.phoneNumber || 'ไม่ระบุ'}</span>
-                <span>🏢 {user.department || 'ไม่ระบุ'}</span>
+                <span>🏢 {typeof user.department === 'object' && user.department !== null
+                  ? user.department.label || user.department.value || 'ไม่ระบุ'
+                  : user.department || 'ไม่ระบุ'}</span>
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                   {getUserTypeLabel(user.userType)}
                 </span>
