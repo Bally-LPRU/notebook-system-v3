@@ -10,6 +10,7 @@ import EquipmentForm from '../equipment/EquipmentForm';
 const AdminEquipmentManagement = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleAddEquipment = () => {
     setEditingEquipment(null);
@@ -26,13 +27,13 @@ const AdminEquipmentManagement = () => {
     handleEditEquipment(equipment);
   };
 
-  const handleFormSubmit = async (equipmentData) => {
+  const handleFormSubmit = async () => {
     try {
       // Form will handle the save
       setShowForm(false);
       setEditingEquipment(null);
-      // Refresh the list
-      window.location.reload();
+      // Trigger refresh by updating key
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Error handling form submit:', error);
     }
@@ -100,6 +101,7 @@ const AdminEquipmentManagement = () => {
       <div className="max-w-7xl mx-auto">
         {/* Equipment Management Container */}
         <EquipmentManagementContainer
+          key={refreshKey}
           onAddEquipment={handleAddEquipment}
           onEditEquipment={handleEditEquipment}
           onViewEquipment={handleViewEquipment}
