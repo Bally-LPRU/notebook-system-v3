@@ -1,14 +1,17 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { jest } from '@jest/globals';
 import EquipmentCard from '../equipment/EquipmentCard';
-import { AuthContext } from '../../contexts/AuthContext';
 import { EQUIPMENT_STATUS } from '../../types/equipment';
 
 // Mock the validation utilities
 jest.mock('../../utils/equipmentValidation', () => ({
   canBorrowEquipment: jest.fn(() => ({ canBorrow: true, reason: '' })),
   getEquipmentStatusColor: jest.fn(() => 'bg-green-100 text-green-800')
+}));
+
+// Mock the AuthContext
+jest.mock('../../contexts/AuthContext', () => ({
+  useAuth: jest.fn()
 }));
 
 const mockEquipment = {
@@ -35,11 +38,9 @@ const mockAdminAuthContextValue = {
 };
 
 const renderWithAuth = (component, authValue = mockAuthContextValue) => {
-  return render(
-    <AuthContext.Provider value={authValue}>
-      {component}
-    </AuthContext.Provider>
-  );
+  const { useAuth } = require('../../contexts/AuthContext');
+  useAuth.mockReturnValue(authValue);
+  return render(component);
 };
 
 describe('EquipmentCard', () => {

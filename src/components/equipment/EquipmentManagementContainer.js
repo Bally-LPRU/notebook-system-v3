@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import EquipmentManagementService from '../../services/equipmentManagementService';
+import EquipmentCategoryService from '../../services/equipmentCategoryService';
+import { getCategoryId } from '../../utils/equipmentHelpers';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmptyState from '../common/EmptyState';
+import EquipmentStatusBadge from './EquipmentStatusBadge';
 
 const EquipmentManagementContainer = ({
   onAddEquipment,
@@ -12,23 +15,84 @@ const EquipmentManagementContainer = ({
 }) => {
   const { isAdmin, refreshToken } = useAuth();
   const [equipment, setEquipment] = useState([]);
-  const [filteredEquipment, setFilteredEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isPermissionError, setIsPermissionError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [categories, setCategories] = useState([]);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  
+  // Memoized filtered equipment calculation
+  const filteredEquipment = useMemo(() => {
+    let filtered = [...equipment];
 
-  // Load equipment data
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.name?.toLowerCase().includes(search) ||
+        item.brand?.toLowerCase().includes(search) ||
+        item.model?.toLowerCase().includes(search) ||
+        item.equipmentNumber?.toLowerCase().includes(search) ||
+        item.serialNumber?.toLowerCase().includes(search)
+      );
+    }
+
+    // Apply category filter
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(item => {
+        const itemCategory = getCategoryId(item.category);
+        return itemCategory === selectedCategory;
+      });
+    }
+
+    // Apply status filter
+    if (selectedStatus !== 'all') {
+      filtered = filtered.filter(item => item.status === selectedStatus);
+    }
+
+    return filtered;
+  }, [equipment, searchTerm, selectedCategory, selectedStatus]);
+  
+  // Memoized pagination calculations
+  const { totalPages, startIndex, endIndex, paginatedEquipment } = useMemo(() => {
+    const total = Math.ceil(filteredEquipment.length / itemsPerPage);
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    const paginated = filteredEquipment.slice(start, end);
+    
+    return {
+      totalPages: total,
+      startIndex: start,
+      endIndex: end,
+      paginatedEquipment: paginated
+    };
+  }, [filteredEquipment, currentPage, itemsPerPage]);
+
+  // Load categories from Firebase
   useEffect(() => {
-    loadEquipment();
+    const loadCategories = async () => {
+      try {
+        const categoriesData = await EquipmentCategoryService.getCategories();
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    };
+
+    loadCategories();
   }, []);
 
-  const loadEquipment = async () => {
+  // Memoized loadEquipment function
+  const loadEquipment = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -47,7 +111,6 @@ const EquipmentManagementContainer = ({
       
       const equipmentData = result.equipment || [];
       setEquipment(equipmentData);
-      setFilteredEquipment(equipmentData);
     } catch (error) {
       console.error('❌ Error loading equipment:', error);
       console.error('   Error code:', error.code);
@@ -63,9 +126,14 @@ const EquipmentManagementContainer = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleRefreshToken = async () => {
+  // Load equipment data on mount
+  useEffect(() => {
+    loadEquipment();
+  }, [loadEquipment]);
+
+  const handleRefreshToken = useCallback(async () => {
     try {
       setRefreshing(true);
       setError(null);
@@ -89,47 +157,31 @@ const EquipmentManagementContainer = ({
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [refreshToken, loadEquipment]);
 
-  // Filter equipment based on search and filters
+  // Reset to first page when filters change
   useEffect(() => {
-    let filtered = [...equipment];
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory, selectedStatus]);
 
-    // Apply search filter
-    if (searchTerm.trim()) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(item =>
-        item.name?.toLowerCase().includes(search) ||
-        item.brand?.toLowerCase().includes(search) ||
-        item.model?.toLowerCase().includes(search) ||
-        item.equipmentNumber?.toLowerCase().includes(search) ||
-        item.serialNumber?.toLowerCase().includes(search)
-      );
-    }
-
-    // Apply category filter
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(item => {
-        const itemCategory = typeof item.category === 'object' ? item.category?.id : item.category;
-        return itemCategory === selectedCategory;
-      });
-    }
-
-    // Apply status filter
-    if (selectedStatus !== 'all') {
-      filtered = filtered.filter(item => item.status === selectedStatus);
-    }
-
-    setFilteredEquipment(filtered);
-  }, [searchTerm, selectedCategory, selectedStatus, equipment]);
-
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
     setSearchTerm('');
     setSelectedCategory('all');
     setSelectedStatus('all');
-  };
+  }, []);
 
+  // Memoized handlers for pagination
+  const handlePreviousPage = useCallback(() => {
+    setCurrentPage(prev => Math.max(1, prev - 1));
+  }, []);
 
+  const handleNextPage = useCallback(() => {
+    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  }, [totalPages]);
+
+  const handlePageClick = useCallback((page) => {
+    setCurrentPage(page);
+  }, []);
 
   // Loading state
   if (loading) {
@@ -262,16 +314,11 @@ const EquipmentManagementContainer = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">ทั้งหมด</option>
-                <option value="laptop">โน็คบุค</option>
-                <option value="desktop">คอมพิวเตอร์ตั้งโต๊ะ</option>
-                <option value="tablet">แท็บเล็ต</option>
-                <option value="monitor">จอมอนิเตอร์</option>
-                <option value="projector">โปรเจคเตอร์</option>
-                <option value="camera">กล้อง</option>
-                <option value="audio">อุปกรณ์เสียง</option>
-                <option value="network">อุปกรณ์เครือข่าย</option>
-                <option value="accessories">อุปกรณ์เสริม</option>
-                <option value="other">อื่นๆ</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -366,58 +413,158 @@ const EquipmentManagementContainer = ({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredEquipment.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
-            >
-              <div className="flex justify-between items-start mb-3">
-                <h3 className="text-lg font-semibold text-gray-900">{item.name}</h3>
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  item.status === 'available' ? 'bg-green-100 text-green-800' :
-                  item.status === 'borrowed' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {item.status === 'available' ? 'พร้อมใช้งาน' :
-                   item.status === 'borrowed' ? 'ถูกยืม' : item.status}
-                </span>
-              </div>
-              
-              <div className="space-y-2 text-sm text-gray-600 mb-4">
-                <p><span className="font-medium">ยี่ห้อ:</span> {item.brand || '-'}</p>
-                <p><span className="font-medium">รุ่น:</span> {item.model || '-'}</p>
-                <p><span className="font-medium">หมายเลข:</span> {item.serialNumber || '-'}</p>
-              </div>
+        <>
+          {/* Equipment Cards Grid */}
+          <div className="space-y-4">
+            {paginatedEquipment.map((item) => (
+              <div
+                key={item.id}
+                className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center justify-between">
+                  {/* Equipment Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-base font-semibold text-gray-900 truncate">
+                        {item.name}
+                      </h3>
+                      <EquipmentStatusBadge 
+                        status={item.status} 
+                        size="sm"
+                        className="whitespace-nowrap"
+                      />
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
+                      <span>
+                        <span className="font-medium text-gray-700">ยี่ห้อ:</span> {item.brand || '-'}
+                      </span>
+                      <span>
+                        <span className="font-medium text-gray-700">รุ่น:</span> {item.model || '-'}
+                      </span>
+                      <span>
+                        <span className="font-medium text-gray-700">หมายเลข:</span> 
+                        <span className="font-mono ml-1">{item.equipmentNumber || item.serialNumber || '-'}</span>
+                      </span>
+                    </div>
+                  </div>
 
-              <div className="flex gap-2">
-                {onViewEquipment && (
-                  <button
-                    onClick={() => onViewEquipment(item)}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-                  >
-                    ดูรายละเอียด
-                  </button>
-                )}
-                {isAdmin && onEditEquipment && (
-                  <button
-                    onClick={() => onEditEquipment(item)}
-                    className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    แก้ไข
-                  </button>
-                )}
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 ml-4">
+                    {onViewEquipment && (
+                      <button
+                        onClick={() => onViewEquipment(item)}
+                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        title="ดูรายละเอียด"
+                      >
+                        ดูรายละเอียด
+                      </button>
+                    )}
+                    {isAdmin && onEditEquipment && (
+                      <button
+                        onClick={() => onEditEquipment(item)}
+                        className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        title="แก้ไข"
+                      >
+                        แก้ไข
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
+              <div className="flex flex-1 justify-between sm:hidden">
+                <button
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ก่อนหน้า
+                </button>
+                <button
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ถัดไป
+                </button>
+              </div>
+              <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    แสดง <span className="font-medium">{startIndex + 1}</span> ถึง{' '}
+                    <span className="font-medium">{Math.min(endIndex, filteredEquipment.length)}</span> จาก{' '}
+                    <span className="font-medium">{filteredEquipment.length}</span> รายการ
+                  </p>
+                </div>
+                <div>
+                  <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                    <button
+                      onClick={handlePreviousPage}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">ก่อนหน้า</span>
+                      <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    
+                    {/* Page Numbers */}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                      // Show first page, last page, current page, and pages around current
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => handlePageClick(page)}
+                            className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                              currentPage === page
+                                ? 'z-10 bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                                : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      } else if (page === currentPage - 2 || page === currentPage + 2) {
+                        return (
+                          <span
+                            key={page}
+                            className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300"
+                          >
+                            ...
+                          </span>
+                        );
+                      }
+                      return null;
+                    })}
+                    
+                    <button
+                      onClick={handleNextPage}
+                      disabled={currentPage === totalPages}
+                      className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">ถัดไป</span>
+                      <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </nav>
+                </div>
               </div>
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Results Summary */}
-      {equipment.length > 0 && (
-        <div className="text-center text-sm text-gray-500">
-          แสดง {filteredEquipment.length} จาก {equipment.length} รายการ
-        </div>
+          )}
+        </>
       )}
     </div>
   );

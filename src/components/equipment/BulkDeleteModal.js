@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { EQUIPMENT_STATUS, EQUIPMENT_STATUS_LABELS } from '../../types/equipment';
+import { EQUIPMENT_STATUS } from '../../types/equipment';
 import LoadingSpinner from '../common/LoadingSpinner';
+import EquipmentStatusBadge from './EquipmentStatusBadge';
 
 const BulkDeleteModal = ({
   isOpen,
@@ -118,15 +119,7 @@ const BulkDeleteModal = ({
                 {deletableItems.slice(0, 5).map((item) => (
                   <div key={item.id} className="flex items-center justify-between text-sm">
                     <span className="text-gray-700">{item.name}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      item.status === EQUIPMENT_STATUS.AVAILABLE 
-                        ? 'bg-green-100 text-green-800'
-                        : item.status === EQUIPMENT_STATUS.MAINTENANCE
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {EQUIPMENT_STATUS_LABELS[item.status]}
-                    </span>
+                    <EquipmentStatusBadge status={item.status} size="sm" />
                   </div>
                 ))}
                 {deletableItems.length > 5 && (

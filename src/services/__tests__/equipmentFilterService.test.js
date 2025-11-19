@@ -107,10 +107,30 @@ describe('EquipmentFilterService', () => {
     test('should apply search filter', async () => {
       const filters = { search: 'laptop' };
       
+      // Import the mock to verify it's called
+      const EquipmentSearchService = require('../equipmentSearchService');
+      
+      // Clear previous calls
+      where.mockClear();
+      
       await EquipmentFilterService.getFilteredEquipment(filters);
       
-      expect(where).toHaveBeenCalledWith('searchKeywords', 'array-contains-any', 
-        expect.arrayContaining(['laptop']));
+      // Verify generateSearchKeywords was called
+      expect(EquipmentSearchService.generateSearchKeywords).toHaveBeenCalledWith('laptop');
+      
+      // Check that where was called with searchKeywords
+      const whereCalls = where.mock.calls;
+      const searchKeywordCall = whereCalls.find(call => 
+        call[0] === 'searchKeywords' && call[1] === 'array-contains-any'
+      );
+      
+      // If not found, log all calls for debugging
+      if (!searchKeywordCall) {
+        console.log('All where calls:', whereCalls);
+      }
+      
+      expect(searchKeywordCall).toBeDefined();
+      expect(searchKeywordCall[2]).toEqual(expect.arrayContaining(['laptop']));
     });
 
     test('should apply category filter', async () => {
@@ -380,6 +400,8 @@ describe('EquipmentFilterService', () => {
     });
 
     test('should handle errors gracefully', async () => {
+      // Reset the mock to reject
+      getDocs.mockReset();
       getDocs.mockRejectedValue(new Error('Database error'));
       
       const options = await EquipmentFilterService.getFilterOptions();
@@ -398,8 +420,19 @@ describe('EquipmentFilterService', () => {
       search: 'laptop'
     };
 
+    let localStorageData = {};
+
     beforeEach(() => {
-      localStorage.clear();
+      // Mock localStorage with proper implementation
+      localStorageData = {};
+      
+      Storage.prototype.getItem = jest.fn((key) => localStorageData[key] || null);
+      Storage.prototype.setItem = jest.fn((key, value) => {
+        localStorageData[key] = value;
+      });
+      Storage.prototype.clear = jest.fn(() => {
+        localStorageData = {};
+      });
     });
 
     describe('saveFilterPreset', () => {
@@ -460,6 +493,10 @@ describe('EquipmentFilterService', () => {
       test('should delete specific preset', async () => {
         const presetId1 = await EquipmentFilterService.saveFilterPreset('Preset 1', mockFilters, mockUserId);
         const presetId2 = await EquipmentFilterService.saveFilterPreset('Preset 2', mockFilters, mockUserId);
+        
+        // Verify both presets were saved
+        const allPresets = await EquipmentFilterService.getFilterPresets(mockUserId);
+        expect(allPresets).toHaveLength(2);
         
         const success = await EquipmentFilterService.deleteFilterPreset(presetId1, mockUserId);
         

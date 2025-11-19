@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
-  EQUIPMENT_STATUS_LABELS, 
-  EQUIPMENT_CATEGORY_LABELS,
   EQUIPMENT_STATUS 
 } from '../../types/equipment';
-import { getEquipmentStatusColor, canBorrowEquipment } from '../../utils/equipmentValidation';
+import { canBorrowEquipment } from '../../utils/equipmentValidation';
+import { getCategoryName } from '../../utils/equipmentHelpers';
+import EquipmentStatusBadge from './EquipmentStatusBadge';
 
 const EquipmentCard = ({ 
   equipment, 
@@ -63,7 +63,6 @@ const EquipmentCard = ({
   };
 
   const canBorrow = canBorrowEquipment(equipment);
-  const statusColor = getEquipmentStatusColor(equipment.status);
 
   const handleSelectChange = (e) => {
     if (onSelect) {
@@ -124,9 +123,7 @@ const EquipmentCard = ({
         {/* Status Badge */}
         {!isListMode && (
           <div className="absolute top-2 right-2">
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
-              {EQUIPMENT_STATUS_LABELS[equipment.status]}
-            </span>
+            <EquipmentStatusBadge status={equipment.status} size="sm" />
           </div>
         )}
       </div>
@@ -153,16 +150,14 @@ const EquipmentCard = ({
               {equipment.name}
             </h3>
             <p className="text-sm text-gray-600">
-              {EQUIPMENT_CATEGORY_LABELS[equipment.category] || equipment.category}
+              {getCategoryName(equipment.category)}
             </p>
           </div>
           
           {/* Status Badge for List Mode */}
           {isListMode && (
             <div className="ml-4">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
-                {EQUIPMENT_STATUS_LABELS[equipment.status]}
-              </span>
+              <EquipmentStatusBadge status={equipment.status} size="sm" />
             </div>
           )}
         </div>

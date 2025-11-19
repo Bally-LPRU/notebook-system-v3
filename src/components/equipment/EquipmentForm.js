@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
-  EQUIPMENT_CATEGORY_LABELS,
   EQUIPMENT_STATUS,
   EQUIPMENT_STATUS_LABELS
 } from '../../types/equipment';
 import { validateEquipmentForm, validateImageFile, sanitizeEquipmentForm } from '../../utils/equipmentValidation';
 import EquipmentManagementService from '../../services/equipmentManagementService';
+import EquipmentCategoryService from '../../services/equipmentCategoryService';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 const EquipmentForm = ({ 
@@ -44,6 +44,29 @@ const EquipmentForm = ({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [checkingSerial, setCheckingSerial] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+  // Load categories from Firebase
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const categoriesData = await EquipmentCategoryService.getCategories();
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error('Error loading categories:', error);
+        setErrors(prev => ({
+          ...prev,
+          categories: 'ไม่สามารถโหลดประเภทอุปกรณ์ได้'
+        }));
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
 
   // Initialize form data for editing
   useEffect(() => {
@@ -346,27 +369,33 @@ const EquipmentForm = ({
                     value={formData.category?.id || ''}
                     onChange={(e) => {
                       const selectedValue = e.target.value;
-                      const categoryLabel = EQUIPMENT_CATEGORY_LABELS[selectedValue];
-                      handleInputChange('category', selectedValue ? {
-                        id: selectedValue,
-                        name: categoryLabel,
-                        icon: 'default'
+                      const selectedCategory = categories.find(cat => cat.id === selectedValue);
+                      handleInputChange('category', selectedCategory ? {
+                        id: selectedCategory.id,
+                        name: selectedCategory.name,
+                        icon: selectedCategory.icon || 'default'
                       } : null);
                     }}
                     className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
                       errors.category ? 'border-red-300' : ''
                     }`}
-                    disabled={loading}
+                    disabled={loading || loadingCategories}
                   >
                     <option value="">เลือกประเภทอุปกรณ์</option>
-                    {Object.entries(EQUIPMENT_CATEGORY_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
                       </option>
                     ))}
                   </select>
+                  {loadingCategories && (
+                    <p className="mt-2 text-sm text-gray-500">กำลังโหลดประเภทอุปกรณ์...</p>
+                  )}
                   {errors.category && (
                     <p className="mt-2 text-sm text-red-600">{errors.category}</p>
+                  )}
+                  {errors.categories && (
+                    <p className="mt-2 text-sm text-red-600">{errors.categories}</p>
                   )}
                 </div>
               </div>

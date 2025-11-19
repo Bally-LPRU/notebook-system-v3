@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { 
-  EQUIPMENT_CATEGORY_LABELS,
   EQUIPMENT_STATUS_LABELS
 } from '../../types/equipment';
 import { LOAN_REQUEST_STATUS_LABELS } from '../../types/loanRequest';
 import { RESERVATION_STATUS_LABELS } from '../../types/reservation';
+import { useCategories } from '../../contexts/EquipmentCategoriesContext';
 
 const AdvancedSearchModal = ({ 
   isOpen, 
@@ -56,6 +56,9 @@ const AdvancedSearchModal = ({
   const [searchName, setSearchName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [activeTab, setActiveTab] = useState('filters');
+  
+  // Load categories from context
+  const { categories, loading: categoriesLoading } = useCategories();
 
   useEffect(() => {
     if (isOpen) {
@@ -170,11 +173,16 @@ const AdvancedSearchModal = ({
             value={filters.category}
             onChange={(e) => handleFilterChange('category', e.target.value)}
             className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            disabled={categoriesLoading}
           >
             <option value="">ทั้งหมด</option>
-            {Object.entries(EQUIPMENT_CATEGORY_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
+            {categoriesLoading ? (
+              <option disabled>กำลังโหลด...</option>
+            ) : (
+              categories.map((category) => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))
+            )}
           </select>
         </div>
 

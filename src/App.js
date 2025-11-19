@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { EquipmentCategoriesProvider } from './contexts/EquipmentCategoriesContext';
 import { NotificationToastContainer } from './components/notifications/NotificationToast';
 import SimpleErrorBoundary from './components/common/SimpleErrorBoundary';
 import FirebaseLoadingBoundary from './components/common/FirebaseLoadingBoundary';
@@ -256,9 +257,10 @@ function App() {
       <FirebaseLoadingBoundary onRetry={handleFirebaseRetry}>
         <AuthProvider>
           <NotificationProvider>
-            <Router>
-              <AppRoutes />
-              <NotificationToastContainer />
+            <EquipmentCategoriesProvider>
+              <Router>
+                <AppRoutes />
+                <NotificationToastContainer />
               
               {/* PWA Install Prompt */}
               <PWAInstallPrompt 
@@ -289,7 +291,8 @@ function App() {
                   </div>
                 </div>
               )}
-            </Router>
+              </Router>
+            </EquipmentCategoriesProvider>
           </NotificationProvider>
         </AuthProvider>
       </FirebaseLoadingBoundary>

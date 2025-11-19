@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
-  EQUIPMENT_STATUS_LABELS, 
-  EQUIPMENT_CATEGORY_LABELS,
   EQUIPMENT_STATUS 
 } from '../../types/equipment';
-import { getEquipmentStatusColor, canBorrowEquipment } from '../../utils/equipmentValidation';
+import { canBorrowEquipment } from '../../utils/equipmentValidation';
+import { getCategoryName } from '../../utils/equipmentHelpers';
 import ImageGallery from './ImageGallery';
+import EquipmentStatusBadge from './EquipmentStatusBadge';
 
 const EnhancedEquipmentCard = ({ 
   equipment, 
@@ -81,7 +81,6 @@ const EnhancedEquipmentCard = ({
   };
 
   const canBorrow = canBorrowEquipment(equipment);
-  const statusColor = getEquipmentStatusColor(equipment.status);
 
   const handleSelectChange = (e) => {
     e.stopPropagation();
@@ -193,9 +192,11 @@ const EnhancedEquipmentCard = ({
         {/* Status Badge */}
         {showStatusBadge && !isListMode && (
           <div className="absolute top-2 right-2">
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shadow-sm ${statusColor}`}>
-              {EQUIPMENT_STATUS_LABELS[equipment.status]}
-            </span>
+            <EquipmentStatusBadge 
+              status={equipment.status} 
+              size="md" 
+              className="shadow-sm"
+            />
           </div>
         )}
 
@@ -262,16 +263,17 @@ const EnhancedEquipmentCard = ({
               {equipment.name}
             </h3>
             <p className={`text-gray-600 ${isCompactMode ? 'text-xs' : 'text-sm'}`}>
-              {EQUIPMENT_CATEGORY_LABELS[equipment.category] || equipment.category}
+              {getCategoryName(equipment.category)}
             </p>
           </div>
           
           {/* Status Badge for List Mode */}
           {showStatusBadge && isListMode && (
             <div className="ml-4 flex-shrink-0">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
-                {EQUIPMENT_STATUS_LABELS[equipment.status]}
-              </span>
+              <EquipmentStatusBadge 
+                status={equipment.status} 
+                size="md"
+              />
             </div>
           )}
         </div>

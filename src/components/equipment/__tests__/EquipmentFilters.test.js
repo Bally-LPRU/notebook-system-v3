@@ -3,9 +3,28 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import EquipmentFilters from '../EquipmentFilters';
 import EquipmentFilterService from '../../../services/equipmentFilterService';
+import { EquipmentCategoriesProvider } from '../../../contexts/EquipmentCategoriesContext';
 
 // Mock the filter service
 jest.mock('../../../services/equipmentFilterService');
+
+// Mock the useEquipmentCategories hook
+jest.mock('../../../hooks/useEquipmentCategories', () => ({
+  useEquipmentCategories: () => ({
+    categories: [
+      { id: 'cat1', name: 'Computer' },
+      { id: 'cat2', name: 'Printer' }
+    ],
+    loading: false,
+    error: null,
+    getCategoryById: jest.fn(),
+    getCategoriesByParent: jest.fn(),
+    getRootCategories: jest.fn(),
+    getCategoryHierarchy: jest.fn(),
+    getCategoryPath: jest.fn(),
+    searchCategories: jest.fn()
+  })
+}));
 
 describe('EquipmentFilters', () => {
   const mockOnFiltersChange = jest.fn();
@@ -34,6 +53,15 @@ describe('EquipmentFilters', () => {
     isLoading: false
   };
 
+  // Helper function to render with provider
+  const renderWithProvider = (component) => {
+    return render(
+      <EquipmentCategoriesProvider>
+        {component}
+      </EquipmentCategoriesProvider>
+    );
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     EquipmentFilterService.getFilterOptions.mockResolvedValue(mockFilterOptions);
@@ -45,7 +73,7 @@ describe('EquipmentFilters', () => {
   });
 
   test('renders filter sections', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByText('ประเภทอุปกรณ์')).toBeInTheDocument();
@@ -57,7 +85,7 @@ describe('EquipmentFilters', () => {
   });
 
   test('shows category options with counts', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByText('Computer (10)')).toBeInTheDocument();
@@ -66,7 +94,7 @@ describe('EquipmentFilters', () => {
   });
 
   test('calls onFiltersChange when category is selected', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByText('Computer (10)')).toBeInTheDocument();
@@ -85,7 +113,7 @@ describe('EquipmentFilters', () => {
       categories: ['cat1']
     };
     
-    render(<EquipmentFilters {...defaultProps} filters={filtersWithCategory} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} filters={filtersWithCategory} />);
     
     await waitFor(() => {
       const computerCheckbox = screen.getByLabelText('Computer (10)');
@@ -94,7 +122,7 @@ describe('EquipmentFilters', () => {
   });
 
   test('shows status filter options', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByText('ใช้งานได้')).toBeInTheDocument();
@@ -105,7 +133,7 @@ describe('EquipmentFilters', () => {
   });
 
   test('calls onFiltersChange when status is selected', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByText('ใช้งานได้')).toBeInTheDocument();
@@ -120,7 +148,7 @@ describe('EquipmentFilters', () => {
   });
 
   test('shows price range slider', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByTestId('price-range-slider')).toBeInTheDocument();
@@ -128,7 +156,7 @@ describe('EquipmentFilters', () => {
   });
 
   test('calls onFiltersChange when price range changes', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByTestId('price-range-slider')).toBeInTheDocument();
@@ -144,7 +172,7 @@ describe('EquipmentFilters', () => {
   });
 
   test('shows date range picker', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByTestId('date-range-picker')).toBeInTheDocument();
@@ -152,7 +180,7 @@ describe('EquipmentFilters', () => {
   });
 
   test('calls onFiltersChange when date range changes', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByTestId('date-range-picker')).toBeInTheDocument();
@@ -167,7 +195,7 @@ describe('EquipmentFilters', () => {
   });
 
   test('shows location filter', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByText('อาคาร')).toBeInTheDocument();
@@ -175,7 +203,7 @@ describe('EquipmentFilters', () => {
   });
 
   test('calls onFiltersChange when location is selected', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByDisplayValue('')).toBeInTheDocument();
@@ -195,7 +223,7 @@ describe('EquipmentFilters', () => {
       statuses: ['active']
     };
     
-    render(<EquipmentFilters {...defaultProps} filters={filtersWithValues} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} filters={filtersWithValues} />);
     
     expect(screen.getByText('ล้างตัวกรอง')).toBeInTheDocument();
   });
@@ -206,7 +234,7 @@ describe('EquipmentFilters', () => {
       statuses: ['active']
     };
     
-    render(<EquipmentFilters {...defaultProps} filters={filtersWithValues} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} filters={filtersWithValues} />);
     
     const clearButton = screen.getByText('ล้างตัวกรอง');
     fireEvent.click(clearButton);
@@ -220,19 +248,19 @@ describe('EquipmentFilters', () => {
       statuses: ['active']
     };
     
-    render(<EquipmentFilters {...defaultProps} filters={filtersWithValues} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} filters={filtersWithValues} />);
     
     expect(screen.getByText('3')).toBeInTheDocument(); // 2 categories + 1 status
   });
 
   test('shows loading state', () => {
-    render(<EquipmentFilters {...defaultProps} isLoading={true} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} isLoading={true} />);
     
     expect(screen.getByText('กำลังโหลดตัวกรอง...')).toBeInTheDocument();
   });
 
   test('can be collapsed and expanded', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByText('ประเภทอุปกรณ์')).toBeInTheDocument();
@@ -263,7 +291,7 @@ describe('EquipmentFilters', () => {
       value: 375,
     });
     
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByTestId('mobile-filters')).toBeInTheDocument();
@@ -278,7 +306,7 @@ describe('EquipmentFilters', () => {
     
     EquipmentFilterService.getFilterPresets.mockResolvedValue(mockPresets);
     
-    render(<EquipmentFilters {...defaultProps} showPresets={true} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} showPresets={true} />);
     
     await waitFor(() => {
       expect(screen.getByText('ตัวกรองที่บันทึกไว้')).toBeInTheDocument();
@@ -294,7 +322,7 @@ describe('EquipmentFilters', () => {
     
     EquipmentFilterService.getFilterPresets.mockResolvedValue(mockPresets);
     
-    render(<EquipmentFilters {...defaultProps} showPresets={true} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} showPresets={true} />);
     
     await waitFor(() => {
       expect(screen.getByText('My Computers')).toBeInTheDocument();
@@ -308,7 +336,7 @@ describe('EquipmentFilters', () => {
   test('handles filter service errors gracefully', async () => {
     EquipmentFilterService.getFilterOptions.mockRejectedValue(new Error('Service error'));
     
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByText('ไม่สามารถโหลดตัวกรองได้')).toBeInTheDocument();
@@ -316,7 +344,7 @@ describe('EquipmentFilters', () => {
   });
 
   test('shows advanced filters when toggled', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByText('ตัวกรองขั้นสูง')).toBeInTheDocument();
@@ -331,7 +359,7 @@ describe('EquipmentFilters', () => {
   });
 
   test('supports keyboard navigation', async () => {
-    render(<EquipmentFilters {...defaultProps} />);
+    renderWithProvider(<EquipmentFilters {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByText('Computer (10)')).toBeInTheDocument();

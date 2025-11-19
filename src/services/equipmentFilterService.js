@@ -47,7 +47,9 @@ class EquipmentFilterService {
       // Text search using keywords
       if (search && search.length >= 2) {
         const searchKeywords = EquipmentSearchService.generateSearchKeywords(search);
-        queryConstraints.push(where('searchKeywords', 'array-contains-any', searchKeywords));
+        if (searchKeywords && searchKeywords.length > 0) {
+          queryConstraints.push(where('searchKeywords', 'array-contains-any', searchKeywords));
+        }
       }
 
       // Category filter
@@ -389,6 +391,7 @@ class EquipmentFilterService {
       };
     } catch (error) {
       console.error('Error getting filter options:', error);
+      // Return empty arrays and default values on error
       return {
         categories: [],
         brands: [],

@@ -1,11 +1,11 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
-  EQUIPMENT_STATUS_LABELS, 
-  EQUIPMENT_CATEGORY_LABELS,
   EQUIPMENT_STATUS 
 } from '../../types/equipment';
-import { getEquipmentStatusColor, canBorrowEquipment } from '../../utils/equipmentValidation';
+import { canBorrowEquipment } from '../../utils/equipmentValidation';
+import { getCategoryName } from '../../utils/equipmentHelpers';
+import EquipmentStatusBadge from './EquipmentStatusBadge';
 
 const MobileEquipmentCard = ({ 
   equipment, 
@@ -40,7 +40,6 @@ const MobileEquipmentCard = ({
   };
 
   const canBorrow = canBorrowEquipment(equipment);
-  const statusColor = getEquipmentStatusColor(equipment.status);
 
   // Touch event handlers for swipe gestures
   const handleTouchStart = (e) => {
@@ -287,9 +286,7 @@ const MobileEquipmentCard = ({
             
             {/* Status Badge */}
             <div className="absolute -top-1 -right-1">
-              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
-                {EQUIPMENT_STATUS_LABELS[equipment.status]}
-              </span>
+              <EquipmentStatusBadge status={equipment.status} size="sm" />
             </div>
           </div>
 
@@ -301,7 +298,7 @@ const MobileEquipmentCard = ({
                   {equipment.name}
                 </h3>
                 <p className="text-sm text-gray-600 truncate">
-                  {EQUIPMENT_CATEGORY_LABELS[equipment.category] || equipment.category}
+                  {getCategoryName(equipment.category)}
                 </p>
               </div>
             </div>

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { XMarkIcon, MagnifyingGlassIcon, BookmarkIcon } from '@heroicons/react/24/outline';
-import { useEquipmentCategories } from '../../hooks/useEquipmentCategories';
+import { useCategories } from '../../contexts/EquipmentCategoriesContext';
 import { EQUIPMENT_MANAGEMENT_STATUS } from '../../types/equipmentManagement';
 
 const AdvancedSearchModal = ({
@@ -9,7 +9,7 @@ const AdvancedSearchModal = ({
   onSearch,
   initialQuery = ''
 }) => {
-  const { categories, loading: categoriesLoading } = useEquipmentCategories();
+  const { categories, loading: categoriesLoading } = useCategories();
   
   const [searchCriteria, setSearchCriteria] = useState({
     query: initialQuery,
@@ -129,8 +129,8 @@ const AdvancedSearchModal = ({
     });
   };
 
-  // Execute search
-  const executeSearch = () => {
+  // Memoize execute search function
+  const executeSearch = useCallback(() => {
     const searchParams = {
       ...searchCriteria,
       operator
@@ -146,10 +146,10 @@ const AdvancedSearchModal = ({
     
     onSearch(searchParams);
     onClose();
-  };
+  }, [searchCriteria, operator, buildSearchQuery, onSearch, onClose]);
 
-  // Build readable search query
-  const buildSearchQuery = (criteria) => {
+  // Memoize build search query function
+  const buildSearchQuery = useCallback((criteria) => {
     const parts = [];
     
     if (criteria.query) parts.push(criteria.query);
@@ -167,10 +167,10 @@ const AdvancedSearchModal = ({
     if (criteria.statuses.length > 0) parts.push(`สถานะ: ${criteria.statuses.join(', ')}`);
     
     return parts.join(' | ');
-  };
+  }, [categories]);
 
-  // Save search
-  const saveSearch = () => {
+  // Memoize save search function
+  const saveSearch = useCallback(() => {
     if (!searchName.trim()) return;
     
     const newSavedSearch = {
@@ -187,20 +187,20 @@ const AdvancedSearchModal = ({
     
     setSearchName('');
     setShowSaveForm(false);
-  };
+  }, [searchName, searchCriteria, operator, savedSearches]);
 
-  // Load saved search
-  const loadSavedSearch = (savedSearch) => {
+  // Memoize load saved search function
+  const loadSavedSearch = useCallback((savedSearch) => {
     setSearchCriteria(savedSearch.criteria);
     setOperator(savedSearch.operator);
-  };
+  }, []);
 
-  // Delete saved search
-  const deleteSavedSearch = (searchId) => {
+  // Memoize delete saved search function
+  const deleteSavedSearch = useCallback((searchId) => {
     const newSavedSearches = savedSearches.filter(search => search.id !== searchId);
     setSavedSearches(newSavedSearches);
     localStorage.setItem('equipment-advanced-searches', JSON.stringify(newSavedSearches));
-  };
+  }, [savedSearches]);
 
   if (!isOpen) return null;
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { debounce } from 'lodash';
 import { MagnifyingGlassIcon, XMarkIcon, BookmarkIcon } from '@heroicons/react/24/outline';
 import AdvancedSearchModal from './AdvancedSearchModal';
@@ -36,18 +36,17 @@ const EquipmentSearch = ({
     setSavedSearches(saved);
   }, []);
 
-  // Debounced search function
-  const debouncedSearch = useCallback((searchQuery) => {
-    const debouncedFn = debounce((query) => {
+  // Memoize debounced search function
+  const debouncedSearch = useMemo(() => {
+    return debounce((query) => {
       if (onSearch) {
         onSearch(query);
       }
     }, 300);
-    debouncedFn(searchQuery);
   }, [onSearch]);
 
-  // Handle input change
-  const handleInputChange = (e) => {
+  // Memoize event handlers
+  const handleInputChange = useCallback((e) => {
     const value = e.target.value;
     setQuery(value);
     setSelectedSuggestionIndex(-1);
@@ -61,19 +60,17 @@ const EquipmentSearch = ({
         debouncedSearch('');
       }
     }
-  };
+  }, [debouncedSearch]);
 
-  // Handle input focus
-  const handleInputFocus = () => {
+  const handleInputFocus = useCallback(() => {
     if (query.length >= 2 && showSuggestions) {
       setShowSuggestionsList(true);
     } else if (query.length === 0 && showHistory && searchHistory.length > 0) {
       setShowHistoryList(true);
     }
-  };
+  }, [query, showSuggestions, showHistory, searchHistory.length]);
 
-  // Handle input blur
-  const handleInputBlur = (e) => {
+  const handleInputBlur = useCallback(() => {
     // Delay hiding to allow clicking on suggestions
     setTimeout(() => {
       if (!containerRef.current?.contains(document.activeElement)) {
@@ -81,10 +78,10 @@ const EquipmentSearch = ({
         setShowHistoryList(false);
       }
     }, 150);
-  };
+  }, []);
 
   // Handle keyboard navigation
-  const handleKeyDown = (e) => {
+  const handleKeyDown = useCallback((e) => {
     const currentList = showSuggestionsList ? suggestions : searchHistory;
     
     if (e.key === 'ArrowDown') {
@@ -109,10 +106,10 @@ const EquipmentSearch = ({
       setShowHistoryList(false);
       inputRef.current?.blur();
     }
-  };
+  }, [showSuggestionsList, suggestions, searchHistory, selectedSuggestionIndex, query]);
 
   // Handle search execution
-  const handleSearch = (searchQuery) => {
+  const handleSearch = useCallback((searchQuery) => {
     const trimmedQuery = searchQuery.trim();
     if (trimmedQuery) {
       setQuery(trimmedQuery);
@@ -124,10 +121,10 @@ const EquipmentSearch = ({
     setShowSuggestionsList(false);
     setShowHistoryList(false);
     setSelectedSuggestionIndex(-1);
-  };
+  }, [onSearch]);
 
   // Add to search history
-  const addToSearchHistory = (searchQuery) => {
+  const addToSearchHistory = useCallback((searchQuery) => {
     const newHistory = [
       searchQuery,
       ...searchHistory.filter(item => item !== searchQuery)
@@ -135,10 +132,10 @@ const EquipmentSearch = ({
     
     setSearchHistory(newHistory);
     localStorage.setItem('equipment-search-history', JSON.stringify(newHistory));
-  };
+  }, [searchHistory]);
 
   // Clear search
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     setQuery('');
     setShowSuggestionsList(false);
     setShowHistoryList(false);
@@ -146,17 +143,17 @@ const EquipmentSearch = ({
       onSearch('');
     }
     inputRef.current?.focus();
-  };
+  }, [onSearch]);
 
   // Clear search history
-  const clearSearchHistory = () => {
+  const clearSearchHistory = useCallback(() => {
     setSearchHistory([]);
     localStorage.removeItem('equipment-search-history');
     setShowHistoryList(false);
-  };
+  }, []);
 
   // Save current search
-  const saveCurrentSearch = () => {
+  const saveCurrentSearch = useCallback(() => {
     if (!query.trim()) return;
     
     const searchName = prompt('ชื่อการค้นหา:', query);
@@ -172,25 +169,25 @@ const EquipmentSearch = ({
       setSavedSearches(newSavedSearches);
       localStorage.setItem('equipment-saved-searches', JSON.stringify(newSavedSearches));
     }
-  };
+  }, [query, savedSearches]);
 
   // Delete saved search
-  const deleteSavedSearch = (searchId) => {
+  const deleteSavedSearch = useCallback((searchId) => {
     const newSavedSearches = savedSearches.filter(search => search.id !== searchId);
     setSavedSearches(newSavedSearches);
     localStorage.setItem('equipment-saved-searches', JSON.stringify(newSavedSearches));
-  };
+  }, [savedSearches]);
 
   // Handle suggestion click
-  const handleSuggestionClick = (suggestion) => {
+  const handleSuggestionClick = useCallback((suggestion) => {
     const searchQuery = typeof suggestion === 'string' ? suggestion : suggestion.query || suggestion.name;
     handleSearch(searchQuery);
-  };
+  }, [handleSearch]);
 
   // Handle history item click
-  const handleHistoryClick = (historyItem) => {
+  const handleHistoryClick = useCallback((historyItem) => {
     handleSearch(historyItem);
-  };
+  }, [handleSearch]);
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>

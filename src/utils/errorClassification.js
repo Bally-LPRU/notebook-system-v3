@@ -217,6 +217,11 @@ export class ErrorClassifier {
     const errorMessage = error.message?.toLowerCase() || '';
     const errorCode = error.code || '';
 
+    // Check Firestore errors first (before network, since 'unavailable' can be both)
+    if (this._isFirestoreError(error, errorMessage, errorCode)) {
+      return this._classifyFirestoreError(error, errorMessage, errorCode, classification);
+    }
+
     // Network errors
     if (this._isNetworkError(error, errorMessage, errorCode)) {
       return this._classifyNetworkError(error, errorMessage, errorCode, classification);
@@ -227,19 +232,14 @@ export class ErrorClassifier {
       return this._classifyAuthError(error, errorMessage, errorCode, classification);
     }
 
-    // Firestore errors
-    if (this._isFirestoreError(error, errorMessage, errorCode)) {
-      return this._classifyFirestoreError(error, errorMessage, errorCode, classification);
+    // Profile specific errors (check before validation since profile errors can contain validation keywords)
+    if (this._isProfileError(error, errorMessage, context)) {
+      return this._classifyProfileError(error, errorMessage, context, classification);
     }
 
     // Validation errors
     if (this._isValidationError(error, errorMessage, context)) {
       return this._classifyValidationError(error, errorMessage, context, classification);
-    }
-
-    // Profile specific errors
-    if (this._isProfileError(error, errorMessage, context)) {
-      return this._classifyProfileError(error, errorMessage, context, classification);
     }
 
     // Default classification for unknown errors
@@ -343,11 +343,23 @@ export class ErrorClassifier {
 
   // Firestore error detection
   static _isFirestoreError(error, errorMessage, errorCode) {
+    // Check Firestore-specific codes first (before network check)
+    if (errorCode === 'resource-exhausted' || errorCode === 'failed-precondition') {
+      return true;
+    }
+    
+    // For 'unavailable' code, check if it's specifically Firestore
+    if (errorCode === 'unavailable' && (
+      errorCode?.startsWith('firestore/') ||
+      errorMessage.includes('firestore') ||
+      errorMessage.includes('document') ||
+      errorMessage.includes('collection')
+    )) {
+      return true;
+    }
+    
     return (
       errorCode?.startsWith('firestore/') ||
-      errorCode === 'unavailable' ||
-      errorCode === 'resource-exhausted' ||
-      errorCode === 'failed-precondition' ||
       errorMessage.includes('firestore') ||
       errorMessage.includes('document') ||
       errorMessage.includes('collection')
@@ -400,8 +412,11 @@ export class ErrorClassifier {
       errorMessage.includes('required') ||
       errorMessage.includes('invalid') ||
       errorMessage.includes('format') ||
+      errorMessage.includes('duplicate') ||
       errorMessage.includes('กรุณา') ||
-      errorMessage.includes('ไม่ถูกต้อง')
+      errorMessage.includes('ไม่ถูกต้อง') ||
+      errorMessage.includes('ซ้ำ') ||
+      errorMessage.includes('ข้อมูลซ้ำ')
     );
   }
 
@@ -411,12 +426,13 @@ export class ErrorClassifier {
     classification.retryable = false;
     classification.severity = ERROR_SEVERITY.LOW;
 
-    if (errorMessage.includes('required') || errorMessage.includes('กรุณา')) {
+    // Check for duplicate first (more specific)
+    if (errorMessage.includes('duplicate') || errorMessage.includes('ซ้ำ') || errorMessage.includes('ข้อมูลซ้ำ')) {
+      classification.type = ERROR_TYPES.VALIDATION_DUPLICATE;
+    } else if (errorMessage.includes('required') || errorMessage.includes('กรุณา')) {
       classification.type = ERROR_TYPES.VALIDATION_REQUIRED;
     } else if (errorMessage.includes('format') || errorMessage.includes('รูปแบบ')) {
       classification.type = ERROR_TYPES.VALIDATION_FORMAT;
-    } else if (errorMessage.includes('duplicate') || errorMessage.includes('ซ้ำ')) {
-      classification.type = ERROR_TYPES.VALIDATION_DUPLICATE;
     } else {
       classification.type = ERROR_TYPES.VALIDATION;
     }

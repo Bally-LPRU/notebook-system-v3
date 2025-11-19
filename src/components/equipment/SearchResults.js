@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   ChevronLeftIcon, 
   ChevronRightIcon,
@@ -38,8 +38,8 @@ const SearchResults = ({
 }) => {
   const [isInfiniteScrollEnabled, setIsInfiniteScrollEnabled] = useState(false);
 
-  // Sort options
-  const sortOptions = [
+  // Memoize sort options to avoid recreating on every render
+  const sortOptions = useMemo(() => [
     { value: 'updatedAt', label: 'วันที่อัปเดต', icon: '📅' },
     { value: 'createdAt', label: 'วันที่สร้าง', icon: '📅' },
     { value: 'name', label: 'ชื่อ', icon: '🔤' },
@@ -47,16 +47,16 @@ const SearchResults = ({
     { value: 'equipmentNumber', label: 'หมายเลขครุภัณฑ์', icon: '🔢' },
     { value: 'purchaseDate', label: 'วันที่ซื้อ', icon: '💰' },
     { value: 'purchasePrice', label: 'ราคา', icon: '💰' }
-  ];
+  ], []);
 
-  // Handle sort change
-  const handleSortChange = (field) => {
+  // Memoize event handlers
+  const handleSortChange = useCallback((field) => {
     const newOrder = sortBy === field && sortOrder === 'asc' ? 'desc' : 'asc';
     onSortChange(field, newOrder);
-  };
+  }, [sortBy, sortOrder, onSortChange]);
 
-  // Generate page numbers for pagination
-  const generatePageNumbers = () => {
+  // Memoize page number generation
+  const pageNumbers = useMemo(() => {
     const pages = [];
     const maxVisiblePages = 5;
     
@@ -84,7 +84,7 @@ const SearchResults = ({
     }
     
     return pages;
-  };
+  }, [currentPage, totalPages]);
 
   // Infinite scroll handler
   useEffect(() => {
@@ -105,8 +105,8 @@ const SearchResults = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isInfiniteScrollEnabled, loading, currentPage, totalPages, onLoadMore, showLoadMore]);
 
-  // Results summary
-  const getResultsSummary = () => {
+  // Memoize results summary
+  const resultsSummary = useMemo(() => {
     if (loading && results.length === 0) return 'กำลังค้นหา...';
     if (error) return 'เกิดข้อผิดพลาดในการค้นหา';
     if (results.length === 0) return 'ไม่พบผลลัพธ์';
@@ -115,7 +115,7 @@ const SearchResults = ({
     const end = Math.min(currentPage * pageSize, totalCount);
     
     return `แสดง ${start.toLocaleString()}-${end.toLocaleString()} จาก ${totalCount.toLocaleString()} รายการ`;
-  };
+  }, [loading, error, results.length, currentPage, pageSize, totalCount]);
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -124,7 +124,7 @@ const SearchResults = ({
         <div className="flex items-center space-x-4">
           {/* Results Summary */}
           <div className="text-sm text-gray-600">
-            {getResultsSummary()}
+            {resultsSummary}
           </div>
           
           {/* Loading Indicator */}
@@ -342,7 +342,7 @@ const SearchResults = ({
                 </button>
                 
                 {/* Page Numbers */}
-                {generatePageNumbers().map((page, index) => (
+                {pageNumbers.map((page, index) => (
                   <button
                     key={index}
                     onClick={() => typeof page === 'number' && onPageChange(page)}

@@ -25,34 +25,12 @@ export const EQUIPMENT_CATEGORIES = {
   OTHER: 'other'
 };
 
-// Equipment category labels in Thai
-export const EQUIPMENT_CATEGORY_LABELS = {
-  [EQUIPMENT_CATEGORIES.LAPTOP]: 'โน็คบุค',
-  [EQUIPMENT_CATEGORIES.DESKTOP]: 'คอมพิวเตอร์ตั้งโต๊ะ',
-  [EQUIPMENT_CATEGORIES.TABLET]: 'แท็บเล็ต',
-  [EQUIPMENT_CATEGORIES.MONITOR]: 'จอมอนิเตอร์',
-  [EQUIPMENT_CATEGORIES.PROJECTOR]: 'โปรเจคเตอร์',
-  [EQUIPMENT_CATEGORIES.CAMERA]: 'กล้อง',
-  [EQUIPMENT_CATEGORIES.AUDIO]: 'อุปกรณ์เสียง',
-  [EQUIPMENT_CATEGORIES.NETWORK]: 'อุปกรณ์เครือข่าย',
-  [EQUIPMENT_CATEGORIES.ACCESSORIES]: 'อุปกรณ์เสริม',
-  [EQUIPMENT_CATEGORIES.OTHER]: 'อื่นๆ'
-};
-
 // Equipment status labels in Thai
 export const EQUIPMENT_STATUS_LABELS = {
   [EQUIPMENT_STATUS.AVAILABLE]: 'พร้อมใช้งาน',
   [EQUIPMENT_STATUS.BORROWED]: 'ถูกยืม',
   [EQUIPMENT_STATUS.MAINTENANCE]: 'ซ่อมบำรุง',
   [EQUIPMENT_STATUS.RETIRED]: 'เลิกใช้งาน'
-};
-
-// Equipment status colors for UI
-export const EQUIPMENT_STATUS_COLORS = {
-  [EQUIPMENT_STATUS.AVAILABLE]: 'green',
-  [EQUIPMENT_STATUS.BORROWED]: 'yellow',
-  [EQUIPMENT_STATUS.MAINTENANCE]: 'orange',
-  [EQUIPMENT_STATUS.RETIRED]: 'red'
 };
 
 /**
@@ -146,34 +124,6 @@ export const EQUIPMENT_VALIDATION = {
     minLength: 1,
     maxLength: 100
   }
-};
-
-/**
- * Default equipment form values
- */
-export const DEFAULT_EQUIPMENT_FORM = {
-  equipmentNumber: '',
-  name: '',
-  category: null,
-  brand: '',
-  model: '',
-  description: '',
-  specifications: {},
-  imageFile: null,
-  status: EQUIPMENT_STATUS.AVAILABLE,
-  location: {
-    building: '',
-    floor: '',
-    room: '',
-    description: ''
-  },
-  purchaseDate: '',
-  purchasePrice: 0,
-  vendor: '',
-  warrantyExpiry: '',
-  responsiblePerson: null,
-  tags: [],
-  notes: ''
 };
 
 /**

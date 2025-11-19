@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { collection, addDoc, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCategories } from '../../contexts/EquipmentCategoriesContext';
 import { Layout } from '../layout';
 
 const CategoryManagement = () => {
   const { user } = useAuth();
+  const { refetch } = useCategories();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState('');
   const [error, setError] = useState('');
@@ -183,6 +185,9 @@ const CategoryManagement = () => {
       output += '\n✨ เสร็จสิ้น! ประเภทอุปกรณ์พร้อมใช้งานแล้ว';
 
       setResult(output);
+      
+      // Refetch categories to update the context with newly seeded data
+      await refetch();
     } catch (err) {
       console.error('Error seeding categories:', err);
       setError(`เกิดข้อผิดพลาด: ${err.message}`);

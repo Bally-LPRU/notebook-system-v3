@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import MobileEquipmentGrid from './MobileEquipmentGrid';
 import MobileNavigation from './MobileNavigation';
@@ -6,7 +6,7 @@ import EquipmentSearch from './EquipmentSearch';
 import EquipmentFilters from './EquipmentFilters';
 import EquipmentManagementForm from './EquipmentManagementForm';
 import { useEquipmentSearch } from '../../hooks/useEquipmentSearch';
-import { useEquipmentCategories } from '../../hooks/useEquipmentCategories';
+import { useCategories } from '../../contexts/EquipmentCategoriesContext';
 import { HapticFeedback, ViewportUtils } from '../../utils/gestureSupport';
 
 const MobileEquipmentContainer = ({
@@ -43,7 +43,7 @@ const MobileEquipmentContainer = ({
     clearSearch
   } = useEquipmentSearch();
   
-  const { categories } = useEquipmentCategories();
+  const { categories } = useCategories();
   
   const [filters, setFilters] = useState({
     categories: [],
@@ -81,6 +81,11 @@ const MobileEquipmentContainer = ({
         setShowFilters(false);
     }
   }, []);
+
+  // Memoize filtered equipment results
+  const filteredEquipment = useMemo(() => {
+    return searchResults || [];
+  }, [searchResults]);
 
   // Handle swipe actions on equipment cards
   const handleSwipeAction = useCallback((swipeData) => {
@@ -121,10 +126,10 @@ const MobileEquipmentContainer = ({
   }, []);
 
   const handleSelectAll = useCallback(() => {
-    const allIds = searchResults.map(item => item.id);
+    const allIds = filteredEquipment.map(item => item.id);
     setSelectedItems(allIds);
     HapticFeedback.medium();
-  }, [searchResults]);
+  }, [filteredEquipment]);
 
   const handleDeselectAll = useCallback(() => {
     setSelectedItems([]);
@@ -171,6 +176,33 @@ const MobileEquipmentContainer = ({
     searchEquipment(searchQuery, filters);
   }, [searchQuery, filters, pagination.page, searchEquipment]);
 
+  // Handle category selection
+  const handleCategorySelect = useCallback((categoryId) => {
+    setFilters(prev => ({ ...prev, categories: [categoryId] }));
+    setActiveSection('equipment');
+  }, []);
+
+  // Handle form submission
+  const handleFormSubmit = useCallback((data) => {
+    setShowAddForm(false);
+    handleRefresh();
+  }, [handleRefresh]);
+
+  // Handle form cancel
+  const handleFormCancel = useCallback(() => {
+    setShowAddForm(false);
+  }, []);
+
+  // Handle filters modal close
+  const handleFiltersClose = useCallback(() => {
+    setShowFilters(false);
+  }, []);
+
+  // Handle add form close
+  const handleAddFormClose = useCallback(() => {
+    setShowAddForm(false);
+  }, []);
+
   // Render different sections based on active section
   const renderContent = () => {
     switch (activeSection) {
@@ -186,7 +218,7 @@ const MobileEquipmentContainer = ({
               />
             </div>
             <MobileEquipmentGrid
-              equipment={searchResults}
+              equipment={filteredEquipment}
               loading={searchLoading}
               error={searchError}
               onEdit={onEdit}
@@ -222,10 +254,7 @@ const MobileEquipmentContainer = ({
               {categories.map((category) => (
                 <button
                   key={category.id}
-                  onClick={() => {
-                    setFilters(prev => ({ ...prev, categories: [category.id] }));
-                    setActiveSection('equipment');
-                  }}
+                  onClick={() => handleCategorySelect(category.id)}
                   className="p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow touch-manipulation"
                 >
                   <div className="text-center">
@@ -274,7 +303,7 @@ const MobileEquipmentContainer = ({
       default:
         return (
           <MobileEquipmentGrid
-            equipment={searchResults}
+            equipment={filteredEquipment}
             loading={searchLoading}
             error={searchError}
             onEdit={onEdit}
@@ -357,7 +386,7 @@ const MobileEquipmentContainer = ({
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">เพิ่มอุปกรณ์ใหม่</h2>
                 <button
-                  onClick={() => setShowAddForm(false)}
+                  onClick={handleAddFormClose}
                   className="p-2 text-gray-600 hover:text-gray-900 rounded-lg touch-manipulation"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -368,12 +397,8 @@ const MobileEquipmentContainer = ({
             </div>
             <div className="p-4">
               <EquipmentManagementForm
-                onSubmit={(data) => {
-                  // Handle form submission
-                  setShowAddForm(false);
-                  handleRefresh();
-                }}
-                onCancel={() => setShowAddForm(false)}
+                onSubmit={handleFormSubmit}
+                onCancel={handleFormCancel}
                 isMobile={true}
               />
             </div>
@@ -389,7 +414,7 @@ const MobileEquipmentContainer = ({
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">ตัวกรอง</h2>
                 <button
-                  onClick={() => setShowFilters(false)}
+                  onClick={handleFiltersClose}
                   className="p-2 text-gray-600 hover:text-gray-900 rounded-lg touch-manipulation"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -414,7 +439,7 @@ const MobileEquipmentContainer = ({
       <MobileNavigation
         activeSection={activeSection}
         onSectionChange={handleSectionChange}
-        equipmentCount={searchResults.length}
+        equipmentCount={filteredEquipment.length}
         pendingCount={0}
       />
     </div>

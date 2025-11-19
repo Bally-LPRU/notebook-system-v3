@@ -1,3 +1,4 @@
+import { useMemo, useCallback } from 'react';
 import EquipmentCard from './EquipmentCard';
 import BulkActionBar from './BulkActionBar';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -53,45 +54,46 @@ const EquipmentGrid = ({
     (selectedItems.length === equipment.length && equipment.length > 0) : isAllSelected;
   const currentSelectionCount = selectedItems.length > 0 ? selectedItems.length : selectionStats.selectedCount;
 
-  const handleSelectItem = (equipmentId, isSelected) => {
+  // Memoize event handlers to prevent unnecessary re-renders
+  const handleSelectItem = useCallback((equipmentId, isSelected) => {
     if (onSelectItem) {
       onSelectItem(equipmentId, isSelected);
     } else {
       toggleItem(equipmentId, isSelected);
     }
-  };
+  }, [onSelectItem, toggleItem]);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (onSelectAll) {
       onSelectAll();
     } else {
       selectAll();
     }
-  };
+  }, [onSelectAll, selectAll]);
 
-  const handleDeselectAll = () => {
+  const handleDeselectAll = useCallback(() => {
     if (onDeselectAll) {
       onDeselectAll();
     } else {
       deselectAll();
     }
-  };
+  }, [onDeselectAll, deselectAll]);
 
-  const handleToggleAll = () => {
+  const handleToggleAll = useCallback(() => {
     if (currentIsAllSelected) {
       handleDeselectAll();
     } else {
       handleSelectAll();
     }
-  };
+  }, [currentIsAllSelected, handleDeselectAll, handleSelectAll]);
 
   // Filter-based selection handlers
-  const handleSelectByStatus = (status) => {
+  const handleSelectByStatus = useCallback((status) => {
     selectFiltered(item => item.status === status);
-  };
+  }, [selectFiltered]);
 
   // Bulk operation handlers
-  const handleBulkAction = (actionHandler) => {
+  const handleBulkAction = useCallback((actionHandler) => {
     const selectedEquipment = selectedItems.length > 0 ? 
       equipment.filter(item => selectedItems.includes(item.id)) :
       getSelectedItems();
@@ -99,39 +101,41 @@ const EquipmentGrid = ({
     if (actionHandler && selectedEquipment.length > 0) {
       actionHandler(selectedEquipment);
     }
-  };
+  }, [selectedItems, equipment, getSelectedItems]);
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     if (!loading && pagination.hasNextPage && onLoadMore) {
       onLoadMore();
     }
-  };
+  }, [loading, pagination.hasNextPage, onLoadMore]);
 
-  // Sort equipment based on sortBy and sortOrder
-  const sortedEquipment = [...equipment].sort((a, b) => {
-    let aValue = a[sortBy];
-    let bValue = b[sortBy];
+  // Memoize sorted equipment to avoid re-sorting on every render
+  const sortedEquipment = useMemo(() => {
+    return [...equipment].sort((a, b) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
 
-    // Handle different data types
-    if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
-      aValue = aValue?.toDate?.() || aValue;
-      bValue = bValue?.toDate?.() || bValue;
-    }
+      // Handle different data types
+      if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
+        aValue = aValue?.toDate?.() || aValue;
+        bValue = bValue?.toDate?.() || bValue;
+      }
 
-    if (typeof aValue === 'string') {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
-    }
+      if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
 
-    if (sortOrder === 'desc') {
-      return bValue > aValue ? 1 : -1;
-    } else {
-      return aValue > bValue ? 1 : -1;
-    }
-  });
+      if (sortOrder === 'desc') {
+        return bValue > aValue ? 1 : -1;
+      } else {
+        return aValue > bValue ? 1 : -1;
+      }
+    });
+  }, [equipment, sortBy, sortOrder]);
 
-  // Grid layout classes based on screen size
-  const getGridClasses = () => {
+  // Memoize grid layout classes
+  const gridClasses = useMemo(() => {
     switch (viewMode) {
       case 'grid':
         return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6';
@@ -140,13 +144,13 @@ const EquipmentGrid = ({
       default:
         return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6';
     }
-  };
+  }, [viewMode]);
 
   // Loading skeleton
   const renderLoadingSkeleton = () => {
     const skeletonCount = viewMode === 'list' ? 5 : 12;
     return (
-      <div className={getGridClasses()}>
+      <div className={gridClasses}>
         {Array.from({ length: skeletonCount }).map((_, index) => (
           <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 animate-pulse">
             <div className="h-48 bg-gray-200 rounded-t-lg"></div>
@@ -288,7 +292,7 @@ const EquipmentGrid = ({
       {loading && equipment.length === 0 ? (
         renderLoadingSkeleton()
       ) : (
-        <div className={getGridClasses()}>
+        <div className={gridClasses}>
           {sortedEquipment.map((item) => (
             <EquipmentCard
               key={item.id}

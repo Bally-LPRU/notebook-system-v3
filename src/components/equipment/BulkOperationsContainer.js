@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import BulkEditModal from './BulkEditModal';
 import BulkDeleteModal from './BulkDeleteModal';
@@ -25,20 +25,21 @@ const BulkOperationsContainer = ({
     bulkExport: false
   });
 
-  const openModal = (modalName) => {
+  // Memoize modal control functions
+  const openModal = useCallback((modalName) => {
     setModals(prev => ({ ...prev, [modalName]: true }));
-  };
+  }, []);
 
-  const closeModal = (modalName) => {
+  const closeModal = useCallback((modalName) => {
     setModals(prev => ({ ...prev, [modalName]: false }));
-  };
+  }, []);
 
-  const setModalLoading = (modalName, isLoading) => {
+  const setModalLoading = useCallback((modalName, isLoading) => {
     setLoading(prev => ({ ...prev, [modalName]: isLoading }));
-  };
+  }, []);
 
-  // Bulk Edit Handler
-  const handleBulkEdit = async (equipmentList, updateData, progressCallback) => {
+  // Memoize bulk operation handlers
+  const handleBulkEdit = useCallback(async (equipmentList, updateData, progressCallback) => {
     setModalLoading('bulkEdit', true);
     
     try {
@@ -69,10 +70,9 @@ const BulkOperationsContainer = ({
     } finally {
       setModalLoading('bulkEdit', false);
     }
-  };
+  }, [showNotification, onOperationComplete, setModalLoading]);
 
-  // Bulk Delete Handler
-  const handleBulkDelete = async (equipmentList, progressCallback) => {
+  const handleBulkDelete = useCallback(async (equipmentList, progressCallback) => {
     setModalLoading('bulkDelete', true);
     
     try {
@@ -102,24 +102,21 @@ const BulkOperationsContainer = ({
     } finally {
       setModalLoading('bulkDelete', false);
     }
-  };
+  }, [showNotification, onOperationComplete, setModalLoading]);
 
-  // Bulk Status Update Handler
-  const handleBulkStatusUpdate = (equipmentList) => {
+  const handleBulkStatusUpdate = useCallback((equipmentList) => {
     // For now, open the bulk edit modal with status pre-selected
     // In a more advanced implementation, this could be a separate modal
     openModal('bulkEdit');
-  };
+  }, [openModal]);
 
-  // Bulk Location Update Handler
-  const handleBulkLocationUpdate = (equipmentList) => {
+  const handleBulkLocationUpdate = useCallback((equipmentList) => {
     // For now, open the bulk edit modal with location pre-selected
     // In a more advanced implementation, this could be a separate modal
     openModal('bulkEdit');
-  };
+  }, [openModal]);
 
-  // Bulk Export Handler
-  const handleBulkExport = async (equipmentList) => {
+  const handleBulkExport = useCallback(async (equipmentList) => {
     setModalLoading('bulkExport', true);
     
     try {
@@ -151,10 +148,9 @@ const BulkOperationsContainer = ({
     } finally {
       setModalLoading('bulkExport', false);
     }
-  };
+  }, [showNotification, onOperationComplete, setModalLoading]);
 
-  // Generate QR Codes Handler
-  const handleGenerateQRCodes = async (equipmentList) => {
+  const handleGenerateQRCodes = useCallback(async (equipmentList) => {
     try {
       const result = await BulkOperationsService.generateBulkQRCodes(equipmentList);
       
@@ -179,10 +175,9 @@ const BulkOperationsContainer = ({
         message: error.message || 'ไม่สามารถสร้าง QR Code ได้'
       });
     }
-  };
+  }, [showNotification, onOperationComplete]);
 
-  // Print Labels Handler
-  const handlePrintLabels = async (equipmentList) => {
+  const handlePrintLabels = useCallback(async (equipmentList) => {
     try {
       // In a real implementation, this would generate printable labels
       const labelData = equipmentList.map(equipment => ({
@@ -213,10 +208,10 @@ const BulkOperationsContainer = ({
         message: error.message || 'ไม่สามารถเตรียมป้ายชื่อได้'
       });
     }
-  };
+  }, [showNotification, onOperationComplete]);
 
-  // Render children with bulk operation handlers
-  const childrenWithProps = children({
+  // Memoize children with props to avoid unnecessary re-renders
+  const childrenWithProps = useMemo(() => children({
     onBulkEdit: isAdmin ? () => openModal('bulkEdit') : null,
     onBulkDelete: isAdmin ? () => openModal('bulkDelete') : null,
     onBulkExport: handleBulkExport,
@@ -224,7 +219,7 @@ const BulkOperationsContainer = ({
     onBulkLocationUpdate: isAdmin ? handleBulkLocationUpdate : null,
     onGenerateQRCodes: handleGenerateQRCodes,
     onPrintLabels: handlePrintLabels
-  });
+  }), [children, isAdmin, openModal, handleBulkExport, handleBulkStatusUpdate, handleBulkLocationUpdate, handleGenerateQRCodes, handlePrintLabels]);
 
   return (
     <>

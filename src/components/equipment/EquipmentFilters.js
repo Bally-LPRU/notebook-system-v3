@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   EQUIPMENT_MANAGEMENT_STATUS_LABELS 
 } from '../../types/equipmentManagement';
-import { useEquipmentCategories } from '../../hooks/useEquipmentCategories';
+import { useCategories } from '../../contexts/EquipmentCategoriesContext';
 import { FunnelIcon, XMarkIcon, BookmarkIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import FilterPresets from './FilterPresets';
 import DateRangePicker from './DateRangePicker';
@@ -17,7 +17,7 @@ const EquipmentFilters = ({
   showAdvancedFilters = true,
   className = ""
 }) => {
-  const { categories, loading: categoriesLoading } = useEquipmentCategories();
+  const { categories, loading: categoriesLoading } = useCategories();
   
   const [localFilters, setLocalFilters] = useState({
     search: '',
@@ -53,7 +53,7 @@ const EquipmentFilters = ({
   }, [filters]);
 
   // Handle input changes
-  const handleInputChange = (field, value) => {
+  const handleInputChange = useCallback((field, value) => {
     const newFilters = {
       ...localFilters,
       [field]: value
@@ -65,34 +65,34 @@ const EquipmentFilters = ({
     if (field === 'search') {
       onFiltersChange(newFilters);
     }
-  };
+  }, [localFilters, onFiltersChange]);
 
   // Handle array field changes (categories, statuses, tags)
-  const handleArrayChange = (field, value, checked) => {
+  const handleArrayChange = useCallback((field, value, checked) => {
     const currentArray = localFilters[field] || [];
     const newArray = checked 
       ? [...currentArray, value]
       : currentArray.filter(item => item !== value);
     
     handleInputChange(field, newArray);
-  };
+  }, [localFilters, handleInputChange]);
 
   // Handle nested object changes (location, dateRange, priceRange)
-  const handleNestedChange = (parent, child, value) => {
+  const handleNestedChange = useCallback((parent, child, value) => {
     const newNestedValue = {
       ...localFilters[parent],
       [child]: value
     };
     handleInputChange(parent, newNestedValue);
-  };
+  }, [localFilters, handleInputChange]);
 
   // Apply filters
-  const handleApplyFilters = () => {
+  const handleApplyFilters = useCallback(() => {
     onFiltersChange(localFilters);
-  };
+  }, [localFilters, onFiltersChange]);
 
   // Reset all filters
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     const resetFilters = {
       search: '',
       categories: [],
@@ -111,10 +111,10 @@ const EquipmentFilters = ({
     if (onReset) {
       onReset();
     }
-  };
+  }, [onFiltersChange, onReset]);
 
-  // Check if filters are active
-  const hasActiveFilters = () => {
+  // Check if filters are active (memoized)
+  const hasActiveFilters = useMemo(() => {
     return localFilters.search ||
            localFilters.categories.length > 0 ||
            localFilters.statuses.length > 0 ||
@@ -127,10 +127,10 @@ const EquipmentFilters = ({
            localFilters.location.room ||
            localFilters.responsiblePerson ||
            localFilters.tags.length > 0;
-  };
+  }, [localFilters]);
 
-  // Count active filters
-  const getActiveFilterCount = () => {
+  // Count active filters (memoized)
+  const activeFilterCount = useMemo(() => {
     let count = 0;
     if (localFilters.search) count++;
     if (localFilters.categories.length > 0) count++;
@@ -141,10 +141,10 @@ const EquipmentFilters = ({
     if (localFilters.responsiblePerson) count++;
     if (localFilters.tags.length > 0) count++;
     return count;
-  };
+  }, [localFilters]);
 
   // Save filter preset
-  const saveFilterPreset = (name) => {
+  const saveFilterPreset = useCallback((name) => {
     const newPreset = {
       id: Date.now().toString(),
       name: name.trim(),
@@ -156,24 +156,24 @@ const EquipmentFilters = ({
     setFilterPresets(newPresets);
     localStorage.setItem('equipment-filter-presets', JSON.stringify(newPresets));
     setActivePreset(newPreset.id);
-  };
+  }, [localFilters, filterPresets]);
 
   // Load filter preset
-  const loadFilterPreset = (preset) => {
+  const loadFilterPreset = useCallback((preset) => {
     setLocalFilters(preset.filters);
     setActivePreset(preset.id);
     onFiltersChange(preset.filters);
-  };
+  }, [onFiltersChange]);
 
   // Delete filter preset
-  const deleteFilterPreset = (presetId) => {
+  const deleteFilterPreset = useCallback((presetId) => {
     const newPresets = filterPresets.filter(preset => preset.id !== presetId);
     setFilterPresets(newPresets);
     localStorage.setItem('equipment-filter-presets', JSON.stringify(newPresets));
     if (activePreset === presetId) {
       setActivePreset(null);
     }
-  };
+  }, [filterPresets, activePreset]);
 
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>
@@ -274,16 +274,16 @@ const EquipmentFilters = ({
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
                 className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                  hasActiveFilters() 
+                  hasActiveFilters 
                     ? 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100'
                     : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
                 }`}
               >
                 <AdjustmentsHorizontalIcon className="w-4 h-4 mr-2" />
                 ตัวกรองขั้นสูง
-                {hasActiveFilters() && (
+                {hasActiveFilters && (
                   <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {getActiveFilterCount()}
+                    {activeFilterCount}
                   </span>
                 )}
                 <svg className={`ml-2 w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -441,16 +441,16 @@ const EquipmentFilters = ({
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-6 pt-4 border-t border-gray-200">
               <div className="text-sm text-gray-500">
-                {hasActiveFilters() && (
+                {hasActiveFilters && (
                   <span>
-                    กำลังใช้ตัวกรอง {getActiveFilterCount()} รายการ
+                    กำลังใช้ตัวกรอง {activeFilterCount} รายการ
                   </span>
                 )}
               </div>
               
               <div className="flex flex-wrap gap-2">
                 {/* Save Preset Button */}
-                {hasActiveFilters() && (
+                {hasActiveFilters && (
                   <button
                     onClick={() => {
                       const name = prompt('ชื่อตัวกรอง:');

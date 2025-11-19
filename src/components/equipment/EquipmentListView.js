@@ -1,12 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
-  EQUIPMENT_STATUS_LABELS, 
-  EQUIPMENT_CATEGORY_LABELS 
-} from '../../types/equipment';
-import { getEquipmentStatusColor } from '../../utils/equipmentValidation';
+import { getCategoryName } from '../../utils/equipmentHelpers';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmptyState from '../common/EmptyState';
+import EquipmentStatusBadge from './EquipmentStatusBadge';
 
 const EquipmentListView = ({
   equipment = [],
@@ -42,7 +39,8 @@ const EquipmentListView = ({
     setSortConfig({ field: sortBy, order: sortOrder });
   }, [sortBy, sortOrder]);
 
-  const handleSelectItem = (equipmentId, isSelected) => {
+  // Memoize event handlers
+  const handleSelectItem = useCallback((equipmentId, isSelected) => {
     const newSelectedItems = isSelected
       ? [...localSelectedItems, equipmentId]
       : localSelectedItems.filter(id => id !== equipmentId);
@@ -51,59 +49,61 @@ const EquipmentListView = ({
     if (onSelectItem) {
       onSelectItem(equipmentId, isSelected);
     }
-  };
+  }, [localSelectedItems, onSelectItem]);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     const allIds = equipment.map(item => item.id);
     setLocalSelectedItems(allIds);
     if (onSelectAll) {
       onSelectAll();
     }
-  };
+  }, [equipment, onSelectAll]);
 
-  const handleDeselectAll = () => {
+  const handleDeselectAll = useCallback(() => {
     setLocalSelectedItems([]);
     if (onDeselectAll) {
       onDeselectAll();
     }
-  };
+  }, [onDeselectAll]);
 
-  const handleSort = (field) => {
+  const handleSort = useCallback((field) => {
     const newOrder = sortConfig.field === field && sortConfig.order === 'asc' ? 'desc' : 'asc';
     setSortConfig({ field, order: newOrder });
     if (onSort) {
       onSort(field, newOrder);
     }
-  };
+  }, [sortConfig, onSort]);
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     if (!loading && pagination.hasNextPage && onLoadMore) {
       onLoadMore();
     }
-  };
+  }, [loading, pagination.hasNextPage, onLoadMore]);
 
-  // Sort equipment based on current sort config
-  const sortedEquipment = [...equipment].sort((a, b) => {
-    let aValue = a[sortConfig.field];
-    let bValue = b[sortConfig.field];
+  // Memoize sorted equipment to avoid re-sorting on every render
+  const sortedEquipment = useMemo(() => {
+    return [...equipment].sort((a, b) => {
+      let aValue = a[sortConfig.field];
+      let bValue = b[sortConfig.field];
 
-    // Handle different data types
-    if (sortConfig.field === 'createdAt' || sortConfig.field === 'updatedAt') {
-      aValue = aValue?.toDate?.() || aValue;
-      bValue = bValue?.toDate?.() || bValue;
-    }
+      // Handle different data types
+      if (sortConfig.field === 'createdAt' || sortConfig.field === 'updatedAt') {
+        aValue = aValue?.toDate?.() || aValue;
+        bValue = bValue?.toDate?.() || bValue;
+      }
 
-    if (typeof aValue === 'string') {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
-    }
+      if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
 
-    if (sortConfig.order === 'desc') {
-      return bValue > aValue ? 1 : -1;
-    } else {
-      return aValue > bValue ? 1 : -1;
-    }
-  });
+      if (sortConfig.order === 'desc') {
+        return bValue > aValue ? 1 : -1;
+      } else {
+        return aValue > bValue ? 1 : -1;
+      }
+    });
+  }, [equipment, sortConfig]);
 
   // Table columns configuration
   const columns = [
@@ -275,7 +275,6 @@ const EquipmentListView = ({
                 </tr>
               ) : (
                 sortedEquipment.map((item) => {
-                  const statusColor = getEquipmentStatusColor(item.status);
                   return (
                     <tr key={item.id} className="hover:bg-gray-50">
                       {isSelectable && (
@@ -322,7 +321,7 @@ const EquipmentListView = ({
 
                       {/* Category */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {EQUIPMENT_CATEGORY_LABELS[item.category] || item.category}
+                        {getCategoryName(item.category)}
                       </td>
 
                       {/* Brand */}
@@ -342,9 +341,7 @@ const EquipmentListView = ({
 
                       {/* Status */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
-                          {EQUIPMENT_STATUS_LABELS[item.status]}
-                        </span>
+                        <EquipmentStatusBadge status={item.status} size="sm" />
                       </td>
 
                       {/* Location */}

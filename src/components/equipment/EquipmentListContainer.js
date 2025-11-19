@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import EquipmentGrid from './EquipmentGrid';
 import EquipmentListView from './EquipmentListView';
@@ -44,36 +44,36 @@ const EquipmentListContainer = ({
   }, []);
 
   // Save view mode to localStorage
-  const handleViewModeChange = (mode) => {
+  const handleViewModeChange = useCallback((mode) => {
     setViewMode(mode);
     localStorage.setItem('equipment-view-mode', mode);
-  };
+  }, []);
 
   // Handle item selection
-  const handleSelectItem = (equipmentId, isSelected) => {
+  const handleSelectItem = useCallback((equipmentId, isSelected) => {
     if (isSelected) {
       setSelectedItems(prev => [...prev, equipmentId]);
     } else {
       setSelectedItems(prev => prev.filter(id => id !== equipmentId));
     }
-  };
+  }, []);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     setSelectedItems(equipment.map(item => item.id));
-  };
+  }, [equipment]);
 
-  const handleDeselectAll = () => {
+  const handleDeselectAll = useCallback(() => {
     setSelectedItems([]);
-  };
+  }, []);
 
   // Handle sorting
-  const handleSort = (field, order) => {
+  const handleSort = useCallback((field, order) => {
     setSortBy(field);
     setSortOrder(order);
-  };
+  }, []);
 
   // Handle bulk actions
-  const handleBulkAction = async (actionId, itemIds, actionData) => {
+  const handleBulkAction = useCallback(async (actionId, itemIds, actionData) => {
     setBulkActionLoading(true);
     try {
       if (onBulkAction) {
@@ -86,16 +86,53 @@ const EquipmentListContainer = ({
     } finally {
       setBulkActionLoading(false);
     }
-  };
+  }, [onBulkAction]);
 
   // Clear selection when equipment list changes
   useEffect(() => {
     setSelectedItems(prev => prev.filter(id => equipment.some(item => item.id === id)));
   }, [equipment]);
 
+  // Memoize sorted equipment to avoid recalculating on every render
+  const sortedEquipment = useMemo(() => {
+    if (!equipment || equipment.length === 0) return [];
+    
+    const sorted = [...equipment].sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'name':
+          aValue = (a.name || '').toLowerCase();
+          bValue = (b.name || '').toLowerCase();
+          break;
+        case 'brand':
+          aValue = (a.brand || '').toLowerCase();
+          bValue = (b.brand || '').toLowerCase();
+          break;
+        case 'category':
+          aValue = (typeof a.category === 'object' ? a.category?.name : a.category || '').toLowerCase();
+          bValue = (typeof b.category === 'object' ? b.category?.name : b.category || '').toLowerCase();
+          break;
+        case 'createdAt':
+        default:
+          aValue = a.createdAt?.toMillis?.() || a.createdAt || 0;
+          bValue = b.createdAt?.toMillis?.() || b.createdAt || 0;
+          break;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+      } else {
+        return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
+      }
+    });
+    
+    return sorted;
+  }, [equipment, sortBy, sortOrder]);
+
   // Common props for both grid and list views
-  const commonProps = {
-    equipment,
+  const commonProps = useMemo(() => ({
+    equipment: sortedEquipment,
     loading,
     error,
     pagination,
@@ -113,7 +150,27 @@ const EquipmentListContainer = ({
     sortBy,
     sortOrder,
     onSort: handleSort
-  };
+  }), [
+    sortedEquipment,
+    loading,
+    error,
+    pagination,
+    onLoadMore,
+    onEdit,
+    onDelete,
+    onView,
+    onBorrow,
+    onReserve,
+    isAdmin,
+    showBulkActions,
+    selectedItems,
+    handleSelectItem,
+    handleSelectAll,
+    handleDeselectAll,
+    sortBy,
+    sortOrder,
+    handleSort
+  ]);
 
   return (
     <div className="space-y-6">
@@ -131,15 +188,15 @@ const EquipmentListContainer = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center space-x-4">
           {/* Results Count */}
-          {!loading && equipment.length > 0 && (
+          {!loading && sortedEquipment.length > 0 && (
             <div className="text-sm text-gray-600">
-              แสดง <span className="font-medium">{equipment.length}</span> รายการ
+              แสดง <span className="font-medium">{sortedEquipment.length}</span> รายการ
               {pagination.hasNextPage && ' (มีรายการเพิ่มเติม)'}
             </div>
           )}
           
           {/* Loading Indicator */}
-          {loading && equipment.length === 0 && (
+          {loading && sortedEquipment.length === 0 && (
             <div className="flex items-center text-sm text-gray-600">
               <LoadingSpinner size="sm" />
               <span className="ml-2">กำลังโหลดข้อมูล...</span>
@@ -198,7 +255,7 @@ const EquipmentListContainer = ({
           selectedItems={selectedItems}
           onSelectAll={handleSelectAll}
           onDeselectAll={handleDeselectAll}
-          totalItems={equipment.length}
+          totalItems={sortedEquipment.length}
           itemType="equipment"
           onBulkAction={handleBulkAction}
           loading={bulkActionLoading}

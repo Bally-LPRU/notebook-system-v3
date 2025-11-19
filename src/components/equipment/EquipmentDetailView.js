@@ -1,14 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
-  EQUIPMENT_STATUS_LABELS, 
-  EQUIPMENT_CATEGORY_LABELS,
-  EQUIPMENT_STATUS 
-} from '../../types/equipment';
-import { getEquipmentStatusColor } from '../../utils/equipmentValidation';
+import { EQUIPMENT_STATUS } from '../../types/equipment';
+import { getCategoryName } from '../../utils/equipmentHelpers';
 import ImageGallery from './ImageGallery';
 import LoadingSpinner from '../common/LoadingSpinner';
 import QRCodeGenerator from './QRCodeGenerator';
+import EquipmentStatusBadge from './EquipmentStatusBadge';
 
 const EquipmentDetailView = ({
   equipmentId,
@@ -222,7 +219,6 @@ const EquipmentDetailView = ({
     );
   }
 
-  const statusColor = getEquipmentStatusColor(equipment.status);
   const images = equipment.images || (equipment.imageURL ? [{ url: equipment.imageURL, id: 'main' }] : []);
 
   return (
@@ -232,9 +228,7 @@ const EquipmentDetailView = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <h2 className="text-2xl font-bold text-gray-900">{equipment.name}</h2>
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
-              {EQUIPMENT_STATUS_LABELS[equipment.status]}
-            </span>
+            <EquipmentStatusBadge status={equipment.status} size="lg" />
           </div>
           
           <div className="flex items-center space-x-2">
@@ -370,7 +364,7 @@ const EquipmentDetailView = ({
                     <div>
                       <dt className="text-sm font-medium text-gray-500">ประเภท</dt>
                       <dd className="mt-1 text-sm text-gray-900">
-                        {EQUIPMENT_CATEGORY_LABELS[equipment.category] || equipment.category}
+                        {getCategoryName(equipment.category)}
                       </dd>
                     </div>
                     <div>
@@ -388,9 +382,7 @@ const EquipmentDetailView = ({
                     <div>
                       <dt className="text-sm font-medium text-gray-500">สถานะ</dt>
                       <dd className="mt-1">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
-                          {EQUIPMENT_STATUS_LABELS[equipment.status]}
-                        </span>
+                        <EquipmentStatusBadge status={equipment.status} size="md" />
                       </dd>
                     </div>
                     <div>
