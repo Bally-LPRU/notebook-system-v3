@@ -20,14 +20,8 @@ const LoanRequestList = () => {
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   
-  // Optional: Saved searches feature (can be disabled if causing issues)
-  let savedSearchesHook;
-  try {
-    savedSearchesHook = useSavedSearches('loans');
-  } catch (error) {
-    console.warn('Saved searches feature unavailable:', error.message);
-    savedSearchesHook = null;
-  }
+  // Saved searches feature
+  const savedSearchesHook = useSavedSearches('loans');
   const savedSearches = savedSearchesHook?.savedSearches || [];
   const saveSearch = savedSearchesHook?.saveSearch || (async () => {});
   const deleteSavedSearch = savedSearchesHook?.deleteSavedSearch || (async () => {});
