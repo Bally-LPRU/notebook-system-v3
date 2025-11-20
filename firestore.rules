@@ -221,7 +221,8 @@ service cloud.firestore {
     // Settings audit log collection - admin only
     match /settingsAuditLog/{logId} {
       allow read: if isAdmin();
-      allow write: if false; // Only server/admin service can write
+      allow create: if isAdmin(); // Allow admin to create audit logs
+      allow update, delete: if false; // Prevent modification/deletion of audit logs
     }
     
     // System notifications collection - admin write, authenticated read
@@ -233,6 +234,21 @@ service cloud.firestore {
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy', 'responses']) &&
                       (request.resource.data.readBy.hasAll(resource.data.readBy) || 
                        request.resource.data.responses.size() >= resource.data.responses.size());
+    }
+    
+    // Saved searches collection - user can read/write their own searches
+    match /savedSearches/{searchId} {
+      allow read: if isAuthenticated() && 
+                     (resource.data.userId == request.auth.uid || resource.data.isPublic == true);
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && 
+                               resource.data.userId == request.auth.uid;
+    }
+    
+    // Settings backups collection - admin only
+    match /settingsBackups/{backupId} {
+      allow read, write: if isAdmin();
     }
   }
 }

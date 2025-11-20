@@ -1131,14 +1131,37 @@ class SettingsService {
 
       adminsSnapshot.forEach((adminDoc) => {
         const admin = adminDoc.data();
-        const title = `Critical Setting Changed: ${change.settingType}`;
-        const message = `${change.adminName} changed ${change.settingType} from ${this._formatValue(change.oldValue)} to ${this._formatValue(change.newValue)}`;
+        
+        // Format title and message based on setting type
+        let title, message;
+        
+        if (change.settingType === 'closedDate') {
+          if (change.action === 'create') {
+            title = 'เพิ่มวันปิดทำการใหม่';
+            const dateStr = change.newValue?.date ? new Date(change.newValue.date.seconds * 1000).toLocaleDateString('th-TH') : 'N/A';
+            const reason = change.newValue?.reason || 'ไม่ระบุเหตุผล';
+            message = `${change.adminName} เพิ่มวันปิดทำการ: ${dateStr} (${reason})`;
+          } else if (change.action === 'delete') {
+            title = 'ลบวันปิดทำการ';
+            const dateStr = change.oldValue?.date ? new Date(change.oldValue.date.seconds * 1000).toLocaleDateString('th-TH') : 'N/A';
+            message = `${change.adminName} ลบวันปิดทำการ: ${dateStr}`;
+          } else {
+            title = 'แก้ไขวันปิดทำการ';
+            message = `${change.adminName} แก้ไขวันปิดทำการ`;
+          }
+        } else if (change.settingType === 'categoryLimit') {
+          title = 'อัปเดตขอบเขตหมวดหมู่';
+          message = `${change.adminName} เปลี่ยนขอบเขตหมวดหมู่จาก ${this._formatValue(change.oldValue)} เป็น ${this._formatValue(change.newValue)}`;
+        } else {
+          // For other critical settings
+          title = `การตั้งค่าสำคัญถูกเปลี่ยนแปลง: ${this._formatSettingName(change.settingType)}`;
+          message = `${change.adminName} เปลี่ยน ${this._formatSettingName(change.settingType)} จาก ${this._formatValue(change.oldValue)} เป็น ${this._formatValue(change.newValue)}`;
+        }
         
         // Prepare notification data, excluding undefined values
         const notificationData = {
           settingType: change.settingType,
-          oldValue: change.oldValue !== undefined ? change.oldValue : null,
-          newValue: change.newValue !== undefined ? change.newValue : null,
+          action: change.action,
           changedBy: change.adminName
         };
         
@@ -1166,6 +1189,26 @@ class SettingsService {
   }
 
   /**
+   * Private helper: Format setting name for display
+   * @private
+   * @param {string} settingType - Setting type
+   * @returns {string} Formatted setting name
+   */
+  _formatSettingName(settingType) {
+    const settingNames = {
+      maxLoanDuration: 'ระยะเวลายืมสูงสุด',
+      maxAdvanceBookingDays: 'จำนวนวันจองล่วงหน้าสูงสุด',
+      defaultCategoryLimit: 'จำนวนรายการต่อหมวดหมู่เริ่มต้น',
+      discordEnabled: 'การแจ้งเตือน Discord',
+      discordWebhookUrl: 'Discord Webhook URL',
+      closedDate: 'วันปิดทำการ',
+      categoryLimit: 'ขอบเขตหมวดหมู่'
+    };
+    
+    return settingNames[settingType] || settingType;
+  }
+
+  /**
    * Private helper: Format value for display
    * @private
    * @param {*} value - Value to format
@@ -1173,11 +1216,20 @@ class SettingsService {
    */
   _formatValue(value) {
     if (value === null || value === undefined) {
-      return 'N/A';
+      return 'ไม่ระบุ';
+    }
+
+    if (typeof value === 'boolean') {
+      return value ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
+    }
+
+    if (typeof value === 'number') {
+      return `${value} วัน`;
     }
 
     if (typeof value === 'object') {
-      return JSON.stringify(value);
+      // Don't show raw JSON for objects
+      return '[ข้อมูลซับซ้อน]';
     }
 
     return String(value);

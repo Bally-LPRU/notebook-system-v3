@@ -9,6 +9,10 @@ const { getAuth, signInWithEmailAndPassword } = require('firebase/auth');
 const { getFirestore, collection, getDocs, doc, getDoc, updateDoc, setDoc, serverTimestamp } = require('firebase/firestore');
 const readline = require('readline');
 
+// Load environment variables
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env.production.local') });
+
 // Firebase configuration
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
@@ -19,8 +23,7 @@ const firebaseConfig = {
   appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
 
-// Load environment variables
-require('dotenv').config({ path: '.env.local' });
+console.log('Using Firebase Project:', firebaseConfig.projectId);
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
