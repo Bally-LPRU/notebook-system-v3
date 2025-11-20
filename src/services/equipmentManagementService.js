@@ -980,8 +980,17 @@ class EquipmentManagementService {
   static async updateCategoryCount(categoryId, incrementValue) {
     try {
       const categoryRef = doc(db, this.CATEGORIES_COLLECTION, categoryId);
+      
+      // Check if category exists first
+      const categoryDoc = await getDoc(categoryRef);
+      if (!categoryDoc.exists()) {
+        console.warn(`Category ${categoryId} does not exist, skipping count update`);
+        return;
+      }
+      
       await updateDoc(categoryRef, {
-        equipmentCount: increment(incrementValue)
+        equipmentCount: increment(incrementValue),
+        updatedAt: serverTimestamp()
       });
     } catch (error) {
       console.error('Error updating category count:', error);

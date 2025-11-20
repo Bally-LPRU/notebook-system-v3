@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ซิงค์ Equipment Categories</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .status {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .category-card {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #4CAF50;
+        }
+        .old-structure {
+            border-left-color: #ff9800;
+        }
+        .new-structure {
+            border-left-color: #4CAF50;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        button.danger {
+            background: #f44336;
+        }
+        button.danger:hover {
+            background: #da190b;
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .column h3 {
+            margin-top: 0;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .action-buttons {
+            margin: 20px 0;
+            padding: 20px;
+            background: #fff3cd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 ซิงค์ Equipment Categories</h1>
+        
+        <div class="info">
+            <strong>📋 คำอธิบาย:</strong><br>
+            ระบบพบว่า equipmentCategories มีโครงสร้างที่ไม่ตรงกับที่ระบบต้องการ<br>
+            Script นี้จะช่วยแปลงข้อมูลให้ตรงกับโครงสร้างที่ถูกต้อง
+        </div>
+
+        <div id="status" class="status loading">
+            กำลังโหลดข้อมูล...
+        </div>
+
+        <div class="action-buttons">
+            <h3>⚙️ เลือกวิธีการแก้ไข:</h3>
+            <button onclick="analyzeCategories()">🔍 วิเคราะห์ข้อมูล</button>
+            <button onclick="migrateCategories()" id="migrateBtn" disabled>🔄 แปลงโครงสร้างข้อมูล</button>
+            <button onclick="createStandardCategories()" class="danger">🆕 สร้างใหม่ทั้งหมด (ลบข้อมูลเดิม)</button>
+        </div>
+
+        <div id="analysis" style="display:none;">
+            <h2>📊 ผลการวิเคราะห์</h2>
+            <div class="comparison">
+                <div class="column">
+                    <h3>โครงสร้างปัจจุบัน (เก่า)</h3>
+                    <div id="oldStructure"></div>
+                </div>
+                <div class="column">
+                    <h3>โครงสร้างที่ต้องการ (ใหม่)</h3>
+                    <div id="newStructure"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA9D6ReIlhiaaJ1g1Obd-dcjp2R0LO_eyo",
+            authDomain: "equipment-lending-system-41b49.firebaseapp.com",
+            projectId: "equipment-lending-system-41b49",
+            storageBucket: "equipment-lending-system-41b49.firebasestorage.app",
+            messagingSenderId: "47770598089",
+            appId: "1:47770598089:web:9d898f247f742fe1686b18"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        window.analyzeCategories = analyzeCategories;
+        window.migrateCategories = migrateCategories;
+        window.createStandardCategories = createStandardCategories;
+
+        let currentCategories = [];
+
+        async function ensureAuth() {
+            if (!auth.currentUser) {
+                const provider = new GoogleAuthProvider();
+                try {
+                    await signInWithPopup(auth, provider);
+                    console.log('✅ เข้าสู่ระบบสำเร็จ');
+                } catch (error) {
+                    console.error('❌ ไม่สามารถเข้าสู่ระบบได้:', error);
+                    throw error;
+                }
+            }
+        }
+
+        async function analyzeCategories() {
+            const statusDiv = document.getElementById('status');
+            const analysisDiv = document.getElementById('analysis');
+            const oldStructureDiv = document.getElementById('oldStructure');
+            const newStructureDiv = document.getElementById('newStructure');
+            const migrateBtn = document.getElementById('migrateBtn');
+
+            try {
+                await ensureAuth();
+                
+                statusDiv.className = 'status loading';
+                statusDiv.textContent = 'กำลังวิเคราะห์ข้อมูล...';
+
+                const snapshot = await getDocs(collection(db, 'equipmentCategories'));
+
+                if (snapshot.empty) {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = '❌ ไม่พบข้อมูล equipmentCategories';
+                    return;
+                }
+
+                currentCategories = [];
+                snapshot.forEach((doc) => {
+                    currentCategories.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                // Show old structure
+                oldStructureDiv.innerHTML = '';
+                currentCategories.forEach(cat => {
+                    const card = document.createElement('div');
+                    card.className = 'category-card old-structure';
+                    card.innerHTML = `
+                        <strong>Document ID:</strong> ${cat.id}<br>
+                        <pre>${JSON.stringify({
+                            name: cat.name || 'N/A',
+                            nameEn: cat.nameEn || 'N/A',
+                            description: cat.description || 'N/A',
+                            equipmentCount: cat.equipmentCount || 0,
+                            color: cat.color || 'N/A',
+                            icon: cat.icon || 'N/A',
+                            level: cat.level || 'N/A',
+                            parentId: cat.parentId || 'N/A'
+                        }, null, 2)}</pre>
+                    `;
+                    oldStructureDiv.appendChild(card);
+                });
+
+                // Show new structure
+                newStructureDiv.innerHTML = '';
+                const mappings = getCategoryMappings();
+                currentCategories.forEach(cat => {
+                    const mapping = mappings.find(m => 
+                        m.oldId === cat.id || 
+                        m.nameEn === cat.nameEn ||
+                        m.name === cat.name
+                    );
+                    
+                    if (mapping) {
+                        const card = document.createElement('div');
+                        card.className = 'category-card new-structure';
+                        card.innerHTML = `
+                            <strong>Document ID:</strong> ${mapping.newId}<br>
+                            <pre>${JSON.stringify({
+                                name: mapping.nameTh,
+                                description: mapping.description,
+                                equipmentCount: cat.equipmentCount || 0
+                            }, null, 2)}</pre>
+                        `;
+                        newStructureDiv.appendChild(card);
+                    }
+                });
+
+                analysisDiv.style.display = 'block';
+                migrateBtn.disabled = false;
+                
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `
+                    ✅ วิเคราะห์เสร็จสิ้น<br>
+                    พบ ${currentCategories.length} categories ที่ต้องแปลง
+                `;
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        function getCategoryMappings() {
+            return [
+                { oldId: 'UkMESSIXrSH0GWI52ipi', nameEn: 'Laptops', name: 'โน้ตบุ๊ก', newId: 'laptop', nameTh: 'คอมพิวเตอร์โน้ตบุ๊ก', description: 'อุปกรณ์คอมพิวเตอร์แบบพกพา' },
+                { nameEn: 'Projectors', newId: 'projector', nameTh: 'เครื่องฉายภาพ', description: 'อุปกรณ์ฉายภาพและนำเสนอ' },
+                { nameEn: 'Cameras', newId: 'camera', nameTh: 'กล้องถ่ายภาพ', description: 'อุปกรณ์บันทึกภาพและวิดีโอ' },
+                { nameEn: 'Microphones', newId: 'microphone', nameTh: 'ไมโครโฟน', description: 'อุปกรณ์บันทึกเสียง' },
+                { nameEn: 'Speakers', newId: 'speaker', nameTh: 'ลำโพง', description: 'อุปกรณ์เสียง' },
+                { nameEn: 'Tablets', newId: 'tablet', nameTh: 'แท็บเล็ต', description: 'อุปกรณ์คอมพิวเตอร์แบบสัมผัส' },
+                { nameEn: 'Monitors', newId: 'monitor', nameTh: 'จอมอนิเตอร์', description: 'จอแสดงผล' },
+                { nameEn: 'Printers', newId: 'printer', nameTh: 'เครื่องพิมพ์', description: 'อุปกรณ์พิมพ์เอกสาร' }
+            ];
+        }
+
+        async function migrateCategories() {
+            if (!confirm('คุณแน่ใจหรือไม่ที่จะแปลงโครงสร้างข้อมูล?\n\nการดำเนินการนี้จะ:\n1. สร้าง documents ใหม่ด้วย ID ที่ถูกต้อง\n2. คัดลอกข้อมูล equipmentCount\n3. ลบ documents เก่า')) {
+                return;
+            }
+
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+
+            try {
+                await ensureAuth();
+                
+                statusDiv.className = 'status loading';
+                statusDiv.textContent = 'กำลังแปลงข้อมูล...';
+                resultsDiv.innerHTML = '<h3>📝 Log การทำงาน:</h3>';
+
+                const mappings = getCategoryMappings();
+                const results = [];
+
+                for (const cat of currentCategories) {
+                    const mapping = mappings.find(m => 
+                        m.oldId === cat.id || 
+                        m.nameEn === cat.nameEn ||
+                        m.name === cat.name
+                    );
+
+                    if (mapping) {
+                        // Create new document
+                        const newDocRef = doc(db, 'equipmentCategories', mapping.newId);
+                        await setDoc(newDocRef, {
+                            name: mapping.nameTh,
+                            description: mapping.description,
+                            equipmentCount: cat.equipmentCount || 0,
+                            createdAt: cat.createdAt || serverTimestamp(),
+                            createdBy: cat.createdBy || auth.currentUser.uid,
+                            updatedAt: serverTimestamp()
+                        });
+
+                        results.push(`✅ สร้าง: ${mapping.newId} (${mapping.nameTh})`);
+
+                        // Delete old document if different ID
+                        if (cat.id !== mapping.newId) {
+                            const oldDocRef = doc(db, 'equipmentCategories', cat.id);
+                            await deleteDoc(oldDocRef);
+                            results.push(`🗑️  ลบ: ${cat.id}`);
+                        }
+                    } else {
+                        results.push(`⚠️  ข้าม: ${cat.id} (ไม่พบ mapping)`);
+                    }
+                }
+
+                resultsDiv.innerHTML += results.map(r => `<div>${r}</div>`).join('');
+                
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `
+                    ✅ แปลงข้อมูลเสร็จสิ้น!<br>
+                    ประมวลผล ${currentCategories.length} categories
+                `;
+
+                setTimeout(() => {
+                    analyzeCategories();
+                }, 2000);
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        async function createStandardCategories() {
+            if (!confirm('⚠️ คำเตือน!\n\nการดำเนินการนี้จะลบข้อมูล categories ทั้งหมดและสร้างใหม่\n\nคุณแน่ใจหรือไม่?')) {
+                return;
+            }
+
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+
+            try {
+                await ensureAuth();
+                
+                statusDiv.className = 'status loading';
+                statusDiv.textContent = 'กำลังลบข้อมูลเก่า...';
+                resultsDiv.innerHTML = '<h3>📝 Log การทำงาน:</h3>';
+
+                // Delete all existing categories
+                const snapshot = await getDocs(collection(db, 'equipmentCategories'));
+                const deletePromises = [];
+                snapshot.forEach((docSnapshot) => {
+                    deletePromises.push(deleteDoc(doc(db, 'equipmentCategories', docSnapshot.id)));
+                    resultsDiv.innerHTML += `<div>🗑️  ลบ: ${docSnapshot.id}</div>`;
+                });
+                await Promise.all(deletePromises);
+
+                statusDiv.textContent = 'กำลังสร้างข้อมูลใหม่...';
+
+                // Create standard categories
+                const standardCategories = [
+                    { id: 'laptop', name: 'คอมพิวเตอร์โน้ตบุ๊ก', description: 'อุปกรณ์คอมพิวเตอร์แบบพกพา' },
+                    { id: 'projector', name: 'เครื่องฉายภาพ', description: 'อุปกรณ์ฉายภาพและนำเสนอ' },
+                    { id: 'camera', name: 'กล้องถ่ายภาพ', description: 'อุปกรณ์บันทึกภาพและวิดีโอ' },
+                    { id: 'microphone', name: 'ไมโครโฟน', description: 'อุปกรณ์บันทึกเสียง' },
+                    { id: 'speaker', name: 'ลำโพง', description: 'อุปกรณ์เสียง' },
+                    { id: 'tablet', name: 'แท็บเล็ต', description: 'อุปกรณ์คอมพิวเตอร์แบบสัมผัส' },
+                    { id: 'monitor', name: 'จอมอนิเตอร์', description: 'จอแสดงผล' },
+                    { id: 'printer', name: 'เครื่องพิมพ์', description: 'อุปกรณ์พิมพ์เอกสาร' }
+                ];
+
+                for (const cat of standardCategories) {
+                    const docRef = doc(db, 'equipmentCategories', cat.id);
+                    await setDoc(docRef, {
+                        name: cat.name,
+                        description: cat.description,
+                        equipmentCount: 0,
+                        createdAt: serverTimestamp(),
+                        createdBy: auth.currentUser.uid,
+                        updatedAt: serverTimestamp()
+                    });
+                    resultsDiv.innerHTML += `<div>✅ สร้าง: ${cat.id} (${cat.name})</div>`;
+                }
+
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `
+                    ✅ สร้างข้อมูลใหม่เสร็จสิ้น!<br>
+                    สร้าง ${standardCategories.length} categories
+                `;
+
+                setTimeout(() => {
+                    analyzeCategories();
+                }, 2000);
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        // Auto-analyze on load
+        window.addEventListener('load', () => {
+            setTimeout(analyzeCategories, 1000);
+        });
+    </script>
+</body>
+</html>

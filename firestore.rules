@@ -187,6 +187,30 @@ service cloud.firestore {
                        request.resource.data.userId == request.auth.uid;
     }
     
+    // Equipment audit log collection rules
+    match /equipmentAuditLog/{logId} {
+      allow read: if isAdmin();
+      
+      // Allow authenticated users to create audit logs
+      allow create: if isAuthenticated();
+    }
+    
+    // User activity log collection rules
+    match /userActivityLog/{logId} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.userId);
+      
+      // Allow authenticated users to create their own activity logs
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Equipment history collection rules
+    match /equipmentHistory/{historyId} {
+      allow read: if isAdmin();
+      
+      // Allow authenticated users to create history entries
+      allow create: if isAuthenticated();
+    }
+    
     // Scheduled notifications collection rules
     match /scheduledNotifications/{scheduleId} {
       allow read, write: if isAdmin();

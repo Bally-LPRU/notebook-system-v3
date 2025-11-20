@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ทดสอบการโหลด Categories</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .status {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .category-card {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #4CAF50;
+        }
+        .category-id {
+            font-weight: bold;
+            color: #2196F3;
+            font-size: 1.1em;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 ทดสอบการโหลด Equipment Categories</h1>
+        
+        <div id="status" class="status loading">
+            กำลังโหลดข้อมูล...
+        </div>
+
+        <button onclick="testSimpleQuery()">🔍 ทดสอบ Simple Query</button>
+        <button onclick="testWithService()">🔧 ทดสอบผ่าน Service</button>
+        <button onclick="testWithHook()">🪝 ทดสอบ Hook Logic</button>
+
+        <div id="results"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA9D6ReIlhiaaJ1g1Obd-dcjp2R0LO_eyo",
+            authDomain: "equipment-lending-system-41b49.firebaseapp.com",
+            projectId: "equipment-lending-system-41b49",
+            storageBucket: "equipment-lending-system-41b49.firebasestorage.app",
+            messagingSenderId: "47770598089",
+            appId: "1:47770598089:web:9d898f247f742fe1686b18"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        window.testSimpleQuery = testSimpleQuery;
+        window.testWithService = testWithService;
+        window.testWithHook = testWithHook;
+
+        async function ensureAuth() {
+            if (!auth.currentUser) {
+                const provider = new GoogleAuthProvider();
+                try {
+                    await signInWithPopup(auth, provider);
+                    console.log('✅ เข้าสู่ระบบสำเร็จ');
+                } catch (error) {
+                    console.error('❌ ไม่สามารถเข้าสู่ระบบได้:', error);
+                    throw error;
+                }
+            }
+        }
+
+        async function testSimpleQuery() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+
+            try {
+                await ensureAuth();
+                
+                statusDiv.className = 'status loading';
+                statusDiv.textContent = 'กำลังทดสอบ Simple Query...';
+                resultsDiv.innerHTML = '<h3>📝 ผลการทดสอบ Simple Query:</h3>';
+
+                const categoriesRef = collection(db, 'equipmentCategories');
+                const querySnapshot = await getDocs(categoriesRef);
+
+                const categories = [];
+                querySnapshot.forEach((doc) => {
+                    categories.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                resultsDiv.innerHTML += `<p>✅ พบ ${categories.length} categories</p>`;
+                
+                categories.forEach(cat => {
+                    const card = document.createElement('div');
+                    card.className = 'category-card';
+                    card.innerHTML = `
+                        <div class="category-id">📦 ${cat.id}</div>
+                        <div><strong>ชื่อ:</strong> ${cat.name || 'N/A'}</div>
+                        <div><strong>คำอธิบาย:</strong> ${cat.description || 'N/A'}</div>
+                        <div><strong>จำนวนอุปกรณ์:</strong> ${cat.equipmentCount || 0}</div>
+                    `;
+                    resultsDiv.appendChild(card);
+                });
+
+                statusDiv.className = 'status success';
+                statusDiv.textContent = `✅ ทดสอบสำเร็จ! พบ ${categories.length} categories`;
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+                resultsDiv.innerHTML += `<pre>${error.stack}</pre>`;
+                console.error(error);
+            }
+        }
+
+        async function testWithService() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+
+            try {
+                await ensureAuth();
+                
+                statusDiv.className = 'status loading';
+                statusDiv.textContent = 'กำลังทดสอบผ่าน Service Logic...';
+                resultsDiv.innerHTML = '<h3>📝 ผลการทดสอบ Service Logic:</h3>';
+
+                // Simulate service logic
+                const categoriesRef = collection(db, 'equipmentCategories');
+                const querySnapshot = await getDocs(categoriesRef);
+                
+                const categories = querySnapshot.docs
+                    .map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }))
+                    .filter(cat => cat.isActive !== false)
+                    .sort((a, b) => {
+                        const levelDiff = (a.level || 0) - (b.level || 0);
+                        if (levelDiff !== 0) return levelDiff;
+                        
+                        const sortOrderDiff = (a.sortOrder || 0) - (b.sortOrder || 0);
+                        if (sortOrderDiff !== 0) return sortOrderDiff;
+                        
+                        return (a.name || '').localeCompare(b.name || '', 'th');
+                    });
+
+                resultsDiv.innerHTML += `<p>✅ พบ ${categories.length} active categories (sorted)</p>`;
+                
+                categories.forEach(cat => {
+                    const card = document.createElement('div');
+                    card.className = 'category-card';
+                    card.innerHTML = `
+                        <div class="category-id">📦 ${cat.id}</div>
+                        <div><strong>ชื่อ:</strong> ${cat.name || 'N/A'}</div>
+                        <div><strong>Level:</strong> ${cat.level || 0}</div>
+                        <div><strong>Sort Order:</strong> ${cat.sortOrder || 0}</div>
+                        <div><strong>จำนวนอุปกรณ์:</strong> ${cat.equipmentCount || 0}</div>
+                    `;
+                    resultsDiv.appendChild(card);
+                });
+
+                statusDiv.className = 'status success';
+                statusDiv.textContent = `✅ ทดสอบสำเร็จ! พบ ${categories.length} categories`;
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+                resultsDiv.innerHTML += `<pre>${error.stack}</pre>`;
+                console.error(error);
+            }
+        }
+
+        async function testWithHook() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+
+            try {
+                await ensureAuth();
+                
+                statusDiv.className = 'status loading';
+                statusDiv.textContent = 'กำลังทดสอบ Hook Logic...';
+                resultsDiv.innerHTML = '<h3>📝 ผลการทดสอบ Hook Logic:</h3>';
+
+                // Simulate hook logic
+                const categoriesRef = collection(db, 'equipmentCategories');
+                const querySnapshot = await getDocs(categoriesRef);
+                
+                const categories = querySnapshot.docs
+                    .map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }))
+                    .filter(cat => cat.isActive !== false)
+                    .sort((a, b) => {
+                        const sortOrderDiff = (a.sortOrder || 0) - (b.sortOrder || 0);
+                        if (sortOrderDiff !== 0) return sortOrderDiff;
+                        
+                        return (a.name || '').localeCompare(b.name || '', 'th');
+                    });
+
+                resultsDiv.innerHTML += `<p>✅ พบ ${categories.length} categories (Hook logic)</p>`;
+                
+                // Test category selection format
+                resultsDiv.innerHTML += '<h4>รูปแบบข้อมูลสำหรับ Dropdown:</h4>';
+                const dropdown = document.createElement('select');
+                dropdown.style.width = '100%';
+                dropdown.style.padding = '10px';
+                dropdown.style.fontSize = '16px';
+                dropdown.style.marginBottom = '20px';
+                
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'เลือกประเภทอุปกรณ์';
+                dropdown.appendChild(defaultOption);
+                
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = `${cat.name} (${cat.equipmentCount || 0} รายการ)`;
+                    dropdown.appendChild(option);
+                });
+                
+                resultsDiv.appendChild(dropdown);
+
+                // Show category details
+                categories.forEach(cat => {
+                    const card = document.createElement('div');
+                    card.className = 'category-card';
+                    card.innerHTML = `
+                        <div class="category-id">📦 ${cat.id}</div>
+                        <div><strong>ชื่อ:</strong> ${cat.name || 'N/A'}</div>
+                        <div><strong>คำอธิบาย:</strong> ${cat.description || 'N/A'}</div>
+                        <div><strong>จำนวนอุปกรณ์:</strong> ${cat.equipmentCount || 0}</div>
+                        <div><strong>Active:</strong> ${cat.isActive !== false ? 'Yes' : 'No'}</div>
+                    `;
+                    resultsDiv.appendChild(card);
+                });
+
+                statusDiv.className = 'status success';
+                statusDiv.textContent = `✅ ทดสอบสำเร็จ! พบ ${categories.length} categories`;
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+                resultsDiv.innerHTML += `<pre>${error.stack}</pre>`;
+                console.error(error);
+            }
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            setTimeout(testSimpleQuery, 1000);
+        });
+    </script>
+</body>
+</html>

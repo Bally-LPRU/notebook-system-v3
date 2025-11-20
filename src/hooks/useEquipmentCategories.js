@@ -13,18 +13,26 @@ export const useEquipmentCategories = () => {
         setLoading(true);
         setError(null);
 
-        const categoriesQuery = query(
-          collection(db, 'equipmentCategories'),
-          where('isActive', '==', true),
-          orderBy('sortOrder', 'asc'),
-          orderBy('name', 'asc')
-        );
-
-        const querySnapshot = await getDocs(categoriesQuery);
-        const categoriesData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        // Simple query without composite index requirement
+        const categoriesRef = collection(db, 'equipmentCategories');
+        const querySnapshot = await getDocs(categoriesRef);
+        
+        const categoriesData = querySnapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }))
+          // Filter active categories
+          .filter(cat => cat.isActive !== false)
+          // Sort in memory
+          .sort((a, b) => {
+            // Sort by sortOrder first
+            const sortOrderDiff = (a.sortOrder || 0) - (b.sortOrder || 0);
+            if (sortOrderDiff !== 0) return sortOrderDiff;
+            
+            // Then by name (Thai locale)
+            return (a.name || '').localeCompare(b.name || '', 'th');
+          });
 
         setCategories(categoriesData);
       } catch (err) {

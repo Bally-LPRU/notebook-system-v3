@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตรวจสอบ Equipment Categories</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .status {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .category-card {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #4CAF50;
+        }
+        .category-id {
+            font-weight: bold;
+            color: #2196F3;
+            font-size: 1.1em;
+        }
+        .category-name {
+            font-size: 1.2em;
+            margin: 5px 0;
+        }
+        .category-info {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .stats {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .create-form {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+            display: none;
+        }
+        .create-form.show {
+            display: block;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 ตรวจสอบ Equipment Categories</h1>
+        
+        <div id="status" class="status loading">
+            กำลังโหลดข้อมูล...
+        </div>
+
+        <button onclick="loadCategories()">🔄 โหลดข้อมูลใหม่</button>
+        <button onclick="toggleCreateForm()">➕ สร้าง Category ใหม่</button>
+
+        <div id="createForm" class="create-form">
+            <h3>สร้าง Category ใหม่</h3>
+            <label>Category ID (ภาษาอังกฤษ, ไม่มีช่องว่าง):</label>
+            <input type="text" id="categoryId" placeholder="เช่น laptop, projector, camera">
+            
+            <label>ชื่อ Category (ภาษาไทย):</label>
+            <input type="text" id="categoryName" placeholder="เช่น คอมพิวเตอร์โน้ตบุ๊ก">
+            
+            <label>คำอธิบาย:</label>
+            <textarea id="categoryDescription" rows="3" placeholder="คำอธิบายเกี่ยวกับ category นี้"></textarea>
+            
+            <button onclick="createCategory()">✅ สร้าง Category</button>
+            <button onclick="toggleCreateForm()">❌ ยกเลิก</button>
+        </div>
+
+        <div id="stats" class="stats" style="display:none;">
+            <h3>📊 สถิติ</h3>
+            <div id="statsContent"></div>
+        </div>
+
+        <div id="categories"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyA9D6ReIlhiaaJ1g1Obd-dcjp2R0LO_eyo",
+            authDomain: "equipment-lending-system-41b49.firebaseapp.com",
+            projectId: "equipment-lending-system-41b49",
+            storageBucket: "equipment-lending-system-41b49.firebasestorage.app",
+            messagingSenderId: "47770598089",
+            appId: "1:47770598089:web:9d898f247f742fe1686b18"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Make functions global
+        window.loadCategories = loadCategories;
+        window.toggleCreateForm = toggleCreateForm;
+        window.createCategory = createCategory;
+
+        // Auto-login with Google
+        async function ensureAuth() {
+            if (!auth.currentUser) {
+                const provider = new GoogleAuthProvider();
+                try {
+                    await signInWithPopup(auth, provider);
+                    console.log('✅ เข้าสู่ระบบสำเร็จ');
+                } catch (error) {
+                    console.error('❌ ไม่สามารถเข้าสู่ระบบได้:', error);
+                    throw error;
+                }
+            }
+        }
+
+        async function loadCategories() {
+            const statusDiv = document.getElementById('status');
+            const categoriesDiv = document.getElementById('categories');
+            const statsDiv = document.getElementById('stats');
+            const statsContent = document.getElementById('statsContent');
+
+            try {
+                await ensureAuth();
+                
+                statusDiv.className = 'status loading';
+                statusDiv.textContent = 'กำลังโหลดข้อมูล...';
+                categoriesDiv.innerHTML = '';
+
+                const snapshot = await getDocs(collection(db, 'equipmentCategories'));
+
+                if (snapshot.empty) {
+                    statusDiv.className = 'status error';
+                    statusDiv.innerHTML = `
+                        ❌ ไม่พบข้อมูล equipmentCategories ใน Firestore<br>
+                        💡 กดปุ่ม "สร้าง Category ใหม่" เพื่อเพิ่มข้อมูล
+                    `;
+                    statsDiv.style.display = 'none';
+                    return;
+                }
+
+                statusDiv.className = 'status success';
+                statusDiv.textContent = `✅ พบข้อมูล equipmentCategories จำนวน ${snapshot.size} รายการ`;
+
+                const categories = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    categories.push({
+                        id: doc.id,
+                        ...data
+                    });
+                });
+
+                // Display categories
+                categories.forEach(cat => {
+                    const card = document.createElement('div');
+                    card.className = 'category-card';
+                    card.innerHTML = `
+                        <div class="category-id">📦 ID: ${cat.id}</div>
+                        <div class="category-name">${cat.name || 'ไม่มีชื่อ'}</div>
+                        ${cat.description ? `<div class="category-info">📝 ${cat.description}</div>` : ''}
+                        <div class="category-info">📊 จำนวนอุปกรณ์: ${cat.equipmentCount || 0}</div>
+                        ${cat.createdAt ? `<div class="category-info">🕐 สร้างเมื่อ: ${new Date(cat.createdAt.seconds * 1000).toLocaleString('th-TH')}</div>` : ''}
+                    `;
+                    categoriesDiv.appendChild(card);
+                });
+
+                // Display stats
+                const totalEquipment = categories.reduce((sum, cat) => sum + (cat.equipmentCount || 0), 0);
+                statsContent.innerHTML = `
+                    <p>📦 จำนวน Categories ทั้งหมด: <strong>${categories.length}</strong> รายการ</p>
+                    <p>🔧 จำนวนอุปกรณ์ทั้งหมด: <strong>${totalEquipment}</strong> รายการ</p>
+                `;
+                statsDiv.style.display = 'block';
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = `❌ เกิดข้อผิดพลาด: ${error.message}<br>💡 กรุณาเข้าสู่ระบบด้วย Google Account ที่เป็น Admin`;
+                console.error(error);
+            }
+        }
+
+        function toggleCreateForm() {
+            const form = document.getElementById('createForm');
+            form.classList.toggle('show');
+        }
+
+        async function createCategory() {
+            const categoryId = document.getElementById('categoryId').value.trim().toLowerCase();
+            const categoryName = document.getElementById('categoryName').value.trim();
+            const categoryDescription = document.getElementById('categoryDescription').value.trim();
+
+            if (!categoryId || !categoryName) {
+                alert('กรุณากรอก Category ID และชื่อ Category');
+                return;
+            }
+
+            // Validate ID format
+            if (!/^[a-z0-9-_]+$/.test(categoryId)) {
+                alert('Category ID ต้องเป็นภาษาอังกฤษตัวพิมพ์เล็ก ตัวเลข และ - _ เท่านั้น');
+                return;
+            }
+
+            try {
+                await ensureAuth();
+
+                const categoryRef = doc(db, 'equipmentCategories', categoryId);
+                await setDoc(categoryRef, {
+                    name: categoryName,
+                    description: categoryDescription || '',
+                    equipmentCount: 0,
+                    createdAt: serverTimestamp(),
+                    createdBy: auth.currentUser.uid,
+                    updatedAt: serverTimestamp()
+                });
+
+                alert(`✅ สร้าง Category "${categoryName}" สำเร็จ!`);
+                
+                // Clear form
+                document.getElementById('categoryId').value = '';
+                document.getElementById('categoryName').value = '';
+                document.getElementById('categoryDescription').value = '';
+                toggleCreateForm();
+                
+                // Reload categories
+                loadCategories();
+
+            } catch (error) {
+                alert(`❌ เกิดข้อผิดพลาด: ${error.message}`);
+                console.error(error);
+            }
+        }
+
+        // Load categories on page load
+        loadCategories();
+    </script>
+</body>
+</html>

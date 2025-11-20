@@ -224,31 +224,34 @@ class EquipmentCategoryService {
       }
 
       const categoriesRef = collection(db, this.COLLECTION_NAME);
-      let q = query(
-        categoriesRef,
-        orderBy('level'),
-        orderBy('sortOrder'),
-        orderBy('name')
-      );
-
-      if (!includeInactive) {
-        q = query(
-          categoriesRef, 
-          where('isActive', '==', true),
-          orderBy('level'),
-          orderBy('sortOrder'),
-          orderBy('name')
-        );
-      }
       
-      const querySnapshot = await getDocs(q);
+      // Simple query without complex ordering to avoid index requirements
+      const querySnapshot = await getDocs(categoriesRef);
       const categories = [];
       
       querySnapshot.forEach((doc) => {
-        categories.push({
-          id: doc.id,
-          ...doc.data()
-        });
+        const data = doc.data();
+        // Filter inactive categories if needed
+        if (includeInactive || data.isActive !== false) {
+          categories.push({
+            id: doc.id,
+            ...data
+          });
+        }
+      });
+
+      // Sort in memory to avoid composite index requirements
+      categories.sort((a, b) => {
+        // Sort by level first
+        const levelDiff = (a.level || 0) - (b.level || 0);
+        if (levelDiff !== 0) return levelDiff;
+        
+        // Then by sortOrder
+        const sortOrderDiff = (a.sortOrder || 0) - (b.sortOrder || 0);
+        if (sortOrderDiff !== 0) return sortOrderDiff;
+        
+        // Finally by name
+        return (a.name || '').localeCompare(b.name || '', 'th');
       });
 
       // Cache active categories
@@ -308,23 +311,15 @@ class EquipmentCategoryService {
    */
   static async getChildCategories(parentId) {
     try {
-      const categoriesRef = collection(db, this.COLLECTION_NAME);
-      const q = query(
-        categoriesRef,
-        where('parentId', '==', parentId),
-        where('isActive', '==', true),
-        orderBy('sortOrder'),
-        orderBy('name')
-      );
+      // Get all categories and filter in memory
+      const allCategories = await this.getCategories();
+      const children = allCategories.filter(cat => cat.parentId === parentId);
       
-      const querySnapshot = await getDocs(q);
-      const children = [];
-      
-      querySnapshot.forEach((doc) => {
-        children.push({
-          id: doc.id,
-          ...doc.data()
-        });
+      // Sort by sortOrder and name
+      children.sort((a, b) => {
+        const sortOrderDiff = (a.sortOrder || 0) - (b.sortOrder || 0);
+        if (sortOrderDiff !== 0) return sortOrderDiff;
+        return (a.name || '').localeCompare(b.name || '', 'th');
       });
       
       return children;
@@ -340,23 +335,15 @@ class EquipmentCategoryService {
    */
   static async getRootCategories() {
     try {
-      const categoriesRef = collection(db, this.COLLECTION_NAME);
-      const q = query(
-        categoriesRef,
-        where('level', '==', 0),
-        where('isActive', '==', true),
-        orderBy('sortOrder'),
-        orderBy('name')
-      );
+      // Get all categories and filter in memory
+      const allCategories = await this.getCategories();
+      const rootCategories = allCategories.filter(cat => !cat.parentId && (cat.level === 0 || cat.level === undefined));
       
-      const querySnapshot = await getDocs(q);
-      const rootCategories = [];
-      
-      querySnapshot.forEach((doc) => {
-        rootCategories.push({
-          id: doc.id,
-          ...doc.data()
-        });
+      // Sort by sortOrder and name
+      rootCategories.sort((a, b) => {
+        const sortOrderDiff = (a.sortOrder || 0) - (b.sortOrder || 0);
+        if (sortOrderDiff !== 0) return sortOrderDiff;
+        return (a.name || '').localeCompare(b.name || '', 'th');
       });
       
       return rootCategories;

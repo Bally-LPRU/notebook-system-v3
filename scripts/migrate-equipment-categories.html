@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migrate Equipment Categories</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .status {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .loading { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover { background: #45a049; }
+        button.danger { background: #f44336; }
+        button.danger:hover { background: #da190b; }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .equipment-card {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #ff9800;
+        }
+        .equipment-card.migrated {
+            border-left-color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Migrate Equipment Categories</h1>
+        
+        <div class="warning">
+            <strong>⚠️ คำเตือน:</strong><br>
+            Script นี้จะอัพเดท category ID ในข้อมูลอุปกรณ์ทั้งหมด<br>
+            จาก ID แบบเก่า (random) เป็น ID แบบใหม่ (laptop, camera, etc.)
+        </div>
+
+        <div id="status" class="status loading">
+            กำลังโหลดข้อมูล...
+        </div>
+
+        <button onclick="analyzeEquipment()">🔍 วิเคราะห์ข้อมูล</button>
+        <button onclick="migrateEquipment()" id="migrateBtn" disabled>🔄 Migrate ข้อมูล</button>
+
+        <div id="results"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA9D6ReIlhiaaJ1g1Obd-dcjp2R0LO_eyo",
+            authDomain: "equipment-lending-system-41b49.firebaseapp.com",
+            projectId: "equipment-lending-system-41b49",
+            storageBucket: "equipment-lending-system-41b49.firebasestorage.app",
+            messagingSenderId: "47770598089",
+            appId: "1:47770598089:web:9d898f247f742fe1686b18"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        window.analyzeEquipment = analyzeEquipment;
+        window.migrateEquipment = migrateEquipment;
+
+        let equipmentToMigrate = [];
+
+        const categoryMapping = {
+            'UkMESSIXrSH0GWI52ipi': { newId: 'laptop', name: 'คอมพิวเตอร์โน้ตบุ๊ก' },
+            // Add more mappings based on your old data
+        };
+
+        async function ensureAuth() {
+            if (!auth.currentUser) {
+                const provider = new GoogleAuthProvider();
+                try {
+                    await signInWithPopup(auth, provider);
+                } catch (error) {
+                    throw error;
+                }
+            }
+        }
+
+        async function analyzeEquipment() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            const migrateBtn = document.getElementById('migrateBtn');
+
+            try {
+                await ensureAuth();
+                
+                statusDiv.className = 'status loading';
+                statusDiv.textContent = 'กำลังวิเคราะห์ข้อมูล...';
+                resultsDiv.innerHTML = '<h3>📊 ผลการวิเคราะห์:</h3>';
+
+                // Get all equipment
+                const equipmentSnapshot = await getDocs(collection(db, 'equipmentManagement'));
+                
+                // Get all categories
+                const categoriesSnapshot = await getDocs(collection(db, 'equipmentCategories'));
+                const categories = {};
+                categoriesSnapshot.forEach(doc => {
+                    categories[doc.id] = { id: doc.id, ...doc.data() };
+                });
+
+                equipmentToMigrate = [];
+                let needsMigration = 0;
+                let alreadyMigrated = 0;
+
+                equipmentSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    const equipment = { id: doc.id, ...data };
+                    
+                    if (data.category && data.category.id) {
+                        // Check if category ID exists in new categories
+                        if (!categories[data.category.id]) {
+                            needsMigration++;
+                            equipmentToMigrate.push(equipment);
+                        } else {
+                            alreadyMigrated++;
+                        }
+                    }
+                });
+
+                resultsDiv.innerHTML += `
+                    <p>✅ จำนวนอุปกรณ์ทั้งหมด: ${equipmentSnapshot.size}</p>
+                    <p>🔄 ต้อง migrate: ${needsMigration} รายการ</p>
+                    <p>✓ Migrate แล้ว: ${alreadyMigrated} รายการ</p>
+                `;
+
+                if (needsMigration > 0) {
+                    resultsDiv.innerHTML += '<h4>รายการที่ต้อง migrate:</h4>';
+                    
+                    equipmentToMigrate.forEach(eq => {
+                        const card = document.createElement('div');
+                        card.className = 'equipment-card';
+                        card.innerHTML = `
+                            <strong>${eq.equipmentNumber || 'N/A'}</strong> - ${eq.name || 'N/A'}<br>
+                            <small>Category ID เก่า: ${eq.category?.id || 'N/A'}</small><br>
+                            <small>Category Name: ${eq.category?.name || 'N/A'}</small>
+                        `;
+                        resultsDiv.appendChild(card);
+                    });
+
+                    migrateBtn.disabled = false;
+                    statusDiv.className = 'status warning';
+                    statusDiv.textContent = `⚠️ พบ ${needsMigration} รายการที่ต้อง migrate`;
+                } else {
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✅ ข้อมูลทั้งหมด migrate แล้ว!';
+                }
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        async function migrateEquipment() {
+            if (!confirm(`คุณแน่ใจหรือไม่ที่จะ migrate ${equipmentToMigrate.length} รายการ?`)) {
+                return;
+            }
+
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+
+            try {
+                await ensureAuth();
+                
+                statusDiv.className = 'status loading';
+                statusDiv.textContent = 'กำลัง migrate ข้อมูล...';
+                resultsDiv.innerHTML = '<h3>📝 Log การ migrate:</h3>';
+
+                // Get all categories for mapping
+                const categoriesSnapshot = await getDocs(collection(db, 'equipmentCategories'));
+                const categoriesByName = {};
+                categoriesSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    categoriesByName[data.name] = { id: doc.id, ...data };
+                });
+
+                let migrated = 0;
+                let failed = 0;
+
+                for (const equipment of equipmentToMigrate) {
+                    try {
+                        const oldCategoryName = equipment.category?.name;
+                        const newCategory = categoriesByName[oldCategoryName];
+
+                        if (newCategory) {
+                            const equipmentRef = doc(db, 'equipmentManagement', equipment.id);
+                            await updateDoc(equipmentRef, {
+                                category: {
+                                    id: newCategory.id,
+                                    name: newCategory.name,
+                                    icon: equipment.category?.icon || ''
+                                }
+                            });
+
+                            resultsDiv.innerHTML += `<div>✅ ${equipment.equipmentNumber}: ${oldCategoryName} → ${newCategory.id}</div>`;
+                            migrated++;
+                        } else {
+                            resultsDiv.innerHTML += `<div>⚠️  ${equipment.equipmentNumber}: ไม่พบ category "${oldCategoryName}"</div>`;
+                            failed++;
+                        }
+                    } catch (error) {
+                        resultsDiv.innerHTML += `<div>❌ ${equipment.equipmentNumber}: ${error.message}</div>`;
+                        failed++;
+                    }
+                }
+
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `
+                    ✅ Migrate เสร็จสิ้น!<br>
+                    สำเร็จ: ${migrated} รายการ<br>
+                    ล้มเหลว: ${failed} รายการ
+                `;
+
+                setTimeout(() => {
+                    analyzeEquipment();
+                }, 2000);
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        // Auto-analyze on load
+        window.addEventListener('load', () => {
+            setTimeout(analyzeEquipment, 1000);
+        });
+    </script>
+</body>
+</html>

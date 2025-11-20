@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แก้ไข Equipment Categories (Manual)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .status {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .loading { background: #fff3cd; color: #856404; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover { background: #45a049; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .equipment-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #ff9800;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .equipment-item.fixed {
+            border-left-color: #4CAF50;
+            opacity: 0.6;
+        }
+        .equipment-info {
+            flex: 1;
+        }
+        .equipment-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+            min-width: 200px;
+        }
+        .category-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #e3f2fd;
+            color: #1976d2;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        .old-category {
+            background: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 แก้ไข Equipment Categories (Manual)</h1>
+        
+        <div class="warning">
+            <strong>📋 วิธีใช้:</strong><br>
+            1. ระบบจะแสดงอุปกรณ์ทั้งหมดที่มี category<br>
+            2. เลือก category ใหม่สำหรับแต่ละอุปกรณ์<br>
+            3. กดปุ่ม "แก้ไข" เพื่ออัพเดททีละรายการ<br>
+            4. หรือกดปุ่ม "แก้ไขทั้งหมด" เพื่ออัพเดทพร้อมกัน
+        </div>
+
+        <div id="status" class="status loading">
+            กำลังโหลดข้อมูล...
+        </div>
+
+        <div style="margin: 20px 0;">
+            <button onclick="loadData()">🔄 โหลดข้อมูลใหม่</button>
+            <button onclick="fixAll()" id="fixAllBtn" disabled>✅ แก้ไขทั้งหมด</button>
+        </div>
+
+        <div id="equipment-list"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA9D6ReIlhiaaJ1g1Obd-dcjp2R0LO_eyo",
+            authDomain: "equipment-lending-system-41b49.firebaseapp.com",
+            projectId: "equipment-lending-system-41b49",
+            storageBucket: "equipment-lending-system-41b49.firebasestorage.app",
+            messagingSenderId: "47770598089",
+            appId: "1:47770598089:web:9d898f247f742fe1686b18"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        window.loadData = loadData;
+        window.fixAll = fixAll;
+        window.fixOne = fixOne;
+
+        let allEquipment = [];
+        let allCategories = [];
+
+        async function ensureAuth() {
+            if (!auth.currentUser) {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+            }
+        }
+
+        async function loadData() {
+            const statusDiv = document.getElementById('status');
+            const listDiv = document.getElementById('equipment-list');
+            const fixAllBtn = document.getElementById('fixAllBtn');
+
+            try {
+                await ensureAuth();
+                
+                statusDiv.className = 'status loading';
+                statusDiv.textContent = 'กำลังโหลดข้อมูล...';
+                listDiv.innerHTML = '';
+
+                // Load categories
+                const categoriesSnapshot = await getDocs(collection(db, 'equipmentCategories'));
+                allCategories = [];
+                categoriesSnapshot.forEach(doc => {
+                    allCategories.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Load equipment
+                const equipmentSnapshot = await getDocs(collection(db, 'equipmentManagement'));
+                allEquipment = [];
+                equipmentSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.category) {
+                        allEquipment.push({ id: doc.id, ...data });
+                    }
+                });
+
+                if (allEquipment.length === 0) {
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✅ ไม่มีอุปกรณ์ที่ต้องแก้ไข';
+                    return;
+                }
+
+                // Display equipment
+                allEquipment.forEach((eq, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'equipment-item';
+                    item.id = `eq-${index}`;
+                    
+                    const categoryExists = allCategories.find(c => c.id === eq.category?.id);
+                    const badgeClass = categoryExists ? 'category-badge' : 'category-badge old-category';
+                    
+                    item.innerHTML = `
+                        <div class="equipment-info">
+                            <strong>${eq.equipmentNumber || 'N/A'}</strong> - ${eq.name || 'N/A'}<br>
+                            <span class="${badgeClass}">
+                                ${categoryExists ? '✓' : '✗'} 
+                                ${eq.category?.name || 'N/A'} 
+                                (ID: ${eq.category?.id || 'N/A'})
+                            </span>
+                        </div>
+                        <div class="equipment-actions">
+                            <select id="select-${index}">
+                                <option value="">-- เลือก category ใหม่ --</option>
+                                ${allCategories.map(cat => `
+                                    <option value="${cat.id}" ${cat.id === eq.category?.id ? 'selected' : ''}>
+                                        ${cat.name} (${cat.id})
+                                    </option>
+                                `).join('')}
+                            </select>
+                            <button onclick="fixOne(${index})">แก้ไข</button>
+                        </div>
+                    `;
+                    listDiv.appendChild(item);
+                });
+
+                fixAllBtn.disabled = false;
+                statusDiv.className = 'status warning';
+                statusDiv.textContent = `⚠️ พบ ${allEquipment.length} รายการ`;
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        async function fixOne(index) {
+            const selectEl = document.getElementById(`select-${index}`);
+            const newCategoryId = selectEl.value;
+            
+            if (!newCategoryId) {
+                alert('กรุณาเลือก category');
+                return;
+            }
+
+            const equipment = allEquipment[index];
+            const newCategory = allCategories.find(c => c.id === newCategoryId);
+            
+            if (!newCategory) {
+                alert('ไม่พบ category ที่เลือก');
+                return;
+            }
+
+            try {
+                const equipmentRef = doc(db, 'equipmentManagement', equipment.id);
+                await updateDoc(equipmentRef, {
+                    category: {
+                        id: newCategory.id,
+                        name: newCategory.name,
+                        icon: equipment.category?.icon || ''
+                    }
+                });
+
+                const itemEl = document.getElementById(`eq-${index}`);
+                itemEl.classList.add('fixed');
+                itemEl.querySelector('.equipment-actions').innerHTML = '<span style="color: #4CAF50;">✅ แก้ไขแล้ว</span>';
+                
+                alert(`✅ แก้ไข ${equipment.equipmentNumber} สำเร็จ!`);
+
+            } catch (error) {
+                alert(`❌ เกิดข้อผิดพลาด: ${error.message}`);
+                console.error(error);
+            }
+        }
+
+        async function fixAll() {
+            if (!confirm(`คุณแน่ใจหรือไม่ที่จะแก้ไขทั้งหมด ${allEquipment.length} รายการ?`)) {
+                return;
+            }
+
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = 'status loading';
+            statusDiv.textContent = 'กำลังแก้ไขข้อมูล...';
+
+            let success = 0;
+            let failed = 0;
+
+            for (let i = 0; i < allEquipment.length; i++) {
+                const selectEl = document.getElementById(`select-${i}`);
+                const newCategoryId = selectEl.value;
+                
+                if (!newCategoryId) {
+                    failed++;
+                    continue;
+                }
+
+                const equipment = allEquipment[i];
+                const newCategory = allCategories.find(c => c.id === newCategoryId);
+                
+                if (!newCategory) {
+                    failed++;
+                    continue;
+                }
+
+                try {
+                    const equipmentRef = doc(db, 'equipmentManagement', equipment.id);
+                    await updateDoc(equipmentRef, {
+                        category: {
+                            id: newCategory.id,
+                            name: newCategory.name,
+                            icon: equipment.category?.icon || ''
+                        }
+                    });
+
+                    const itemEl = document.getElementById(`eq-${i}`);
+                    itemEl.classList.add('fixed');
+                    itemEl.querySelector('.equipment-actions').innerHTML = '<span style="color: #4CAF50;">✅ แก้ไขแล้ว</span>';
+                    
+                    success++;
+
+                } catch (error) {
+                    console.error(`Failed to fix ${equipment.equipmentNumber}:`, error);
+                    failed++;
+                }
+            }
+
+            statusDiv.className = 'status success';
+            statusDiv.innerHTML = `
+                ✅ แก้ไขเสร็จสิ้น!<br>
+                สำเร็จ: ${success} รายการ<br>
+                ล้มเหลว: ${failed} รายการ
+            `;
+
+            setTimeout(() => {
+                loadData();
+            }, 2000);
+        }
+
+        // Auto-load on page load
+        window.addEventListener('load', () => {
+            setTimeout(loadData, 1000);
+        });
+    </script>
+</body>
+</html>
