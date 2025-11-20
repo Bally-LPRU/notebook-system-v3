@@ -163,10 +163,10 @@ service cloud.firestore {
     match /notifications/{notificationId} {
       allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
       
+      // Allow users to mark their own notifications as read
       allow update: if isAuthenticated() && 
                        request.auth.uid == resource.data.userId &&
-                       request.resource.data.keys().hasOnly(['isRead', 'readAt']) &&
-                       request.resource.data.isRead == true;
+                       (request.resource.data.isRead == true || resource.data.isRead == true);
       
       allow create: if isAdmin();
       
