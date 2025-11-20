@@ -35,7 +35,13 @@ export const useSavedSearches = (searchType = null) => {
       setSavedSearches(searches);
     } catch (err) {
       console.error('Error loading saved searches:', err);
-      setError(err.message || 'เกิดข้อผิดพลาดในการโหลดการค้นหาที่บันทึกไว้');
+      // Don't set error for missing index - just use empty array
+      if (err.message?.includes('index')) {
+        console.warn('Firestore index not created yet. Saved searches feature will be limited.');
+        setSavedSearches([]);
+      } else {
+        setError(err.message || 'เกิดข้อผิดพลาดในการโหลดการค้นหาที่บันทึกไว้');
+      }
     } finally {
       setLoading(false);
     }

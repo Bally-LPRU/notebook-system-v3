@@ -76,47 +76,14 @@ const ResponsiveLayout = ({ children, showSidebar = false }) => {
       <div className="flex flex-1">
         {/* Sidebar */}
         {showSidebar && (
-          <>
-            {/* Mobile Sidebar Overlay */}
-            {shouldShowMobileMenu && isMobileMenuOpen && (
-              <div 
-                className="fixed inset-0 bg-gray-600 bg-opacity-50 z-20 lg:hidden"
-                onClick={handleSidebarClose}
-              />
-            )}
-
-            {/* Sidebar */}
-            <div className={`
-              ${shouldShowMobileMenu 
-                ? `fixed inset-y-0 left-0 z-30 w-64 transform transition-transform duration-300 ease-in-out ${
-                    isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-                  }`
-                : `hidden lg:flex lg:flex-shrink-0 ${
-                    sidebarOpen ? 'lg:w-64' : 'lg:w-16'
-                  } transition-all duration-300`
-              }
-            `}>
-              <Sidebar 
-                isOpen={shouldShowMobileMenu ? isMobileMenuOpen : sidebarOpen}
-                onClose={handleSidebarClose}
-                isMobile={shouldShowMobileMenu}
-                isCollapsed={!shouldShowMobileMenu && !sidebarOpen}
-              />
-            </div>
-          </>
+          <Sidebar 
+            isOpen={shouldShowMobileMenu ? isMobileMenuOpen : true}
+            onClose={handleSidebarClose}
+          />
         )}
 
         {/* Main Content */}
-        <div className={`
-          flex-1 flex flex-col min-w-0
-          ${showSidebar && !shouldShowMobileMenu 
-            ? sidebarOpen 
-              ? 'lg:ml-64' 
-              : 'lg:ml-16'
-            : ''
-          }
-          transition-all duration-300
-        `}>
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Content Area */}
           <main className="flex-1 relative overflow-hidden">
             <div 

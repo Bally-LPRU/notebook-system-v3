@@ -128,6 +128,19 @@ exports.checkOverdueLoans = functions.pubsub
           },
           timestamp: now
         });
+
+        // Send Discord notification for overdue equipment
+        try {
+          await sendDiscordOverdueNotification({
+            userName: loanData.userSnapshot?.displayName || loanData.userName || 'Unknown',
+            equipmentName: loanData.equipmentSnapshot?.name || loanData.equipmentName || 'Unknown',
+            returnDate: loanData.expectedReturnDate,
+            daysOverdue: calculateDaysOverdue(loanData.expectedReturnDate, now)
+          });
+        } catch (discordError) {
+          console.error('Error sending Discord notification for overdue equipment:', discordError);
+          // Don't fail the function if Discord notification fails
+        }
       }
 
       // Commit all updates
@@ -161,6 +174,86 @@ function calculateDaysOverdue(expectedReturnDate, now) {
   const diffTime = currentDate - expectedDate;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return Math.max(0, diffDays);
+}
+
+/**
+ * Send Discord notification for overdue equipment
+ * @param {Object} overdueInfo - Overdue equipment information
+ * @returns {Promise<void>}
+ */
+async function sendDiscordOverdueNotification(overdueInfo) {
+  try {
+    // Get Discord webhook settings from Firestore
+    const settingsDoc = await db.collection('settings').doc('systemSettings').get();
+    
+    if (!settingsDoc.exists) {
+      console.log('Settings document not found, skipping Discord notification');
+      return;
+    }
+
+    const settings = settingsDoc.data();
+    
+    // Check if Discord is enabled and webhook URL is configured
+    if (!settings.discordEnabled || !settings.discordWebhookUrl) {
+      console.log('Discord notifications are disabled or webhook URL not configured');
+      return;
+    }
+
+    // Prepare Discord embed
+    const embed = {
+      title: '⚠️ Overdue Equipment Alert',
+      color: 0xe74c3c, // Red
+      fields: [
+        {
+          name: 'Borrower',
+          value: overdueInfo.userName || 'Unknown',
+          inline: true
+        },
+        {
+          name: 'Equipment',
+          value: overdueInfo.equipmentName || 'Unknown',
+          inline: true
+        },
+        {
+          name: 'Days Overdue',
+          value: overdueInfo.daysOverdue?.toString() || 'N/A',
+          inline: true
+        },
+        {
+          name: 'Expected Return Date',
+          value: overdueInfo.returnDate ? overdueInfo.returnDate.toDate().toLocaleDateString() : 'N/A',
+          inline: true
+        }
+      ],
+      timestamp: new Date().toISOString(),
+      footer: {
+        text: 'Equipment Lending System'
+      }
+    };
+
+    // Send to Discord webhook
+    const fetch = require('node-fetch');
+    const response = await fetch(settings.discordWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        content: 'Overdue equipment detected',
+        embeds: [embed]
+      })
+    });
+
+    if (!response.ok) {
+      console.error('Discord webhook error:', response.status, response.statusText);
+    } else {
+      console.log('Discord notification sent successfully for overdue equipment');
+    }
+
+  } catch (error) {
+    console.error('Error sending Discord overdue notification:', error);
+    // Don't throw - we don't want to fail the function if Discord fails
+  }
 }
 
 /**

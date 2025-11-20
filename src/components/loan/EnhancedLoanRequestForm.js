@@ -17,6 +17,9 @@ import {
 import useLoanRequestValidation from '../../hooks/useLoanRequestValidation';
 import EquipmentInfoFallback from './EquipmentInfoFallback';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { useSettings } from '../../contexts/SettingsContext';
+import { useClosedDates } from '../../hooks/useClosedDates';
+import { useCategoryLimits } from '../../hooks/useCategoryLimits';
 
 /**
  * Field Input Component with validation feedback
@@ -125,6 +128,15 @@ const EnhancedLoanRequestForm = ({
   loading = false 
 }) => {
   const [equipment, setEquipment] = useState(initialEquipment);
+  const { settings } = useSettings();
+  const { isDateClosed, closedDates } = useClosedDates();
+  const { getCategoryLimit } = useCategoryLimits();
+  
+  // Get max loan duration from settings (default to 30)
+  const maxLoanDuration = settings?.maxLoanDuration || 30;
+  
+  // Get category limit for this equipment
+  const categoryLimit = equipment?.category ? getCategoryLimit(equipment.category) : null;
   
   const {
     formData,
@@ -147,6 +159,15 @@ const EnhancedLoanRequestForm = ({
   const loanDuration = formData.borrowDate && formData.expectedReturnDate
     ? Math.ceil((new Date(formData.expectedReturnDate) - new Date(formData.borrowDate)) / (1000 * 60 * 60 * 24))
     : 0;
+  
+  // Calculate max return date based on borrow date and maxLoanDuration
+  const maxReturnDate = formData.borrowDate 
+    ? (() => {
+        const maxDate = new Date(formData.borrowDate);
+        maxDate.setDate(maxDate.getDate() + maxLoanDuration);
+        return maxDate.toISOString().split('T')[0];
+      })()
+    : null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -154,6 +175,17 @@ const EnhancedLoanRequestForm = ({
     // Validate all fields
     const isFormValid = validateAllFields();
     if (!isFormValid) {
+      return;
+    }
+    
+    // Check for closed dates
+    if (isDateStringClosed(formData.borrowDate)) {
+      alert(`ไม่สามารถยืมในวันที่เลือกได้ เนื่องจากเป็นวันปิดทำการ: ${getClosedDateReason(formData.borrowDate)}`);
+      return;
+    }
+    
+    if (isDateStringClosed(formData.expectedReturnDate)) {
+      alert(`ไม่สามารถคืนในวันที่เลือกได้ เนื่องจากเป็นวันปิดทำการ: ${getClosedDateReason(formData.expectedReturnDate)}`);
       return;
     }
 
@@ -173,6 +205,37 @@ const EnhancedLoanRequestForm = ({
     handleFieldBlur(name);
   };
 
+  /**
+   * Check if a date string is closed
+   * @param {string} dateString - Date string in YYYY-MM-DD format
+   * @returns {boolean} True if date is closed
+   */
+  const isDateStringClosed = (dateString) => {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    return isDateClosed(date);
+  };
+
+  /**
+   * Get tooltip text for a closed date
+   * @param {string} dateString - Date string in YYYY-MM-DD format
+   * @returns {string|null} Reason for closure or null
+   */
+  const getClosedDateReason = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    date.setHours(0, 0, 0, 0);
+    
+    const closedDate = closedDates.find(cd => {
+      if (!cd.date) return false;
+      const cdDate = new Date(cd.date);
+      cdDate.setHours(0, 0, 0, 0);
+      return cdDate.getTime() === date.getTime();
+    });
+    
+    return closedDate ? closedDate.reason : null;
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Equipment Info */}
@@ -186,6 +249,15 @@ const EnhancedLoanRequestForm = ({
           onEquipmentLoaded={setEquipment}
           showRetry={true}
         />
+        
+        {/* Category Limit Info */}
+        {equipment && categoryLimit && (
+          <div className="mt-2 rounded-md bg-blue-50 p-3">
+            <p className="text-sm text-blue-800">
+              <span className="font-medium">ข้อจำกัดการยืม:</span> สามารถยืมอุปกรณ์ในหมวดหมู่นี้ได้สูงสุด {categoryLimit} ชิ้นพร้อมกัน
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Borrow Date */}
@@ -196,11 +268,21 @@ const EnhancedLoanRequestForm = ({
         value={formData.borrowDate}
         onChange={handleInputChange}
         onBlur={handleInputBlur}
-        error={getFieldError('borrowDate')}
-        status={getFieldStatus('borrowDate')}
+        error={getFieldError('borrowDate') || (isDateStringClosed(formData.borrowDate) ? `วันนี้ปิดทำการ: ${getClosedDateReason(formData.borrowDate)}` : null)}
+        status={isDateStringClosed(formData.borrowDate) ? 'error' : getFieldStatus('borrowDate')}
         required
-        helpText="เลือกวันที่ต้องการรับอุปกรณ์"
+        helpText="เลือกวันที่ต้องการรับอุปกรณ์ (ไม่รวมวันปิดทำการ)"
       />
+      
+      {/* Closed Date Warning for Borrow Date */}
+      {formData.borrowDate && isDateStringClosed(formData.borrowDate) && (
+        <div className="mt-2 rounded-md bg-red-50 p-3">
+          <p className="text-sm text-red-800">
+            <ExclamationCircleIcon className="w-5 h-5 inline mr-1" />
+            วันที่เลือกเป็นวันปิดทำการ: {getClosedDateReason(formData.borrowDate)}
+          </p>
+        </div>
+      )}
 
       {/* Expected Return Date */}
       <ValidatedInput
@@ -210,18 +292,30 @@ const EnhancedLoanRequestForm = ({
         value={formData.expectedReturnDate}
         onChange={handleInputChange}
         onBlur={handleInputBlur}
-        error={getFieldError('expectedReturnDate')}
-        status={getFieldStatus('expectedReturnDate')}
+        error={getFieldError('expectedReturnDate') || (isDateStringClosed(formData.expectedReturnDate) ? `วันนี้ปิดทำการ: ${getClosedDateReason(formData.expectedReturnDate)}` : null)}
+        status={isDateStringClosed(formData.expectedReturnDate) ? 'error' : getFieldStatus('expectedReturnDate')}
         required
-        helpText="เลือกวันที่จะคืนอุปกรณ์ (สูงสุด 30 วัน)"
+        min={formData.borrowDate || undefined}
+        max={maxReturnDate || undefined}
+        helpText={`เลือกวันที่จะคืนอุปกรณ์ (สูงสุด ${maxLoanDuration} วัน, ไม่รวมวันปิดทำการ)`}
       />
+      
+      {/* Closed Date Warning for Return Date */}
+      {formData.expectedReturnDate && isDateStringClosed(formData.expectedReturnDate) && (
+        <div className="mt-2 rounded-md bg-red-50 p-3">
+          <p className="text-sm text-red-800">
+            <ExclamationCircleIcon className="w-5 h-5 inline mr-1" />
+            วันที่เลือกเป็นวันปิดทำการ: {getClosedDateReason(formData.expectedReturnDate)}
+          </p>
+        </div>
+      )}
 
       {/* Loan Duration Display */}
       {loanDuration > 0 && (
-        <div className={`rounded-md p-3 ${loanDuration > 30 ? 'bg-red-50' : 'bg-blue-50'}`}>
-          <p className={`text-sm ${loanDuration > 30 ? 'text-red-700' : 'text-blue-700'}`}>
+        <div className={`rounded-md p-3 ${loanDuration > maxLoanDuration ? 'bg-red-50' : 'bg-blue-50'}`}>
+          <p className={`text-sm ${loanDuration > maxLoanDuration ? 'text-red-700' : 'text-blue-700'}`}>
             ระยะเวลายืม: <span className="font-semibold">{loanDuration} วัน</span>
-            {loanDuration > 30 && ' (เกินกำหนด 30 วัน)'}
+            {loanDuration > maxLoanDuration && ` (เกินกำหนด ${maxLoanDuration} วัน)`}
           </p>
         </div>
       )}
@@ -267,7 +361,13 @@ const EnhancedLoanRequestForm = ({
         </button>
         <button
           type="submit"
-          disabled={loading || !isValid || isValidating}
+          disabled={
+            loading || 
+            !isValid || 
+            isValidating || 
+            isDateStringClosed(formData.borrowDate) || 
+            isDateStringClosed(formData.expectedReturnDate)
+          }
           className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
         >
           {loading ? (

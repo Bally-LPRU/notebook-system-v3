@@ -19,11 +19,11 @@ const LoanRequestList = () => {
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   
-  const {
-    savedSearches,
-    saveSearch,
-    deleteSavedSearch
-  } = useSavedSearches('loans');
+  // Optional: Saved searches feature (can be disabled if causing issues)
+  const savedSearchesHook = useSavedSearches('loans');
+  const savedSearches = savedSearchesHook?.savedSearches || [];
+  const saveSearch = savedSearchesHook?.saveSearch || (async () => {});
+  const deleteSavedSearch = savedSearchesHook?.deleteSavedSearch || (async () => {});
   
   const {
     loanRequests,

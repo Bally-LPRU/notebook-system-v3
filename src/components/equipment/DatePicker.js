@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useClosedDates } from '../../hooks/useClosedDates';
 
 const DatePicker = ({
   value,
@@ -20,9 +21,13 @@ const DatePicker = ({
   // Remove unused displayValue state
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
+  const [hoveredDate, setHoveredDate] = useState(null);
   
   const inputRef = useRef(null);
   const calendarRef = useRef(null);
+  
+  // Get closed dates functionality
+  const { isDateClosed, closedDates } = useClosedDates();
 
   // Initialize selected date
   useEffect(() => {
@@ -70,6 +75,22 @@ const DatePicker = ({
     }
     
     return `${year}-${month}-${day}`;
+  };
+
+  // Get closed date reason
+  const getClosedDateReason = (date) => {
+    if (!date) return null;
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
+    
+    const closedDate = closedDates.find(cd => {
+      if (!cd.date) return false;
+      const cdDate = new Date(cd.date);
+      cdDate.setHours(0, 0, 0, 0);
+      return cdDate.getTime() === normalizedDate.getTime();
+    });
+    
+    return closedDate ? closedDate.reason : null;
   };
 
   // Handle input change
@@ -134,9 +155,11 @@ const DatePicker = ({
       const isCurrentMonth = date.getMonth() === month;
       const isToday = date.getTime() === today.getTime();
       const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
+      const isClosed = isDateClosed(date);
       const isDisabled = 
         (minDate && date < new Date(minDate)) ||
-        (maxDate && date > new Date(maxDate));
+        (maxDate && date > new Date(maxDate)) ||
+        isClosed;
 
       days.push({
         date,
@@ -144,7 +167,8 @@ const DatePicker = ({
         isCurrentMonth,
         isToday,
         isSelected,
-        isDisabled
+        isDisabled,
+        isClosed
       });
     }
 
@@ -255,21 +279,35 @@ const DatePicker = ({
           {/* Calendar Days */}
           <div className="grid grid-cols-7 gap-1">
             {calendarDays.map((day, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => !day.isDisabled && handleDateSelect(day.date)}
-                disabled={day.isDisabled}
-                className={`
-                  p-2 text-sm rounded hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500
-                  ${!day.isCurrentMonth ? 'text-gray-300' : 'text-gray-900'}
-                  ${day.isToday ? 'bg-blue-100 font-semibold' : ''}
-                  ${day.isSelected ? 'bg-blue-600 text-white hover:bg-blue-700' : ''}
-                  ${day.isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-                `}
-              >
-                {day.day}
-              </button>
+              <div key={index} className="relative">
+                <button
+                  type="button"
+                  onClick={() => !day.isDisabled && handleDateSelect(day.date)}
+                  onMouseEnter={() => setHoveredDate(day.date)}
+                  onMouseLeave={() => setHoveredDate(null)}
+                  disabled={day.isDisabled}
+                  className={`
+                    w-full p-2 text-sm rounded hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500
+                    ${!day.isCurrentMonth ? 'text-gray-300' : 'text-gray-900'}
+                    ${day.isToday ? 'bg-blue-100 font-semibold' : ''}
+                    ${day.isSelected ? 'bg-blue-600 text-white hover:bg-blue-700' : ''}
+                    ${day.isClosed ? 'bg-red-100 text-red-600 line-through' : ''}
+                    ${day.isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
+                  `}
+                >
+                  {day.day}
+                </button>
+                
+                {/* Tooltip for closed dates */}
+                {day.isClosed && hoveredDate && hoveredDate.getTime() === day.date.getTime() && (
+                  <div className="absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
+                    {getClosedDateReason(day.date) || 'วันปิดทำการ'}
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+                      <div className="border-4 border-transparent border-t-gray-900"></div>
+                    </div>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
 

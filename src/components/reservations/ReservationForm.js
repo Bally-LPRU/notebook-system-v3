@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useReservations } from '../../hooks/useReservations';
+import { useSettings } from '../../contexts/SettingsContext';
+import { useClosedDates } from '../../hooks/useClosedDates';
 import { 
   DEFAULT_RESERVATION_FORM,
   RESERVATION_VALIDATION,
@@ -20,6 +22,8 @@ const ReservationForm = ({
   onCancel,
   className = '' 
 }) => {
+  const { settings } = useSettings();
+  const { isDateClosed, closedDates } = useClosedDates();
   const [formData, setFormData] = useState({
     ...DEFAULT_RESERVATION_FORM,
     equipmentId: equipment?.id || '',
@@ -32,6 +36,16 @@ const ReservationForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { createReservation } = useReservations();
+  
+  // Get max advance booking days from settings (default to 30)
+  const maxAdvanceBookingDays = settings?.maxAdvanceBookingDays || 30;
+  
+  // Calculate max reservation date
+  const maxReservationDate = (() => {
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + maxAdvanceBookingDays);
+    return maxDate.toISOString().split('T')[0];
+  })();
 
   // Handle form input changes
   const handleInputChange = (e) => {
@@ -69,6 +83,27 @@ const ReservationForm = ({
       
       if (selectedDate < today) {
         newErrors.reservationDate = 'ไม่สามารถจองในวันที่ผ่านมาแล้ว';
+      }
+      
+      // Check if date is closed
+      if (isDateClosed(selectedDate)) {
+        const closedDate = closedDates.find(cd => {
+          if (!cd.date) return false;
+          const cdDate = new Date(cd.date);
+          cdDate.setHours(0, 0, 0, 0);
+          selectedDate.setHours(0, 0, 0, 0);
+          return cdDate.getTime() === selectedDate.getTime();
+        });
+        newErrors.reservationDate = `วันที่เลือกเป็นวันปิดทำการ${closedDate?.reason ? `: ${closedDate.reason}` : ''}`;
+      }
+      
+      // Check advance booking period
+      const maxDate = new Date();
+      maxDate.setDate(maxDate.getDate() + maxAdvanceBookingDays);
+      maxDate.setHours(0, 0, 0, 0);
+      
+      if (selectedDate > maxDate) {
+        newErrors.reservationDate = `ไม่สามารถจองล่วงหน้าเกิน ${maxAdvanceBookingDays} วัน`;
       }
     }
 
@@ -234,6 +269,7 @@ const ReservationForm = ({
               value={formData.reservationDate}
               onChange={handleInputChange}
               min={new Date().toISOString().split('T')[0]}
+              max={maxReservationDate}
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.reservationDate ? 'border-red-500' : 'border-gray-300'
               }`}
@@ -242,10 +278,27 @@ const ReservationForm = ({
             {errors.reservationDate && (
               <p className="mt-1 text-sm text-red-600">{errors.reservationDate}</p>
             )}
-            {formData.reservationDate && (
+            {formData.reservationDate && !errors.reservationDate && (
               <p className="mt-1 text-sm text-gray-500">
                 {formatReservationDate(new Date(formData.reservationDate))}
               </p>
+            )}
+            {!errors.reservationDate && (
+              <p className="mt-1 text-sm text-gray-500">
+                สามารถจองล่วงหน้าได้สูงสุด {maxAdvanceBookingDays} วัน (ไม่รวมวันปิดทำการ)
+              </p>
+            )}
+            
+            {/* Closed Date Warning */}
+            {formData.reservationDate && isDateClosed(new Date(formData.reservationDate)) && (
+              <div className="mt-2 rounded-md bg-red-50 p-3">
+                <p className="text-sm text-red-800">
+                  <svg className="w-5 h-5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  วันที่เลือกเป็นวันปิดทำการ
+                </p>
+              </div>
             )}
           </div>
 

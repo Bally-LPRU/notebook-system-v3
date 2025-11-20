@@ -53,6 +53,14 @@ class LoanRequestService {
         throw new Error('มีคำขอยืมอุปกรณ์นี้รอการอนุมัติอยู่แล้ว');
       }
 
+      // Check category limit
+      if (equipment.category) {
+        const canBorrow = await this.checkCategoryLimit(userId, equipment.category);
+        if (!canBorrow.allowed) {
+          throw new Error(canBorrow.message);
+        }
+      }
+
       // Validate dates
       const borrowDate = new Date(loanRequestData.borrowDate);
       const expectedReturnDate = new Date(loanRequestData.expectedReturnDate);
@@ -815,6 +823,22 @@ class LoanRequestService {
 
       // Use the enhanced notification service
       await NotificationService.notifyAdminsNewLoanRequest(loanRequest, equipment, user);
+
+      // Send Discord notification
+      try {
+        const discordWebhookService = (await import('./discordWebhookService.js')).default;
+        await discordWebhookService.notifyNewLoanRequest({
+          userName: user.displayName || user.email || 'Unknown',
+          equipmentName: equipment.name || 'Unknown',
+          status: loanRequest.status || 'pending',
+          borrowDate: loanRequest.borrowDate,
+          returnDate: loanRequest.expectedReturnDate,
+          purpose: loanRequest.purpose
+        });
+      } catch (discordError) {
+        // Log but don't fail the operation
+        console.error('Error sending Discord notification for new loan request:', discordError);
+      }
     } catch (error) {
       console.error('Error notifying admins about new loan request:', error);
     }
@@ -1005,6 +1029,74 @@ class LoanRequestService {
    */
   static calculateDaysOverdue(expectedReturnDate) {
     return OverdueManagementService.calculateDaysOverdue(expectedReturnDate);
+  }
+
+  /**
+   * Check if user can borrow equipment from a category based on category limits
+   * @param {string} userId - User ID
+   * @param {string} categoryId - Equipment category ID
+   * @returns {Promise<Object>} Object with allowed (boolean) and message (string)
+   */
+  static async checkCategoryLimit(userId, categoryId) {
+    try {
+      // Import settingsService dynamically to avoid circular dependencies
+      const settingsService = (await import('./settingsService.js')).default;
+
+      // Get category limit (null if not set)
+      const categoryLimit = await settingsService.getCategoryLimit(categoryId);
+      
+      // Get system settings for default limit
+      const settings = await settingsService.getSettings();
+      const defaultLimit = settings.defaultCategoryLimit || 3;
+      
+      // Use category-specific limit or default
+      const effectiveLimit = categoryLimit !== null ? categoryLimit : defaultLimit;
+
+      // If limit is 0, category is not allowed to be borrowed
+      if (effectiveLimit === 0) {
+        return {
+          allowed: false,
+          message: 'ไม่อนุญาตให้ยืมอุปกรณ์ประเภทนี้ในขณะนี้'
+        };
+      }
+
+      // Query user's current borrowed equipment in this category
+      const loanRequestRef = collection(db, this.COLLECTION_NAME);
+      const q = query(
+        loanRequestRef,
+        where('userId', '==', userId),
+        where('status', '==', LOAN_REQUEST_STATUS.BORROWED),
+        where('equipmentCategory', '==', categoryId)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const currentBorrowedCount = querySnapshot.size;
+
+      // Check if limit is exceeded
+      if (currentBorrowedCount >= effectiveLimit) {
+        return {
+          allowed: false,
+          message: `คุณยืมอุปกรณ์ประเภทนี้ครบจำนวนจำกัดแล้ว (${currentBorrowedCount}/${effectiveLimit} ชิ้น) กรุณาคืนอุปกรณ์บางชิ้นก่อนยืมเพิ่ม`,
+          currentCount: currentBorrowedCount,
+          limit: effectiveLimit
+        };
+      }
+
+      return {
+        allowed: true,
+        message: 'สามารถยืมได้',
+        currentCount: currentBorrowedCount,
+        limit: effectiveLimit
+      };
+    } catch (error) {
+      console.error('Error checking category limit:', error);
+      // On error, allow the request to proceed (fail open)
+      return {
+        allowed: true,
+        message: 'ไม่สามารถตรวจสอบจำนวนจำกัดได้ อนุญาตให้ดำเนินการต่อ',
+        error: error.message
+      };
+    }
   }
 }
 

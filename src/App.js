@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { EquipmentCategoriesProvider } from './contexts/EquipmentCategoriesContext';
+import { SettingsProvider } from './contexts/SettingsContext';
 import { NotificationToastContainer } from './components/notifications/NotificationToast';
 import SimpleErrorBoundary from './components/common/SimpleErrorBoundary';
 import FirebaseLoadingBoundary from './components/common/FirebaseLoadingBoundary';
@@ -15,6 +16,7 @@ import OfflineIndicator from './components/common/OfflineIndicator';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { register } from './utils/serviceWorkerRegistration';
 import PopupBlockingDetector from './utils/popupBlockingDetector';
+import useSystemNotifications from './hooks/useSystemNotifications';
 import './App.css';
 
 // Public components
@@ -22,6 +24,9 @@ import PublicHomepage from './components/public/PublicHomepage';
 
 // Direct import for CategoryManagement (temporary fix for 404 issue)
 import CategoryManagement from './components/admin/CategoryManagement';
+
+// Admin Settings
+const LazyAdminSettingsPage = lazy(() => import('./components/admin/settings/AdminSettingsPage'));
 
 // Lazy loaded components
 const LazyDashboard = lazy(() => import('./components/Dashboard'));
@@ -35,6 +40,8 @@ const LazyMyRequests = lazy(() => import('./components/requests/MyRequests'));
 const LazyReservationPage = lazy(() => import('./components/reservations/ReservationPage'));
 const LazyReportsPage = lazy(() => import('./components/reports/ReportsPage'));
 const LazyProfilePage = lazy(() => import('./components/profile/ProfilePage'));
+const LazyNotificationCenter = lazy(() => import('./components/notifications/NotificationCenter'));
+const LazyNotificationSettings = lazy(() => import('./components/notifications/NotificationSettings'));
 
 // Simple login for debugging
 const SimpleLogin = lazy(() => import('./components/auth/SimpleLogin'));
@@ -43,9 +50,13 @@ const PopupLogin = lazy(() => import('./components/auth/PopupLogin'));
 // Auth initialization loader component
 const AuthInitializingLoader = lazy(() => import('./components/common/AuthInitializingLoader'));
 
+// System Notification Modal
+const SystemNotificationModal = lazy(() => import('./components/notifications/SystemNotificationModal'));
+
 // Main App Routes Component
 const AppRoutes = () => {
   const { user, userProfile, loading, authInitialized, needsProfileSetup } = useAuth();
+  const { showModal, closeModal } = useSystemNotifications();
 
   // Wait for auth to initialize before rendering routes
   // This ensures we check for persisted auth state before deciding what to show
@@ -133,6 +144,18 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
       
+      <Route path="/notifications" element={
+        <ProtectedRoute>
+          <LazyNotificationCenter />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/notification-settings" element={
+        <ProtectedRoute>
+          <LazyNotificationSettings />
+        </ProtectedRoute>
+      } />
+      
       {/* Admin Routes */}
       <Route path="/admin" element={
         <ProtectedRoute requireAdmin={true}>
@@ -175,6 +198,18 @@ const AppRoutes = () => {
           <LazyReportsPage />
         </ProtectedRoute>
       } />
+      
+      <Route path="/admin/notifications" element={
+        <ProtectedRoute requireAdmin={true}>
+          <LazyNotificationCenter />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/settings" element={
+        <ProtectedRoute requireAdmin={true}>
+          <LazyAdminSettingsPage />
+        </ProtectedRoute>
+      } />
 
       {/* Status Pages - redirect approved users */}
       <Route path="/pending-approval" element={<Navigate to="/" replace />} />
@@ -182,6 +217,9 @@ const AppRoutes = () => {
       
       <Route path="*" element={<NotFound />} />
       </Routes>
+      
+      {/* System Notification Modal */}
+      <SystemNotificationModal isOpen={showModal} onClose={closeModal} />
     </Suspense>
   );
 };
@@ -256,11 +294,12 @@ function App() {
     <SimpleErrorBoundary>
       <FirebaseLoadingBoundary onRetry={handleFirebaseRetry}>
         <AuthProvider>
-          <NotificationProvider>
-            <EquipmentCategoriesProvider>
-              <Router>
-                <AppRoutes />
-                <NotificationToastContainer />
+          <SettingsProvider>
+            <NotificationProvider>
+              <EquipmentCategoriesProvider>
+                <Router>
+                  <AppRoutes />
+                  <NotificationToastContainer />
               
               {/* PWA Install Prompt */}
               <PWAInstallPrompt 
@@ -292,8 +331,9 @@ function App() {
                 </div>
               )}
               </Router>
-            </EquipmentCategoriesProvider>
-          </NotificationProvider>
+              </EquipmentCategoriesProvider>
+            </NotificationProvider>
+          </SettingsProvider>
         </AuthProvider>
       </FirebaseLoadingBoundary>
     </SimpleErrorBoundary>

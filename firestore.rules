@@ -199,5 +199,40 @@ service cloud.firestore {
       
       allow write: if isAdmin();
     }
+    
+    // Settings collection - admin write, authenticated read
+    match /settings/{document} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Closed dates collection - admin write, authenticated read
+    match /closedDates/{dateId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Category limits collection - admin write, authenticated read
+    match /categoryLimits/{categoryId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Settings audit log collection - admin only
+    match /settingsAuditLog/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only server/admin service can write
+    }
+    
+    // System notifications collection - admin write, authenticated read
+    match /systemNotifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+      // Allow users to update their read status and responses
+      allow update: if isAuthenticated() && 
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy', 'responses']) &&
+                      (request.resource.data.readBy.hasAll(resource.data.readBy) || 
+                       request.resource.data.responses.size() >= resource.data.responses.size());
+    }
   }
 }

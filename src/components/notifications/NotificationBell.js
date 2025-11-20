@@ -152,15 +152,13 @@ const NotificationBell = () => {
 
           {/* Footer */}
           <div className="p-4 border-t border-gray-200">
-            <button
-              onClick={() => {
-                window.location.href = '/notifications';
-                setIsOpen(false);
-              }}
-              className="w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
+            <a
+              href="/notifications"
+              className="block w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
+              onClick={() => setIsOpen(false)}
             >
               ดูการแจ้งเตือนทั้งหมด
-            </button>
+            </a>
           </div>
         </div>
       )}

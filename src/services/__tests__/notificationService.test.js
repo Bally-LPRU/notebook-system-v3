@@ -6,20 +6,34 @@ jest.mock('../../config/firebase', () => ({
   db: {}
 }));
 
+const mockCollection = jest.fn();
+const mockDoc = jest.fn();
+const mockGetDocs = jest.fn();
+const mockGetDoc = jest.fn();
+const mockAddDoc = jest.fn();
+const mockUpdateDoc = jest.fn();
+const mockDeleteDoc = jest.fn();
+const mockQuery = jest.fn();
+const mockWhere = jest.fn();
+const mockOrderBy = jest.fn();
+const mockLimit = jest.fn();
+const mockOnSnapshot = jest.fn();
+const mockServerTimestamp = jest.fn(() => ({ seconds: Date.now() / 1000 }));
+
 jest.mock('firebase/firestore', () => ({
-  collection: jest.fn(),
-  doc: jest.fn(),
-  getDocs: jest.fn(),
-  getDoc: jest.fn(),
-  addDoc: jest.fn(),
-  updateDoc: jest.fn(),
-  deleteDoc: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
-  orderBy: jest.fn(),
-  limit: jest.fn(),
-  onSnapshot: jest.fn(),
-  serverTimestamp: jest.fn(() => ({ seconds: Date.now() / 1000 }))
+  collection: mockCollection,
+  doc: mockDoc,
+  getDocs: mockGetDocs,
+  getDoc: mockGetDoc,
+  addDoc: mockAddDoc,
+  updateDoc: mockUpdateDoc,
+  deleteDoc: mockDeleteDoc,
+  query: mockQuery,
+  where: mockWhere,
+  orderBy: mockOrderBy,
+  limit: mockLimit,
+  onSnapshot: mockOnSnapshot,
+  serverTimestamp: mockServerTimestamp
 }));
 
 describe('NotificationService', () => {

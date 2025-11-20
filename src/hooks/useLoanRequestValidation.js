@@ -3,15 +3,21 @@
  * 
  * Provides real-time validation for loan request forms.
  * Validates fields as user types with debouncing.
+ * Integrates with settings for dynamic loan duration limits.
  */
 
 import { useState, useCallback, useEffect } from 'react';
 import { LOAN_REQUEST_VALIDATION } from '../types/loanRequest';
+import { useSettings } from '../contexts/SettingsContext';
+import { useClosedDates } from './useClosedDates';
 
 /**
- * Validation rules for loan request fields
+ * Get validation rules for loan request fields
+ * @param {number} maxLoanDuration - Maximum loan duration from settings
+ * @param {Function} isDateClosed - Function to check if a date is closed
+ * @returns {Object} Validation rules
  */
-const validationRules = {
+const getValidationRules = (maxLoanDuration = 30, isDateClosed = () => false) => ({
   equipmentId: {
     required: true,
     validate: (value) => {
@@ -32,6 +38,11 @@ const validationRules = {
         return 'วันที่ยืมต้องไม่เป็นวันที่ผ่านมาแล้ว';
       }
       
+      // Check if date is closed
+      if (isDateClosed(borrowDate)) {
+        return 'วันที่เลือกเป็นวันปิดทำการ';
+      }
+      
       return null;
     }
   },
@@ -47,13 +58,18 @@ const validationRules = {
         return 'วันที่คืนต้องหลังจากวันที่ยืม';
       }
       
-      // Check max duration (30 days)
+      // Check if date is closed
+      if (isDateClosed(returnDate)) {
+        return 'วันที่เลือกเป็นวันปิดทำการ';
+      }
+      
+      // Check max duration using setting value
       if (borrowDate) {
         const diffTime = returnDate.getTime() - borrowDate.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
-        if (diffDays > 30) {
-          return 'ระยะเวลายืมต้องไม่เกิน 30 วัน';
+        if (diffDays > maxLoanDuration) {
+          return `ระยะเวลายืมต้องไม่เกิน ${maxLoanDuration} วัน`;
         }
       }
       
@@ -94,7 +110,7 @@ const validationRules = {
       return null;
     }
   }
-};
+});
 
 /**
  * useLoanRequestValidation Hook
@@ -102,6 +118,8 @@ const validationRules = {
  * @returns {Object} Validation state and methods
  */
 const useLoanRequestValidation = (initialFormData = {}) => {
+  const { settings } = useSettings();
+  const { isDateClosed } = useClosedDates();
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -110,17 +128,22 @@ const useLoanRequestValidation = (initialFormData = {}) => {
 
   // Debounce timer
   const [debounceTimers, setDebounceTimers] = useState({});
+  
+  // Get max loan duration from settings (default to 30 if not available)
+  const maxLoanDuration = settings?.maxLoanDuration || 30;
 
   /**
    * Validate a single field
    */
   const validateField = useCallback((fieldName, value, currentFormData = formData) => {
+    // Get validation rules with current maxLoanDuration and isDateClosed
+    const validationRules = getValidationRules(maxLoanDuration, isDateClosed);
     const rule = validationRules[fieldName];
     if (!rule) return null;
 
     const error = rule.validate(value, currentFormData);
     return error;
-  }, [formData]);
+  }, [formData, maxLoanDuration, isDateClosed]);
 
   /**
    * Validate all fields
@@ -129,6 +152,9 @@ const useLoanRequestValidation = (initialFormData = {}) => {
     const newErrors = {};
     let hasErrors = false;
 
+    // Get validation rules with current settings
+    const validationRules = getValidationRules(maxLoanDuration, isDateClosed);
+    
     Object.keys(validationRules).forEach(fieldName => {
       const error = validateField(fieldName, formData[fieldName], formData);
       if (error) {
@@ -140,7 +166,7 @@ const useLoanRequestValidation = (initialFormData = {}) => {
     setErrors(newErrors);
     setIsValid(!hasErrors);
     return !hasErrors;
-  }, [formData, validateField]);
+  }, [formData, validateField, maxLoanDuration, isDateClosed]);
 
   /**
    * Handle field change with debounced validation
