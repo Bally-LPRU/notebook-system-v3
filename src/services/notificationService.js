@@ -37,17 +37,21 @@ class NotificationService {
       }
 
       const template = NOTIFICATION_TEMPLATES[type];
+      
+      // Clean data object to remove undefined values (Firestore doesn't allow undefined)
+      const cleanData = this._removeUndefinedValues(data);
+      
       const notification = {
         userId,
         type,
         title: title || template?.title || 'การแจ้งเตือน',
-        message: this.formatMessage(message || template?.message || '', data),
-        data,
+        message: this.formatMessage(message || template?.message || '', cleanData),
+        data: cleanData,
         isRead: false,
         priority: template?.priority || NOTIFICATION_PRIORITIES.LOW,
-        actionUrl: this.formatActionUrl(template?.actionUrl, data),
-        actionText: template?.actionText,
-        expiresAt: data.expiresAt || null,
+        actionUrl: this.formatActionUrl(template?.actionUrl, cleanData) || null,
+        actionText: template?.actionText || null,
+        expiresAt: cleanData.expiresAt || null,
         createdAt: serverTimestamp()
       };
       
@@ -61,6 +65,26 @@ class NotificationService {
       console.error('Error creating notification:', error);
       throw error;
     }
+  }
+
+  // Helper method to remove undefined values from objects
+  static _removeUndefinedValues(obj) {
+    if (!obj || typeof obj !== 'object') {
+      return obj;
+    }
+    
+    const cleaned = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        // Recursively clean nested objects
+        if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+          cleaned[key] = this._removeUndefinedValues(value);
+        } else {
+          cleaned[key] = value;
+        }
+      }
+    }
+    return cleaned;
   }
 
   // Format message with data placeholders

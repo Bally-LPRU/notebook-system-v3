@@ -1134,19 +1134,26 @@ class SettingsService {
         const title = `Critical Setting Changed: ${change.settingType}`;
         const message = `${change.adminName} changed ${change.settingType} from ${this._formatValue(change.oldValue)} to ${this._formatValue(change.newValue)}`;
         
+        // Prepare notification data, excluding undefined values
+        const notificationData = {
+          settingType: change.settingType,
+          oldValue: change.oldValue !== undefined ? change.oldValue : null,
+          newValue: change.newValue !== undefined ? change.newValue : null,
+          changedBy: change.adminName
+        };
+        
+        // Only include reason if it's defined
+        if (change.reason !== undefined && change.reason !== null) {
+          notificationData.reason = change.reason;
+        }
+        
         notificationPromises.push(
           NotificationService.createNotification(
             admin.uid,
             'critical_setting_change',
             title,
             message,
-            {
-              settingType: change.settingType,
-              oldValue: change.oldValue,
-              newValue: change.newValue,
-              changedBy: change.adminName,
-              reason: change.reason
-            }
+            notificationData
           )
         );
       });
