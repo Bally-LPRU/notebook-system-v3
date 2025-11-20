@@ -22,6 +22,7 @@ const useSystemNotifications = () => {
     if (user?.uid && !hasChecked) {
       checkUnreadNotifications();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid, hasChecked]);
 
   const checkUnreadNotifications = async () => {
@@ -38,7 +39,9 @@ const useSystemNotifications = () => {
         setShowModal(true);
       }
     } catch (error) {
-      console.error('Error checking unread notifications:', error);
+      // Log error but don't block the app
+      console.warn('System notifications check failed (non-critical):', error.message);
+      setHasChecked(true); // Mark as checked to prevent retry loops
     } finally {
       setLoading(false);
     }
@@ -52,7 +55,8 @@ const useSystemNotifications = () => {
       const unread = await settingsService.getUnreadSystemNotifications(user.uid);
       setUnreadNotifications(unread);
     } catch (error) {
-      console.error('Error refreshing notifications:', error);
+      // Log error but don't block the app
+      console.warn('System notifications refresh failed (non-critical):', error.message);
     } finally {
       setLoading(false);
     }

@@ -5,6 +5,7 @@ import {
   RESERVATION_STATUS_LABELS,
   RESERVATION_STATUS_COLORS
 } from '../../types/reservation';
+import Layout from '../layout/Layout';
 
 /**
  * ReservationManagement Component
@@ -75,9 +76,10 @@ const ReservationManagement = ({ className = '' }) => {
   };
 
   return (
-    <div className={`space-y-6 ${className}`}>
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
+    <Layout>
+      <div className={`space-y-6 ${className}`}>
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm border p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
           จัดการการจองอุปกรณ์
         </h2>
@@ -239,7 +241,8 @@ const ReservationManagement = ({ className = '' }) => {
         filters={getFiltersForTab()}
         key={`${activeTab}-${dateFilter.startDate}-${dateFilter.endDate}`}
       />
-    </div>
+      </div>
+    </Layout>
   );
 };
 

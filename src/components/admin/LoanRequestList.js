@@ -10,6 +10,7 @@ import AdvancedSearchModal from '../search/AdvancedSearchModal';
 import { useSavedSearches } from '../../hooks/useSavedSearches';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmptyState from '../common/EmptyState';
+import Layout from '../layout/Layout';
 
 const LoanRequestList = () => {
   const { user } = useAuth();
@@ -20,7 +21,13 @@ const LoanRequestList = () => {
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   
   // Optional: Saved searches feature (can be disabled if causing issues)
-  const savedSearchesHook = useSavedSearches('loans');
+  let savedSearchesHook;
+  try {
+    savedSearchesHook = useSavedSearches('loans');
+  } catch (error) {
+    console.warn('Saved searches feature unavailable:', error.message);
+    savedSearchesHook = null;
+  }
   const savedSearches = savedSearchesHook?.savedSearches || [];
   const saveSearch = savedSearchesHook?.saveSearch || (async () => {});
   const deleteSavedSearch = savedSearchesHook?.deleteSavedSearch || (async () => {});
@@ -205,14 +212,15 @@ const LoanRequestList = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">จัดการคำขอยืมอุปกรณ์</h2>
-        <p className="mt-1 text-gray-600">
-          อนุมัติหรือปฏิเสธคำขอยืมอุปกรณ์จากผู้ใช้
-        </p>
-      </div>
+    <Layout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">จัดการคำขอยืมอุปกรณ์</h2>
+          <p className="mt-1 text-gray-600">
+            อนุมัติหรือปฏิเสธคำขอยืมอุปกรณ์จากผู้ใช้
+          </p>
+        </div>
 
       {/* Search and Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
@@ -415,7 +423,8 @@ const LoanRequestList = () => {
         onLoadSearch={handleLoadSearch}
         onDeleteSearch={deleteSavedSearch}
       />
-    </div>
+      </div>
+    </Layout>
   );
 };
 

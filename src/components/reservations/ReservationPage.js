@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import Navbar from '../layout/Navbar';
-import Footer from '../layout/Footer';
+import Layout from '../layout/Layout';
 import ReservationCalendar from './ReservationCalendar';
 import ReservationForm from './ReservationForm';
 import { useEquipment } from '../../hooks/useEquipment';
@@ -54,10 +53,8 @@ const ReservationPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <Layout>
+      <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">จองอุปกรณ์ล่วงหน้า</h1>
           <p className="mt-2 text-gray-600">
@@ -235,10 +232,8 @@ const ReservationPage = () => {
             </div>
           </div>
         )}
-      </main>
-      
-      <Footer />
-    </div>
+      </div>
+    </Layout>
   );
 };
 

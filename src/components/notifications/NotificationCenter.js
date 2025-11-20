@@ -9,6 +9,7 @@ import { useNotificationContext } from '../../contexts/NotificationContext';
 import { formatDistanceToNow, format } from 'date-fns';
 import { th } from 'date-fns/locale';
 import { NOTIFICATION_TYPES, NOTIFICATION_PRIORITIES } from '../../types/notification';
+import Layout from '../layout/Layout';
 
 const NotificationCenter = () => {
   const { 
@@ -180,9 +181,10 @@ const NotificationCenter = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      {/* Header */}
-      <div className="mb-6">
+    <Layout>
+      <div className="max-w-4xl mx-auto p-6">
+        {/* Header */}
+        <div className="mb-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">ศูนย์การแจ้งเตือน</h1>
@@ -409,7 +411,8 @@ const NotificationCenter = () => {
           </button>
         </div>
       )}
-    </div>
+      </div>
+    </Layout>
   );
 };
 

@@ -87,14 +87,17 @@ export const SettingsProvider = ({ children }) => {
             }
           },
           (err) => {
-            console.error('Error in settings listener:', err);
-            setError(err);
+            // Log error but don't block the app
+            console.warn('Settings listener error (non-critical):', err.message);
+            // Don't set error state to avoid blocking UI
           }
         );
       } catch (err) {
-        console.error('Error initializing settings:', err);
-        setError(err);
+        // Log error but use default settings to not block the app
+        console.warn('Settings initialization error (using defaults):', err.message);
+        setSettings(DEFAULT_SETTINGS);
         setLoading(false);
+        // Don't set error state to avoid blocking UI
       }
     };
 

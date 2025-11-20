@@ -41,6 +41,11 @@ class SavedSearchService {
       
       return savedSearches;
     } catch (error) {
+      // If index is missing, return empty array instead of throwing
+      if (error.code === 'failed-precondition' || error.message?.includes('index')) {
+        console.warn('Firestore index for savedSearches not created. Feature will be limited.');
+        return [];
+      }
       console.error('Error getting saved searches:', error);
       throw error;
     }

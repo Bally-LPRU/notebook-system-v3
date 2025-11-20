@@ -200,6 +200,16 @@ Before implementing new features, please review:
    - ตรวจสอบ Security Rules
    - ตรวจสอบสถานะผู้ใช้ในฐานข้อมูล
 
+4. **หน้า Admin Settings แสดง "Missing or insufficient permissions"**
+   - **สาเหตุ:** User profile ยังไม่ได้ตั้งค่าเป็น admin
+   - **วิธีแก้ไขด่วน:** ดูคำแนะนำใน [QUICK_FIX_ADMIN_SETTINGS.md](QUICK_FIX_ADMIN_SETTINGS.md)
+   - **วิธีแก้ไขแบบละเอียด:** ดูคำแนะนำใน [ADMIN_SETTINGS_PERMISSION_FIX.md](ADMIN_SETTINGS_PERMISSION_FIX.md)
+   - **ขั้นตอนสั้นๆ:**
+     1. ไปที่ Firebase Console > Firestore Database
+     2. เปิด collection `users` และหา document ของคุณ
+     3. แก้ไข `role` เป็น `"admin"` และ `status` เป็น `"approved"`
+     4. รีเฟรชหน้าเว็บและ login ใหม่
+
 ### เอกสารเพิ่มเติม
 
 สำหรับเอกสารการแก้ไขปัญหาในอดีตและประวัติการพัฒนา สามารถดูได้ที่:
