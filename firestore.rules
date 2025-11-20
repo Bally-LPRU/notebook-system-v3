@@ -170,9 +170,8 @@ service cloud.firestore {
       
       allow create: if isAdmin();
       
-      allow delete: if isAuthenticated() && 
-                       request.auth.uid == resource.data.userId &&
-                       resource.data.createdAt < timestamp.date(2024, 1, 1);
+      // Allow users to delete their own notifications
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
     }
     
     // Notification settings collection rules
