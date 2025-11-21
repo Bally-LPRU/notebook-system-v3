@@ -34,13 +34,18 @@ export const useEquipment = (initialFilters = {}) => {
         lastDoc: resetPagination ? null : lastDoc
       };
 
+      console.log('Loading equipment with filters:', queryFilters);
+
       // Try development service first
       let result = await DevelopmentService.getEquipmentList(queryFilters);
       
       // Fallback to Firebase service
       if (!result) {
+        console.log('Using Firebase service...');
         result = await EquipmentService.getEquipmentList(queryFilters);
       }
+      
+      console.log('Equipment loaded:', result);
       
       if (resetPagination) {
         setEquipment(result.equipment);
@@ -122,7 +127,8 @@ export const useEquipment = (initialFilters = {}) => {
   // Load equipment when filters change
   useEffect(() => {
     loadEquipment(true);
-  }, [filters, loadEquipment]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
 
   return {
     equipment,

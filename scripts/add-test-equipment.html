@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เพิ่มข้อมูลอุปกรณ์ทดสอบ</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #2196F3;
+            border-radius: 4px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        textarea {
+            width: 100%;
+            font-family: monospace;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 เพิ่มข้อมูลอุปกรณ์ทดสอบ</h1>
+        
+        <div class="section">
+            <h2>Firebase Configuration</h2>
+            <div id="configStatus" class="status info">
+                กรุณากรอก Firebase Config
+            </div>
+            <textarea id="firebaseConfig" rows="10" placeholder='Paste Firebase config here:
+{
+  "apiKey": "...",
+  "authDomain": "...",
+  "projectId": "...",
+  "storageBucket": "...",
+  "messagingSenderId": "...",
+  "appId": "..."
+}'></textarea>
+            <button onclick="initializeFirebase()">เชื่อมต่อ Firebase</button>
+        </div>
+
+        <div class="section">
+            <h2>Authentication (ต้อง Login ด้วย Admin)</h2>
+            <div id="authStatus" class="status info">
+                ยังไม่ได้ Login
+            </div>
+            <button id="loginBtn" onclick="loginWithGoogle()" disabled>Login ด้วย Google</button>
+            <button id="logoutBtn" onclick="logout()" disabled style="display:none;">Logout</button>
+        </div>
+
+        <div class="section">
+            <h2>เพิ่มข้อมูลอุปกรณ์</h2>
+            <button id="addBtn" onclick="addTestEquipment()" disabled>เพิ่มอุปกรณ์ทดสอบ 10 รายการ</button>
+            <button id="checkBtn" onclick="checkEquipment()" disabled>ตรวจสอบข้อมูลปัจจุบัน</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        let app, auth, db, currentUser;
+
+        const testEquipment = [
+            {
+                name: 'MacBook Pro 16"',
+                category: 'โน้ตบุ๊ค',
+                brand: 'Apple',
+                model: 'MacBook Pro 2023',
+                serialNumber: 'MBP-2023-001',
+                description: 'MacBook Pro 16 นิ้ว M2 Max RAM 32GB SSD 1TB',
+                status: 'available',
+                location: 'ห้องคอมพิวเตอร์ 301'
+            },
+            {
+                name: 'Dell XPS 15',
+                category: 'โน้ตบุ๊ค',
+                brand: 'Dell',
+                model: 'XPS 15 9520',
+                serialNumber: 'DELL-XPS-002',
+                description: 'Dell XPS 15 Intel i7 RAM 16GB SSD 512GB',
+                status: 'available',
+                location: 'ห้องคอมพิวเตอร์ 301'
+            },
+            {
+                name: 'iPad Pro 12.9"',
+                category: 'แท็บเล็ต',
+                brand: 'Apple',
+                model: 'iPad Pro 2022',
+                serialNumber: 'IPAD-PRO-003',
+                description: 'iPad Pro 12.9 นิ้ว M2 256GB พร้อม Apple Pencil',
+                status: 'available',
+                location: 'ห้องคอมพิวเตอร์ 302'
+            },
+            {
+                name: 'Canon EOS R6',
+                category: 'กล้องถ่ายรูป',
+                brand: 'Canon',
+                model: 'EOS R6',
+                serialNumber: 'CANON-R6-004',
+                description: 'กล้อง Mirrorless Full Frame พร้อมเลนส์ 24-105mm',
+                status: 'available',
+                location: 'ห้องสื่อ 201'
+            },
+            {
+                name: 'Sony A7 IV',
+                category: 'กล้องถ่ายรูป',
+                brand: 'Sony',
+                model: 'A7 IV',
+                serialNumber: 'SONY-A7-005',
+                description: 'กล้อง Mirrorless Full Frame 33MP',
+                status: 'borrowed',
+                location: 'ห้องสื่อ 201'
+            },
+            {
+                name: 'DJI Mavic 3',
+                category: 'โดรน',
+                brand: 'DJI',
+                model: 'Mavic 3',
+                serialNumber: 'DJI-M3-006',
+                description: 'โดรนถ่ายภาพ 4K Hasselblad Camera',
+                status: 'available',
+                location: 'ห้องสื่อ 202'
+            },
+            {
+                name: 'Rode Wireless GO II',
+                category: 'ไมโครโฟน',
+                brand: 'Rode',
+                model: 'Wireless GO II',
+                serialNumber: 'RODE-WG2-007',
+                description: 'ไมโครโฟนไร้สาย 2 ตัว พร้อมเคส',
+                status: 'available',
+                location: 'ห้องสื่อ 202'
+            },
+            {
+                name: 'Logitech MX Master 3',
+                category: 'เมาส์',
+                brand: 'Logitech',
+                model: 'MX Master 3',
+                serialNumber: 'LOGI-MX3-008',
+                description: 'เมาส์ไร้สาย Ergonomic Design',
+                status: 'available',
+                location: 'ห้องคอมพิวเตอร์ 301'
+            },
+            {
+                name: 'Keychron K8',
+                category: 'คีย์บอร์ด',
+                brand: 'Keychron',
+                model: 'K8 Pro',
+                serialNumber: 'KEY-K8-009',
+                description: 'คีย์บอร์ดเมคานิคัล Wireless Hot-swappable',
+                status: 'available',
+                location: 'ห้องคอมพิวเตอร์ 302'
+            },
+            {
+                name: 'BenQ SW270C',
+                category: 'จอมอนิเตอร์',
+                brand: 'BenQ',
+                model: 'SW270C',
+                serialNumber: 'BENQ-SW-010',
+                description: 'จอมอนิเตอร์ 27 นิ้ว 2K สำหรับงานกราฟิก',
+                status: 'maintenance',
+                location: 'ห้องคอมพิวเตอร์ 303'
+            }
+        ];
+
+        window.initializeFirebase = function() {
+            try {
+                const configText = document.getElementById('firebaseConfig').value;
+                const config = JSON.parse(configText);
+                
+                app = initializeApp(config);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                document.getElementById('configStatus').className = 'status success';
+                document.getElementById('configStatus').textContent = '✅ เชื่อมต่อ Firebase สำเร็จ';
+                document.getElementById('loginBtn').disabled = false;
+                
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        document.getElementById('authStatus').className = 'status success';
+                        document.getElementById('authStatus').innerHTML = `
+                            ✅ Login สำเร็จ<br>
+                            <strong>Email:</strong> ${user.email}<br>
+                            <strong>UID:</strong> ${user.uid}
+                        `;
+                        document.getElementById('loginBtn').style.display = 'none';
+                        document.getElementById('logoutBtn').style.display = 'inline-block';
+                        document.getElementById('logoutBtn').disabled = false;
+                        document.getElementById('addBtn').disabled = false;
+                        document.getElementById('checkBtn').disabled = false;
+                    } else {
+                        currentUser = null;
+                        document.getElementById('authStatus').className = 'status info';
+                        document.getElementById('authStatus').textContent = 'ยังไม่ได้ Login';
+                        document.getElementById('loginBtn').style.display = 'inline-block';
+                        document.getElementById('logoutBtn').style.display = 'none';
+                        document.getElementById('addBtn').disabled = true;
+                        document.getElementById('checkBtn').disabled = true;
+                    }
+                });
+                
+            } catch (error) {
+                document.getElementById('configStatus').className = 'status error';
+                document.getElementById('configStatus').textContent = '❌ Error: ' + error.message;
+            }
+        };
+
+        window.loginWithGoogle = async function() {
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                alert('Login Error: ' + error.message);
+            }
+        };
+
+        window.logout = async function() {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                alert('Logout Error: ' + error.message);
+            }
+        };
+
+        window.addTestEquipment = async function() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="status info">กำลังเพิ่มข้อมูล...</div>';
+            
+            try {
+                const equipmentRef = collection(db, 'equipmentManagement');
+                let successCount = 0;
+                let errorCount = 0;
+                const errors = [];
+
+                for (const item of testEquipment) {
+                    try {
+                        const equipmentData = {
+                            ...item,
+                            createdAt: serverTimestamp(),
+                            updatedAt: serverTimestamp(),
+                            createdBy: currentUser.uid
+                        };
+
+                        await addDoc(equipmentRef, equipmentData);
+                        successCount++;
+                        console.log('Added:', item.name);
+                    } catch (error) {
+                        errorCount++;
+                        errors.push({ item: item.name, error: error.message });
+                        console.error('Error adding:', item.name, error);
+                    }
+                }
+
+                let html = '<div class="section">';
+                html += '<h2>📊 ผลการเพิ่มข้อมูล</h2>';
+                
+                if (successCount > 0) {
+                    html += `<div class="status success">✅ เพิ่มสำเร็จ ${successCount} รายการ</div>`;
+                }
+                
+                if (errorCount > 0) {
+                    html += `<div class="status error">❌ เพิ่มไม่สำเร็จ ${errorCount} รายการ</div>`;
+                    html += '<h3>รายการที่เกิดข้อผิดพลาด:</h3>';
+                    html += '<pre>' + JSON.stringify(errors, null, 2) + '</pre>';
+                }
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+                console.error('Add equipment error:', error);
+            }
+        };
+
+        window.checkEquipment = async function() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="status info">กำลังตรวจสอบ...</div>';
+            
+            try {
+                const equipmentRef = collection(db, 'equipmentManagement');
+                const q = query(equipmentRef, orderBy('createdAt', 'desc'));
+                const snapshot = await getDocs(q);
+                
+                let html = '<div class="section">';
+                html += '<h2>📦 ข้อมูลอุปกรณ์ปัจจุบัน</h2>';
+                html += `<div class="status success">✅ พบอุปกรณ์ ${snapshot.size} รายการ</div>`;
+                
+                if (snapshot.size > 0) {
+                    html += '<h3>รายการอุปกรณ์:</h3>';
+                    html += '<pre>';
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        html += `\nID: ${doc.id}\n`;
+                        html += `ชื่อ: ${data.name}\n`;
+                        html += `ประเภท: ${data.category}\n`;
+                        html += `สถานะ: ${data.status}\n`;
+                        html += `สถานที่: ${data.location}\n`;
+                        html += '---\n';
+                    });
+                    html += '</pre>';
+                } else {
+                    html += '<div class="status info">ℹ️ ยังไม่มีข้อมูลอุปกรณ์ในระบบ</div>';
+                }
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+                console.error('Check equipment error:', error);
+            }
+        };
+    </script>
+</body>
+</html>
