@@ -60,7 +60,13 @@ service cloud.firestore {
 
     // Users collection rules
     match /users/{userId} {
+      // Allow users to read their own profile and admins to read all
       allow read: if isOwner(userId) || isAdmin();
+      
+      // Allow authenticated users to query by email for duplicate detection
+      allow list: if isAuthenticated() && 
+                     request.query.limit <= 1 &&
+                     resource.data.email == request.auth.token.email;
       
       allow create: if isOwner(userId) && hasValidEmail() && isInitialUserData(request.resource.data);
       
@@ -107,7 +113,8 @@ service cloud.firestore {
     
     // Equipment Categories collection rules
     match /equipmentCategories/{categoryId} {
-      allow read: if isApprovedUser();
+      // Allow all authenticated users to read categories (needed for profile setup)
+      allow read: if isAuthenticated();
       
       // Allow admin to create categories (flexible createdBy for system seeding)
       allow create: if isAdmin();

@@ -129,13 +129,13 @@ class AuthService {
         
         console.log('✅ Email domain valid');
         
-        // Check for duplicate profiles
+        // Check for duplicate profiles (non-blocking)
         console.log('🔍 Checking for duplicates...');
         try {
           const duplicateCheck = await this.checkForDuplicateProfile(user.email);
           console.log('🔍 Duplicate check result:', duplicateCheck);
           
-          if (duplicateCheck.hasDuplicate) {
+          if (duplicateCheck && duplicateCheck.hasDuplicate) {
             console.log('🔍 Duplicate profile detected:', duplicateCheck.duplicateType);
             // User already exists - just return the user, don't create new profile
             return user;
@@ -145,6 +145,7 @@ class AuthService {
         } catch (duplicateError) {
           // If duplicate check fails, log but continue (don't block login)
           console.error('⚠️ Duplicate check failed, continuing anyway:', duplicateError);
+          // Continue with profile creation/check
         }
         
         // Check if user exists in Firestore
@@ -242,16 +243,20 @@ class AuthService {
         
         console.log('✅ AuthService: Email domain valid');
         
-        // Check for duplicate profiles before proceeding
+        // Check for duplicate profiles before proceeding (non-blocking)
         console.log('🔍 AuthService: Checking for duplicates...');
-        const duplicateCheck = await this.checkForDuplicateProfile(user.email);
-        if (duplicateCheck.hasDuplicate) {
-          console.log('🔍 Duplicate profile detected during sign in:', duplicateCheck);
-          // Return user - the auth state handler will manage the existing profile
-          return user;
+        try {
+          const duplicateCheck = await this.checkForDuplicateProfile(user.email);
+          if (duplicateCheck && duplicateCheck.hasDuplicate) {
+            console.log('🔍 Duplicate profile detected during sign in:', duplicateCheck);
+            // Return user - the auth state handler will manage the existing profile
+            return user;
+          }
+          console.log('✅ AuthService: No duplicates found');
+        } catch (duplicateError) {
+          console.error('⚠️ Duplicate check failed during redirect, continuing anyway:', duplicateError);
+          // Continue with profile creation/check
         }
-        
-        console.log('✅ AuthService: No duplicates found');
         
         // Check if user exists in Firestore with retry logic
         console.log('🔍 AuthService: Checking if user profile exists...');

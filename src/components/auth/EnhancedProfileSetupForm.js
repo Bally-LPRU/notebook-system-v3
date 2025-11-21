@@ -189,10 +189,13 @@ const EnhancedProfileSetupForm = ({
     }
   };
 
-  // Check for duplicates when user email is available
+  // Check for duplicates when user email is available (non-blocking)
   useEffect(() => {
     if (user?.email && !hasDuplicate) {
-      checkDuplicates(user.email);
+      checkDuplicates(user.email).catch(error => {
+        console.warn('⚠️ Duplicate check failed in useEffect:', error);
+        // Don't block the form if duplicate check fails
+      });
     }
   }, [user?.email, checkDuplicates, hasDuplicate]);
 
@@ -218,12 +221,17 @@ const EnhancedProfileSetupForm = ({
       return;
     }
 
-    // Check for duplicates before submission
-    const duplicateCheck = await checkDuplicates(user.email, formData.phoneNumber);
-    if (duplicateCheck?.hasDuplicate && duplicateCheck.existingProfile?.status !== 'incomplete') {
-      setSubmitError('พบบัญชีของคุณในระบบแล้ว กรุณาตรวจสอบสถานะบัญชี');
-      setShowDuplicateWarning(true);
-      return;
+    // Check for duplicates before submission (non-blocking)
+    try {
+      const duplicateCheck = await checkDuplicates(user.email, formData.phoneNumber);
+      if (duplicateCheck?.hasDuplicate && duplicateCheck.existingProfile?.status !== 'incomplete') {
+        setSubmitError('พบบัญชีของคุณในระบบแล้ว กรุณาตรวจสอบสถานะบัญชี');
+        setShowDuplicateWarning(true);
+        return;
+      }
+    } catch (duplicateError) {
+      console.warn('⚠️ Duplicate check failed before submission, continuing:', duplicateError);
+      // Continue with profile update even if duplicate check fails
     }
     
     setIsSubmitting(true);

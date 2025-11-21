@@ -47,8 +47,18 @@ class DuplicateDetectionService {
       return null;
     } catch (error) {
       console.error('🚨 Error checking profile by email:', error);
+      
+      // Check if it's a permission error
+      if (error.code === 'permission-denied') {
+        console.warn('⚠️ Permission denied for duplicate check - user may not have access yet');
+        // Return null instead of throwing to allow profile creation to continue
+        return null;
+      }
+      
       logFirebaseError(error, 'firestore', 'checkProfileByEmail', { email });
-      throw new Error('ไม่สามารถตรวจสอบข้อมูลผู้ใช้ได้ กรุณาลองใหม่');
+      // Don't throw error - allow profile creation to continue
+      console.warn('⚠️ Duplicate check failed, continuing with profile creation');
+      return null;
     }
   }
 
@@ -140,7 +150,15 @@ class DuplicateDetectionService {
       return results;
     } catch (error) {
       console.error('🚨 Error in duplicate detection:', error);
-      throw error;
+      // Return no duplicate result instead of throwing to allow profile creation
+      console.warn('⚠️ Duplicate detection failed, allowing profile creation to continue');
+      return {
+        hasDuplicate: false,
+        duplicateType: null,
+        existingProfile: null,
+        recommendedAction: null,
+        message: null
+      };
     }
   }
 
