@@ -40,7 +40,7 @@ const LazyMyRequests = lazy(() => import('./components/requests/MyRequests'));
 const LazyReservationPage = lazy(() => import('./components/reservations/ReservationPage'));
 const LazyReportsPage = lazy(() => import('./components/reports/ReportsPage'));
 const LazyProfilePage = lazy(() => import('./components/profile/ProfilePage'));
-const LazyNotificationCenter = lazy(() => import('./components/notifications/NotificationCenter'));
+const LazyNotificationCenter = lazy(() => import('./components/admin/NotificationCenter'));
 const LazyNotificationSettings = lazy(() => import('./components/notifications/NotificationSettings'));
 
 // Simple login for debugging
