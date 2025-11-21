@@ -268,8 +268,11 @@ class EquipmentService {
           queryConstraints.push(where('location', '==', location));
         }
 
-        // Add sorting
-        queryConstraints.push(orderBy(sortBy, sortOrder));
+        // Add sorting - only if no filters (to avoid index requirements)
+        // TODO: Create composite indexes for filtered queries
+        if (!category && !status && !location) {
+          queryConstraints.push(orderBy(sortBy, sortOrder));
+        }
         
         // Add pagination
         if (lastDoc) {
@@ -279,7 +282,9 @@ class EquipmentService {
         queryConstraints.push(firestoreLimit(limit + 1)); // Get one extra to check if there's next page
 
         // Build query
-        equipmentQuery = query(equipmentQuery, ...queryConstraints);
+        if (queryConstraints.length > 0) {
+          equipmentQuery = query(equipmentQuery, ...queryConstraints);
+        }
         
         // Execute query
         const querySnapshot = await getDocs(equipmentQuery);

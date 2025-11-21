@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>ตรวจสอบอุปกรณ์ด่วน</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        .info { color: #569cd6; }
+        pre { background: #252526; padding: 15px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 ตรวจสอบอุปกรณ์ด่วน</h1>
+    
+    <div>
+        <h3>1. กรอก Firebase Config:</h3>
+        <textarea id="config" rows="8" style="width: 100%; font-family: monospace;" placeholder='{"apiKey":"...","authDomain":"...","projectId":"..."}'></textarea>
+        <button onclick="init()">เชื่อมต่อ</button>
+    </div>
+
+    <div id="auth" style="display:none;">
+        <h3>2. Login:</h3>
+        <button onclick="login()">Login ด้วย Google</button>
+        <button onclick="logout()" style="display:none;" id="logoutBtn">Logout</button>
+        <div id="authStatus"></div>
+    </div>
+
+    <div id="actions" style="display:none;">
+        <h3>3. ทดสอบ:</h3>
+        <button onclick="checkSimple()">ตรวจสอบแบบง่าย (ไม่มี orderBy)</button>
+        <button onclick="checkWithOrder()">ตรวจสอบแบบมี orderBy</button>
+        <button onclick="addSample()">เพิ่มข้อมูลตัวอย่าง 1 รายการ</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, addDoc, query, orderBy, limit, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        let app, auth, db, user;
+
+        window.init = function() {
+            try {
+                const config = JSON.parse(document.getElementById('config').value);
+                app = initializeApp(config);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                document.getElementById('auth').style.display = 'block';
+                
+                onAuthStateChanged(auth, (u) => {
+                    user = u;
+                    if (u) {
+                        document.getElementById('authStatus').innerHTML = `<span class="success">✅ ${u.email}</span>`;
+                        document.getElementById('logoutBtn').style.display = 'inline-block';
+                        document.getElementById('actions').style.display = 'block';
+                    } else {
+                        document.getElementById('authStatus').innerHTML = '<span class="info">ยังไม่ได้ login</span>';
+                        document.getElementById('logoutBtn').style.display = 'none';
+                        document.getElementById('actions').style.display = 'none';
+                    }
+                });
+                
+                log('success', '✅ เชื่อมต่อ Firebase สำเร็จ');
+            } catch (e) {
+                log('error', '❌ Error: ' + e.message);
+            }
+        };
+
+        window.login = async function() {
+            try {
+                await signInWithPopup(auth, new GoogleAuthProvider());
+            } catch (e) {
+                log('error', '❌ Login error: ' + e.message);
+            }
+        };
+
+        window.logout = async function() {
+            await signOut(auth);
+        };
+
+        window.checkSimple = async function() {
+            log('info', '🔍 กำลังตรวจสอบแบบง่าย (ไม่มี orderBy)...');
+            try {
+                const ref = collection(db, 'equipmentManagement');
+                const q = query(ref, limit(10));
+                const snapshot = await getDocs(q);
+                
+                log('success', `✅ พบข้อมูล ${snapshot.size} รายการ`);
+                
+                if (snapshot.size > 0) {
+                    const data = [];
+                    snapshot.forEach(doc => {
+                        data.push({ id: doc.id, ...doc.data() });
+                    });
+                    log('info', '<pre>' + JSON.stringify(data, null, 2) + '</pre>');
+                } else {
+                    log('error', '❌ ไม่พบข้อมูล - ต้องเพิ่มข้อมูลก่อน');
+                }
+            } catch (e) {
+                log('error', '❌ Error: ' + e.message);
+                console.error(e);
+            }
+        };
+
+        window.checkWithOrder = async function() {
+            log('info', '🔍 กำลังตรวจสอบแบบมี orderBy...');
+            try {
+                const ref = collection(db, 'equipmentManagement');
+                const q = query(ref, orderBy('createdAt', 'desc'), limit(10));
+                const snapshot = await getDocs(q);
+                
+                log('success', `✅ พบข้อมูล ${snapshot.size} รายการ`);
+                
+                if (snapshot.size > 0) {
+                    const data = [];
+                    snapshot.forEach(doc => {
+                        data.push({ id: doc.id, ...doc.data() });
+                    });
+                    log('info', '<pre>' + JSON.stringify(data, null, 2) + '</pre>');
+                }
+            } catch (e) {
+                log('error', '❌ Error: ' + e.message);
+                log('info', 'ℹ️ อาจต้องสร้าง Index ใน Firestore Console');
+                console.error(e);
+            }
+        };
+
+        window.addSample = async function() {
+            if (!user) {
+                log('error', '❌ กรุณา login ก่อน');
+                return;
+            }
+            
+            log('info', '➕ กำลังเพิ่มข้อมูลตัวอย่าง...');
+            try {
+                const ref = collection(db, 'equipmentManagement');
+                const data = {
+                    name: 'ทดสอบ - ' + new Date().toLocaleTimeString('th-TH'),
+                    category: 'โน้ตบุ๊ค',
+                    brand: 'Test Brand',
+                    model: 'Test Model',
+                    serialNumber: 'TEST-' + Date.now(),
+                    description: 'ข้อมูลทดสอบ',
+                    status: 'available',
+                    location: 'ห้องทดสอบ',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                    createdBy: user.uid
+                };
+                
+                const docRef = await addDoc(ref, data);
+                log('success', `✅ เพิ่มสำเร็จ ID: ${docRef.id}`);
+                log('info', '<pre>' + JSON.stringify(data, null, 2) + '</pre>');
+            } catch (e) {
+                log('error', '❌ Error: ' + e.message);
+                console.error(e);
+            }
+        };
+
+        function log(type, message) {
+            const div = document.getElementById('results');
+            const p = document.createElement('div');
+            p.className = type;
+            p.innerHTML = message;
+            div.appendChild(p);
+            div.scrollTop = div.scrollHeight;
+        }
+    </script>
+</body>
+</html>
