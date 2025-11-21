@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Layout } from '../layout';
 import { useAuth } from '../../contexts/AuthContext';
-import useAdminNotifications from '../../hooks/useAdminNotifications';
+import useUnifiedNotifications from '../../hooks/useUnifiedNotifications';
 
 const NotificationCenter = () => {
   const { userProfile } = useAuth();
@@ -15,7 +15,7 @@ const NotificationCenter = () => {
     loading,
     error,
     hasNotifications
-  } = useAdminNotifications(isAdmin);
+  } = useUnifiedNotifications(isAdmin);
 
   const [filter, setFilter] = useState('all'); // all, users, loans, reservations
   const [priorityFilter, setPriorityFilter] = useState('all'); // all, urgent, high, medium

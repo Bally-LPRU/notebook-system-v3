@@ -109,37 +109,49 @@ const UserApprovalList = () => {
 
   const handleApproveUser = async (userId) => {
     try {
-      await UserService.approveUser(userId, user.uid);
+      console.log('🔄 Starting approval process for user:', userId);
+      setError(null);
       
-      // Remove the approved user from the pending list
-      setPendingUsers(prev => prev.filter(u => u.id !== userId));
+      const result = await UserService.approveUser(userId, user.uid);
       
-      // Update stats
-      await loadUserStats();
+      console.log('✅ Approval result:', result);
       
-      // Show success message (you can implement a toast notification here)
-      console.log('User approved successfully');
-    } catch (error) {
-      console.error('Error approving user:', error);
-      setError('ไม่สามารถอนุมัติผู้ใช้ได้ กรุณาลองใหม่อีกครั้ง');
-    }
-  };
-
-  const handleRejectUser = async (userId, reason) => {
-    try {
-      await UserService.rejectUser(userId, user.uid, reason);
-      
-      // Remove the rejected user from the pending list
+      // Remove the approved user from the pending list immediately
       setPendingUsers(prev => prev.filter(u => u.id !== userId));
       
       // Update stats
       await loadUserStats();
       
       // Show success message
-      console.log('User rejected successfully');
+      alert('✅ อนุมัติผู้ใช้สำเร็จ');
     } catch (error) {
-      console.error('Error rejecting user:', error);
-      setError('ไม่สามารถปฏิเสธผู้ใช้ได้ กรุณาลองใหม่อีกครั้ง');
+      console.error('❌ Error approving user:', error);
+      setError(error.message || 'ไม่สามารถอนุมัติผู้ใช้ได้ กรุณาลองใหม่อีกครั้ง');
+      alert('❌ เกิดข้อผิดพลาด: ' + (error.message || 'ไม่สามารถอนุมัติผู้ใช้ได้'));
+    }
+  };
+
+  const handleRejectUser = async (userId, reason) => {
+    try {
+      console.log('🔄 Starting rejection process for user:', userId);
+      setError(null);
+      
+      const result = await UserService.rejectUser(userId, user.uid, reason);
+      
+      console.log('✅ Rejection result:', result);
+      
+      // Remove the rejected user from the pending list immediately
+      setPendingUsers(prev => prev.filter(u => u.id !== userId));
+      
+      // Update stats
+      await loadUserStats();
+      
+      // Show success message
+      alert('✅ ปฏิเสธผู้ใช้สำเร็จ');
+    } catch (error) {
+      console.error('❌ Error rejecting user:', error);
+      setError(error.message || 'ไม่สามารถปฏิเสธผู้ใช้ได้ กรุณาลองใหม่อีกครั้ง');
+      alert('❌ เกิดข้อผิดพลาด: ' + (error.message || 'ไม่สามารถปฏิเสธผู้ใช้ได้'));
     }
   };
 

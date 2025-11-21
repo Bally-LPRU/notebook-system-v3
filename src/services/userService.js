@@ -66,8 +66,10 @@ class UserService {
   // Approve a user
   static async approveUser(userId, approvedBy) {
     try {
+      console.log('✅ Approving user:', userId);
       const userDocRef = doc(db, 'users', userId);
       
+      // Update user status
       await updateDoc(userDocRef, {
         status: 'approved',
         approvedBy: approvedBy,
@@ -75,24 +77,29 @@ class UserService {
         updatedAt: serverTimestamp()
       });
       
-      // Send notification to user
+      console.log('✅ User approved successfully:', userId);
+      
+      // Send notification to user (non-blocking)
       try {
         const { default: NotificationService } = await import('./notificationService');
         await NotificationService.notifyUserApprovalStatus(userId, true, approvedBy);
+        console.log('✅ Approval notification sent');
       } catch (notificationError) {
-        console.error('Error sending approval notification:', notificationError);
+        console.error('⚠️ Error sending approval notification (non-critical):', notificationError);
+        // Don't throw - notification failure shouldn't fail the approval
       }
       
-      return { success: true };
+      return { success: true, message: 'อนุมัติผู้ใช้สำเร็จ' };
     } catch (error) {
-      console.error('Error approving user:', error);
-      throw error;
+      console.error('❌ Error approving user:', error);
+      throw new Error(`ไม่สามารถอนุมัติผู้ใช้ได้: ${error.message}`);
     }
   }
 
   // Reject a user
   static async rejectUser(userId, rejectedBy, reason = '') {
     try {
+      console.log('❌ Rejecting user:', userId);
       const userDocRef = doc(db, 'users', userId);
       
       await updateDoc(userDocRef, {
@@ -103,18 +110,22 @@ class UserService {
         updatedAt: serverTimestamp()
       });
       
-      // Send notification to user
+      console.log('❌ User rejected successfully:', userId);
+      
+      // Send notification to user (non-blocking)
       try {
         const { default: NotificationService } = await import('./notificationService');
         await NotificationService.notifyUserApprovalStatus(userId, false, rejectedBy, reason);
+        console.log('✅ Rejection notification sent');
       } catch (notificationError) {
-        console.error('Error sending rejection notification:', notificationError);
+        console.error('⚠️ Error sending rejection notification (non-critical):', notificationError);
+        // Don't throw - notification failure shouldn't fail the rejection
       }
       
-      return { success: true };
+      return { success: true, message: 'ปฏิเสธผู้ใช้สำเร็จ' };
     } catch (error) {
-      console.error('Error rejecting user:', error);
-      throw error;
+      console.error('❌ Error rejecting user:', error);
+      throw new Error(`ไม่สามารถปฏิเสธผู้ใช้ได้: ${error.message}`);
     }
   }
 
