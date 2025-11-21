@@ -327,24 +327,51 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (data) => {
     try {
       clearErrorState();
-      if (!user) throw new Error('No user logged in');
       
-      console.log('📝 Updating profile:', data);
+      // Get current user from auth (more reliable than state)
+      const currentUser = auth.currentUser;
+      console.log('📝 Updating profile - current user:', currentUser?.uid);
+      console.log('📝 Update data:', data);
+      
+      if (!currentUser) {
+        console.error('❌ No user logged in');
+        throw new Error('กรุณาเข้าสู่ระบบก่อนอัปเดตโปรไฟล์');
+      }
       
       return await withProfileRetry(async () => {
-        const userDocRef = doc(db, 'users', user.uid);
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        
+        // Prepare update data
         const updateData = {
           ...data,
           updatedAt: serverTimestamp()
         };
         
+        console.log('📝 Saving to Firestore:', {
+          uid: currentUser.uid,
+          data: updateData
+        });
+        
+        // Update Firestore
         await setDoc(userDocRef, updateData, { merge: true });
+        
+        // Update local state
         setUserProfile(prev => ({ ...prev, ...updateData }));
         
         console.log('✅ Profile updated successfully');
+        
+        // Verify the update
+        const updatedDoc = await getDoc(userDocRef);
+        if (updatedDoc.exists()) {
+          const verifiedData = updatedDoc.data();
+          console.log('✅ Verified profile data:', verifiedData);
+          setUserProfile({ id: updatedDoc.id, ...verifiedData });
+        }
+        
         return updateData;
       }, { operation: 'update_profile' });
     } catch (error) {
+      console.error('❌ Profile update error:', error);
       handleError(error, 'update_profile');
       throw error;
     }

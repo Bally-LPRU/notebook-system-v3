@@ -238,26 +238,72 @@ const EnhancedProfileSetupForm = ({
     setSubmitError(null);
     
     try {
-      const selectedDepartment = departmentOptions.find(dept => dept.value === formData.department);
+      console.log('📝 Starting profile submission...');
+      console.log('📝 Form data:', formData);
+      console.log('📝 Current user:', user);
       
-      await updateProfile({
+      // Verify user is still logged in
+      if (!user || !user.uid) {
+        throw new Error('กรุณาเข้าสู่ระบบก่อนบันทึกข้อมูล');
+      }
+      
+      const selectedDepartment = departmentOptions.find(dept => dept.value === formData.department);
+      console.log('📝 Selected department:', selectedDepartment);
+      
+      const profileData = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         phoneNumber: formData.phoneNumber.trim(),
         department: selectedDepartment || { value: formData.department, label: formData.department },
         userType: formData.userType,
-        status: 'pending'
-      });
+        status: 'pending',
+        email: user.email // Include email for reference
+      };
+      
+      console.log('📝 Calling updateProfile with:', profileData);
+      
+      await updateProfile(profileData);
+      
+      console.log('✅ Profile updated successfully');
       
       // Clear draft after successful submission
-      localStorage.removeItem(`profile-draft-${user?.uid}`);
+      try {
+        localStorage.removeItem(`profile-draft-${user?.uid}`);
+        console.log('✅ Draft cleared');
+      } catch (storageError) {
+        console.warn('⚠️ Failed to clear draft:', storageError);
+      }
       
-      navigate('/dashboard');
+      // Wait a moment for state to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('🔄 Redirecting to home (will show pending status)...');
+      // Navigate to home - App.js will handle showing the correct page based on status
+      navigate('/', { replace: true });
+      
     } catch (error) {
-      console.error('Profile setup error:', error);
-      setSubmitError(error.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง');
+      console.error('❌ Profile setup error:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+      
+      // Show user-friendly error message
+      let errorMessage = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.code === 'permission-denied') {
+        errorMessage = 'ไม่มีสิทธิ์ในการบันทึกข้อมูล กรุณาติดต่อผู้ดูแลระบบ';
+      } else if (error.code === 'unavailable') {
+        errorMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+      }
+      
+      setSubmitError(errorMessage);
     } finally {
       setIsSubmitting(false);
+      console.log('📝 Submission complete, isSubmitting:', false);
     }
   };
 
