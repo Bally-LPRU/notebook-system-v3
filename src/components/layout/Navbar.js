@@ -24,9 +24,8 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
 
   const navigationItems = [
     { name: 'แดชบอร์ด', href: '/dashboard', icon: 'dashboard' },
-    { name: 'อุปกรณ์', href: '/equipment', icon: 'equipment' },
+    { name: 'รายการอุปกรณ์', href: '/equipment', icon: 'equipment' },
     { name: 'จองอุปกรณ์', href: '/reservations', icon: 'reservations' },
-    { name: 'การจองของฉัน', href: '/my-reservations', icon: 'reservations' },
     { name: 'คำขอของฉัน', href: '/my-requests', icon: 'requests' },
   ];
 
@@ -111,10 +110,25 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
             </Link>
           </div>
 
-          {/* Desktop Navigation - Removed to prevent duplication */}
-          <div className="hidden md:flex items-center space-x-4">
-            {/* Navigation moved to Sidebar for consistency */}
-          </div>
+          {/* Desktop Navigation - Show for non-admin users */}
+          {!isAdmin && (
+            <div className="hidden md:flex items-center space-x-1">
+              {navigationItems.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    isActivePath(item.href)
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  {getIcon(item.icon)}
+                  <span className="ml-2">{item.name}</span>
+                </Link>
+              ))}
+            </div>
+          )}
 
           {/* User Profile Dropdown */}
           <div className="flex items-center space-x-4">

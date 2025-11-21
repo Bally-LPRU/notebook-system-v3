@@ -109,8 +109,14 @@ const AppRoutes = () => {
             {userProfile?.role === 'admin' ? (
               <Navigate to="/admin" replace />
             ) : (
-              <LazyDashboard />
+              <Navigate to="/dashboard" replace />
             )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <LazyDashboard />
           </ProtectedRoute>
         } />
       

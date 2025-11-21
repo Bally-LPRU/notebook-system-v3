@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ทดสอบการเข้าถึงอุปกรณ์สำหรับผู้ใช้</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #2196F3;
+            border-radius: 4px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .equipment-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: white;
+        }
+        .equipment-card h3 {
+            margin-top: 0;
+            color: #2196F3;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 2px;
+        }
+        .badge.available {
+            background: #d4edda;
+            color: #155724;
+        }
+        .badge.borrowed {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .badge.maintenance {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-card h3 {
+            margin: 0;
+            font-size: 32px;
+        }
+        .stat-card p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 ทดสอบการเข้าถึงอุปกรณ์สำหรับผู้ใช้</h1>
+        
+        <div class="section">
+            <h2>ขั้นตอนการทดสอบ</h2>
+            <ol>
+                <li>กรอก Firebase Config</li>
+                <li>คลิก "เชื่อมต่อ Firebase"</li>
+                <li>Login ด้วยบัญชีผู้ใช้ทั่วไป (ไม่ใช่ admin)</li>
+                <li>คลิก "ทดสอบการเข้าถึงอุปกรณ์"</li>
+                <li>ตรวจสอบผลลัพธ์</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>Firebase Configuration</h2>
+            <div id="configStatus" class="status info">
+                กรุณากรอก Firebase Config
+            </div>
+            <textarea id="firebaseConfig" rows="10" style="width: 100%; font-family: monospace; padding: 10px;" placeholder='Paste Firebase config here:
+{
+  "apiKey": "...",
+  "authDomain": "...",
+  "projectId": "...",
+  "storageBucket": "...",
+  "messagingSenderId": "...",
+  "appId": "..."
+}'></textarea>
+            <button onclick="initializeFirebase()">เชื่อมต่อ Firebase</button>
+        </div>
+
+        <div class="section">
+            <h2>Authentication</h2>
+            <div id="authStatus" class="status info">
+                ยังไม่ได้ Login
+            </div>
+            <button id="loginBtn" onclick="loginWithGoogle()" disabled>Login ด้วย Google</button>
+            <button id="logoutBtn" onclick="logout()" disabled style="display:none;">Logout</button>
+        </div>
+
+        <div class="section">
+            <h2>การทดสอบ</h2>
+            <button id="testBtn" onclick="testEquipmentAccess()" disabled>ทดสอบการเข้าถึงอุปกรณ์</button>
+            <button onclick="testEquipmentStats()" id="statsBtn" disabled>ทดสอบสถิติอุปกรณ์</button>
+            <button onclick="testEquipmentFilters()" id="filterBtn" disabled>ทดสอบการกรอง</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, query, where, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        let app, auth, db, currentUser;
+
+        window.initializeFirebase = function() {
+            try {
+                const configText = document.getElementById('firebaseConfig').value;
+                const config = JSON.parse(configText);
+                
+                app = initializeApp(config);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                document.getElementById('configStatus').className = 'status success';
+                document.getElementById('configStatus').textContent = '✅ เชื่อมต่อ Firebase สำเร็จ';
+                document.getElementById('loginBtn').disabled = false;
+                
+                // Listen for auth state changes
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        document.getElementById('authStatus').className = 'status success';
+                        document.getElementById('authStatus').innerHTML = `
+                            ✅ Login สำเร็จ<br>
+                            <strong>Email:</strong> ${user.email}<br>
+                            <strong>UID:</strong> ${user.uid}
+                        `;
+                        document.getElementById('loginBtn').style.display = 'none';
+                        document.getElementById('logoutBtn').style.display = 'inline-block';
+                        document.getElementById('logoutBtn').disabled = false;
+                        document.getElementById('testBtn').disabled = false;
+                        document.getElementById('statsBtn').disabled = false;
+                        document.getElementById('filterBtn').disabled = false;
+                    } else {
+                        currentUser = null;
+                        document.getElementById('authStatus').className = 'status info';
+                        document.getElementById('authStatus').textContent = 'ยังไม่ได้ Login';
+                        document.getElementById('loginBtn').style.display = 'inline-block';
+                        document.getElementById('logoutBtn').style.display = 'none';
+                        document.getElementById('testBtn').disabled = true;
+                        document.getElementById('statsBtn').disabled = true;
+                        document.getElementById('filterBtn').disabled = true;
+                    }
+                });
+                
+            } catch (error) {
+                document.getElementById('configStatus').className = 'status error';
+                document.getElementById('configStatus').textContent = '❌ Error: ' + error.message;
+            }
+        };
+
+        window.loginWithGoogle = async function() {
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                alert('Login Error: ' + error.message);
+            }
+        };
+
+        window.logout = async function() {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                alert('Logout Error: ' + error.message);
+            }
+        };
+
+        window.testEquipmentAccess = async function() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="status info">กำลังทดสอบ...</div>';
+            
+            try {
+                // Test 1: Read from equipmentManagement collection
+                console.log('Testing equipmentManagement collection...');
+                const equipmentRef = collection(db, 'equipmentManagement');
+                const equipmentQuery = query(equipmentRef, orderBy('createdAt', 'desc'), limit(20));
+                const equipmentSnapshot = await getDocs(equipmentQuery);
+                
+                let html = '<div class="section">';
+                html += '<h2>📦 ผลการทดสอบ: equipmentManagement Collection</h2>';
+                
+                if (equipmentSnapshot.empty) {
+                    html += '<div class="status error">❌ ไม่พบข้อมูลอุปกรณ์ใน collection "equipmentManagement"</div>';
+                    
+                    // Try equipment collection as fallback
+                    console.log('Trying equipment collection...');
+                    const equipmentRef2 = collection(db, 'equipment');
+                    const equipmentQuery2 = query(equipmentRef2, limit(20));
+                    const equipmentSnapshot2 = await getDocs(equipmentQuery2);
+                    
+                    if (!equipmentSnapshot2.empty) {
+                        html += '<div class="status info">ℹ️ พบข้อมูลใน collection "equipment" แทน</div>';
+                        displayEquipmentResults(equipmentSnapshot2, html);
+                    } else {
+                        html += '<div class="status error">❌ ไม่พบข้อมูลอุปกรณ์ในทั้งสอง collection</div>';
+                        html += '<p><strong>แนะนำ:</strong> ใช้สคริปต์ seed-equipment-data-simple.js เพื่อเพิ่มข้อมูลทดสอบ</p>';
+                    }
+                } else {
+                    html += `<div class="status success">✅ พบอุปกรณ์ ${equipmentSnapshot.size} รายการ</div>`;
+                    
+                    // Count by status
+                    const statusCount = {};
+                    equipmentSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        statusCount[data.status] = (statusCount[data.status] || 0) + 1;
+                    });
+                    
+                    html += '<div class="stats">';
+                    html += `<div class="stat-card"><h3>${equipmentSnapshot.size}</h3><p>ทั้งหมด</p></div>`;
+                    html += `<div class="stat-card"><h3>${statusCount.available || 0}</h3><p>ว่าง</p></div>`;
+                    html += `<div class="stat-card"><h3>${statusCount.borrowed || 0}</h3><p>ถูกยืม</p></div>`;
+                    html += `<div class="stat-card"><h3>${statusCount.maintenance || 0}</h3><p>ซ่อมบำรุง</p></div>`;
+                    html += '</div>';
+                    
+                    // Display equipment cards
+                    html += '<h3>รายการอุปกรณ์:</h3>';
+                    equipmentSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        html += `
+                            <div class="equipment-card">
+                                <h3>${data.name}</h3>
+                                <p><strong>ยี่ห้อ:</strong> ${data.brand} ${data.model}</p>
+                                <p><strong>Serial:</strong> ${data.serialNumber}</p>
+                                <p><strong>สถานที่:</strong> ${data.location}</p>
+                                <p><strong>สถานะ:</strong> <span class="badge ${data.status}">${data.status}</span></p>
+                                ${data.description ? `<p><strong>รายละเอียด:</strong> ${data.description}</p>` : ''}
+                            </div>
+                        `;
+                    });
+                }
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="status error">
+                        <h3>❌ เกิดข้อผิดพลาด</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><strong>Code:</strong> ${error.code}</p>
+                        <pre>${error.stack}</pre>
+                    </div>
+                `;
+                console.error('Test error:', error);
+            }
+        };
+
+        window.testEquipmentStats = async function() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="status info">กำลังโหลดสถิติ...</div>';
+            
+            try {
+                const equipmentRef = collection(db, 'equipmentManagement');
+                const snapshot = await getDocs(equipmentRef);
+                
+                const stats = {
+                    total: 0,
+                    available: 0,
+                    borrowed: 0,
+                    maintenance: 0,
+                    retired: 0,
+                    byCategory: {}
+                };
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    stats.total++;
+                    
+                    if (data.status === 'available') stats.available++;
+                    else if (data.status === 'borrowed') stats.borrowed++;
+                    else if (data.status === 'maintenance') stats.maintenance++;
+                    else if (data.status === 'retired') stats.retired++;
+                    
+                    if (!stats.byCategory[data.category]) {
+                        stats.byCategory[data.category] = 0;
+                    }
+                    stats.byCategory[data.category]++;
+                });
+                
+                let html = '<div class="section">';
+                html += '<h2>📊 สถิติอุปกรณ์</h2>';
+                html += '<div class="stats">';
+                html += `<div class="stat-card"><h3>${stats.total}</h3><p>ทั้งหมด</p></div>`;
+                html += `<div class="stat-card"><h3>${stats.available}</h3><p>ว่าง</p></div>`;
+                html += `<div class="stat-card"><h3>${stats.borrowed}</h3><p>ถูกยืม</p></div>`;
+                html += `<div class="stat-card"><h3>${stats.maintenance}</h3><p>ซ่อมบำรุง</p></div>`;
+                html += '</div>';
+                
+                html += '<h3>จำนวนตามหมวดหมู่:</h3>';
+                html += '<pre>' + JSON.stringify(stats.byCategory, null, 2) + '</pre>';
+                html += '</div>';
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+            }
+        };
+
+        window.testEquipmentFilters = async function() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="status info">กำลังทดสอบการกรอง...</div>';
+            
+            try {
+                const equipmentRef = collection(db, 'equipmentManagement');
+                
+                // Test filter by status
+                const availableQuery = query(equipmentRef, where('status', '==', 'available'));
+                const availableSnapshot = await getDocs(availableQuery);
+                
+                let html = '<div class="section">';
+                html += '<h2>🔍 ผลการทดสอบการกรอง</h2>';
+                html += `<div class="status success">✅ พบอุปกรณ์ว่าง ${availableSnapshot.size} รายการ</div>`;
+                
+                if (availableSnapshot.size > 0) {
+                    html += '<h3>อุปกรณ์ที่พร้อมใช้งาน:</h3>';
+                    availableSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        html += `
+                            <div class="equipment-card">
+                                <h3>${data.name}</h3>
+                                <p>${data.brand} ${data.model} - ${data.location}</p>
+                            </div>
+                        `;
+                    });
+                }
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+            }
+        };
+    </script>
+</body>
+</html>
