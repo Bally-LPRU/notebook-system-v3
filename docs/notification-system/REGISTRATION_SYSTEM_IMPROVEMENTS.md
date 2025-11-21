@@ -68,7 +68,7 @@ match /users/{userId} {
                    request.resource.data.uid == request.auth.uid &&
                    request.resource.data.email == request.auth.token.email) ||
                    (isAdmin() &&
-                   !request.resource.data.keys().hasAny(['uid', 'email', 'createdAt']) &&
+                   !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uid', 'email', 'createdAt']) &&
                    isValidUserUpdate(resource.data, request.resource.data, true));
 }
 ```

@@ -75,7 +75,8 @@ service cloud.firestore {
                        request.resource.data.uid == request.auth.uid &&
                        request.resource.data.email == request.auth.token.email) ||
                        (isAdmin() &&
-                       !request.resource.data.keys().hasAny(['uid', 'email', 'createdAt']) &&
+                       // Admins can update as long as immutable fields stay untouched
+                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uid', 'email', 'createdAt']) &&
                        isValidUserUpdate(resource.data, request.resource.data, true));
     }
     
