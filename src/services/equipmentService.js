@@ -251,43 +251,25 @@ class EquipmentService {
       // Ensure limit doesn't exceed maximum
       const limit = Math.min(pageLimit, EQUIPMENT_PAGINATION.MAX_LIMIT);
 
+      console.log('EquipmentService.getEquipmentList called with:', { filters, limit });
+
       const result = await this.fetchFromCollections(async (collectionName) => {
-        let equipmentQuery = collection(db, collectionName);
-        const queryConstraints = [];
-
-        // Add filters
-        if (category) {
-          queryConstraints.push(where('category', '==', category));
-        }
+        console.log('Trying collection:', collectionName);
         
-        if (status) {
-          queryConstraints.push(where('status', '==', status));
-        }
+        const equipmentRef = collection(db, collectionName);
         
-        if (location) {
-          queryConstraints.push(where('location', '==', location));
-        }
-
-        // Add sorting - only if no filters (to avoid index requirements)
-        // TODO: Create composite indexes for filtered queries
-        if (!category && !status && !location) {
-          queryConstraints.push(orderBy(sortBy, sortOrder));
-        }
-        
-        // Add pagination
-        if (lastDoc) {
-          queryConstraints.push(startAfter(lastDoc));
-        }
-        
-        queryConstraints.push(firestoreLimit(limit + 1)); // Get one extra to check if there's next page
-
-        // Build query
-        if (queryConstraints.length > 0) {
-          equipmentQuery = query(equipmentQuery, ...queryConstraints);
-        }
+        // Simple query - just limit, no filters, no orderBy
+        const simpleQuery = query(equipmentRef, firestoreLimit(limit + 1));
         
         // Execute query
-        const querySnapshot = await getDocs(equipmentQuery);
+        const querySnapshot = await getDocs(simpleQuery);
+        
+        console.log('Query result:', {
+          collection: collectionName,
+          size: querySnapshot.size,
+          empty: querySnapshot.empty
+        });
+        
         if (querySnapshot.empty) {
           return null; // Try next collection
         }
@@ -298,20 +280,37 @@ class EquipmentService {
         querySnapshot.forEach((doc, index) => {
           if (index < limit) {
             const data = doc.data();
-            equipment.push({
+            const equipmentItem = {
               id: doc.id,
               ...data
-            });
+            };
+            console.log('Equipment item:', equipmentItem);
+            equipment.push(equipmentItem);
           } else {
             hasNextPage = true;
           }
         });
 
-        // Apply search filter (client-side for now, can be improved with search index)
+        console.log('Processed equipment:', equipment.length, 'items');
+
+        // Apply filters client-side (temporary solution)
         let filteredEquipment = equipment;
+        
+        if (category) {
+          filteredEquipment = filteredEquipment.filter(item => item.category === category);
+        }
+        
+        if (status) {
+          filteredEquipment = filteredEquipment.filter(item => item.status === status);
+        }
+        
+        if (location) {
+          filteredEquipment = filteredEquipment.filter(item => item.location === location);
+        }
+        
         if (search) {
           const searchLower = search.toLowerCase();
-          filteredEquipment = equipment.filter(item => 
+          filteredEquipment = filteredEquipment.filter(item => 
             item.name?.toLowerCase().includes(searchLower) ||
             item.brand?.toLowerCase().includes(searchLower) ||
             item.model?.toLowerCase().includes(searchLower) ||
@@ -320,11 +319,13 @@ class EquipmentService {
           );
         }
 
+        console.log('Filtered equipment:', filteredEquipment.length, 'items');
+
         return {
           equipment: filteredEquipment,
           pagination: {
             currentPage: page,
-            hasNextPage: hasNextPage && !search, // Disable pagination when searching
+            hasNextPage: hasNextPage && !search && !category && !status && !location,
             totalItems: filteredEquipment.length,
             limit
           },
