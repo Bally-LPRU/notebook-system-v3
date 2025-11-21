@@ -28,7 +28,20 @@ import {
 
 class EquipmentService {
   static COLLECTION_NAME = 'equipmentManagement'; // Correct collection name where data exists
+  // Collections that may hold equipment data (fallback for legacy data)
+  static READ_COLLECTIONS = ['equipmentManagement', 'equipment'];
   static STORAGE_PATH = 'equipment-images';
+
+  // Helper to try multiple collections for read-only operations
+  static async fetchFromCollections(fetcher) {
+    for (const name of this.READ_COLLECTIONS) {
+      const result = await fetcher(name);
+      if (result) {
+        return result;
+      }
+    }
+    return null;
+  }
 
   /**
    * Create new equipment
@@ -196,17 +209,20 @@ class EquipmentService {
    */
   static async getEquipmentById(equipmentId) {
     try {
-      const equipmentRef = doc(db, this.COLLECTION_NAME, equipmentId);
-      const equipmentDoc = await getDoc(equipmentRef);
+      const result = await this.fetchFromCollections(async (collectionName) => {
+        const equipmentRef = doc(db, collectionName, equipmentId);
+        const equipmentDoc = await getDoc(equipmentRef);
+        
+        if (equipmentDoc.exists()) {
+          return {
+            id: equipmentDoc.id,
+            ...equipmentDoc.data()
+          };
+        }
+        return null;
+      });
       
-      if (equipmentDoc.exists()) {
-        return {
-          id: equipmentDoc.id,
-          ...equipmentDoc.data()
-        };
-      }
-      
-      return null;
+      return result;
     } catch (error) {
       console.error('Error getting equipment by ID:', error);
       throw error;
@@ -235,75 +251,97 @@ class EquipmentService {
       // Ensure limit doesn't exceed maximum
       const limit = Math.min(pageLimit, EQUIPMENT_PAGINATION.MAX_LIMIT);
 
-      let equipmentQuery = collection(db, this.COLLECTION_NAME);
-      const queryConstraints = [];
+      const result = await this.fetchFromCollections(async (collectionName) => {
+        let equipmentQuery = collection(db, collectionName);
+        const queryConstraints = [];
 
-      // Add filters
-      if (category) {
-        queryConstraints.push(where('category', '==', category));
-      }
-      
-      if (status) {
-        queryConstraints.push(where('status', '==', status));
-      }
-      
-      if (location) {
-        queryConstraints.push(where('location', '==', location));
-      }
-
-      // Add sorting
-      queryConstraints.push(orderBy(sortBy, sortOrder));
-      
-      // Add pagination
-      if (lastDoc) {
-        queryConstraints.push(startAfter(lastDoc));
-      }
-      
-      queryConstraints.push(firestoreLimit(limit + 1)); // Get one extra to check if there's next page
-
-      // Build query
-      equipmentQuery = query(equipmentQuery, ...queryConstraints);
-      
-      // Execute query
-      const querySnapshot = await getDocs(equipmentQuery);
-      const equipment = [];
-      let hasNextPage = false;
-      
-      querySnapshot.forEach((doc, index) => {
-        if (index < limit) {
-          const data = doc.data();
-          equipment.push({
-            id: doc.id,
-            ...data
-          });
-        } else {
-          hasNextPage = true;
+        // Add filters
+        if (category) {
+          queryConstraints.push(where('category', '==', category));
         }
+        
+        if (status) {
+          queryConstraints.push(where('status', '==', status));
+        }
+        
+        if (location) {
+          queryConstraints.push(where('location', '==', location));
+        }
+
+        // Add sorting
+        queryConstraints.push(orderBy(sortBy, sortOrder));
+        
+        // Add pagination
+        if (lastDoc) {
+          queryConstraints.push(startAfter(lastDoc));
+        }
+        
+        queryConstraints.push(firestoreLimit(limit + 1)); // Get one extra to check if there's next page
+
+        // Build query
+        equipmentQuery = query(equipmentQuery, ...queryConstraints);
+        
+        // Execute query
+        const querySnapshot = await getDocs(equipmentQuery);
+        if (querySnapshot.empty) {
+          return null; // Try next collection
+        }
+
+        const equipment = [];
+        let hasNextPage = false;
+        
+        querySnapshot.forEach((doc, index) => {
+          if (index < limit) {
+            const data = doc.data();
+            equipment.push({
+              id: doc.id,
+              ...data
+            });
+          } else {
+            hasNextPage = true;
+          }
+        });
+
+        // Apply search filter (client-side for now, can be improved with search index)
+        let filteredEquipment = equipment;
+        if (search) {
+          const searchLower = search.toLowerCase();
+          filteredEquipment = equipment.filter(item => 
+            item.name?.toLowerCase().includes(searchLower) ||
+            item.brand?.toLowerCase().includes(searchLower) ||
+            item.model?.toLowerCase().includes(searchLower) ||
+            item.serialNumber?.toLowerCase().includes(searchLower) ||
+            item.description?.toLowerCase().includes(searchLower)
+          );
+        }
+
+        return {
+          equipment: filteredEquipment,
+          pagination: {
+            currentPage: page,
+            hasNextPage: hasNextPage && !search, // Disable pagination when searching
+            totalItems: filteredEquipment.length,
+            limit
+          },
+          lastDoc: equipment.length > 0 ? querySnapshot.docs[Math.min(equipment.length - 1, limit - 1)] : null
+        };
       });
 
-      // Apply search filter (client-side for now, can be improved with search index)
-      let filteredEquipment = equipment;
-      if (search) {
-        const searchLower = search.toLowerCase();
-        filteredEquipment = equipment.filter(item => 
-          item.name.toLowerCase().includes(searchLower) ||
-          item.brand.toLowerCase().includes(searchLower) ||
-          item.model.toLowerCase().includes(searchLower) ||
-          item.serialNumber.toLowerCase().includes(searchLower) ||
-          item.description.toLowerCase().includes(searchLower)
-        );
+      // If no collections returned data, return empty result gracefully
+      if (!result) {
+        return {
+          equipment: [],
+          pagination: {
+            currentPage: page,
+            hasNextPage: false,
+            totalItems: 0,
+            limit
+          },
+          lastDoc: null
+        };
       }
 
-      return {
-        equipment: filteredEquipment,
-        pagination: {
-          currentPage: page,
-          hasNextPage: hasNextPage && !search, // Disable pagination when searching
-          totalItems: filteredEquipment.length,
-          limit
-        },
-        lastDoc: equipment.length > 0 ? querySnapshot.docs[Math.min(equipment.length - 1, limit - 1)] : null
-      };
+      return result;
     } catch (error) {
       console.error('Error getting equipment list:', error);
       throw error;
