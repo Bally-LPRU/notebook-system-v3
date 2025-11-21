@@ -6,7 +6,7 @@ import ReservationService from '../../services/reservationService';
 import { RESERVATION_STATUS } from '../../types/reservation';
 
 const DashboardStats = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user, authInitialized } = useAuth();
   const [stats, setStats] = useState({
     equipment: {
       total: 0,
@@ -40,7 +40,9 @@ const DashboardStats = () => {
         const equipmentStats = await EquipmentService.getEquipmentStats();
         
         // Fetch loan request stats
-        const loanRequestStats = await LoanRequestService.getLoanRequestStats();
+        const loanRequestStats = await LoanRequestService.getLoanRequestStats(
+          isAdmin ? null : user?.uid
+        );
         
         // Fetch reservation stats
         const reservationStats = await ReservationService.getReservationStats();
@@ -85,8 +87,12 @@ const DashboardStats = () => {
       }
     };
 
+    if (!authInitialized || !user) {
+      return;
+    }
+
     fetchStats();
-  }, []);
+  }, [authInitialized, user, isAdmin]);
 
   if (loading) {
     return (

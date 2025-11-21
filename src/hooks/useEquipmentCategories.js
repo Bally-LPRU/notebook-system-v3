@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useEquipmentCategories = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user, authInitialized } = useAuth();
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -43,8 +45,16 @@ export const useEquipmentCategories = () => {
       }
     };
 
+    // Wait until auth is ready to avoid permission errors
+    if (!authInitialized) return;
+    if (!user) {
+      setCategories([]);
+      setLoading(false);
+      return;
+    }
+
     fetchCategories();
-  }, []);
+  }, [authInitialized, user]);
 
   // Get category by ID
   const getCategoryById = (categoryId) => {

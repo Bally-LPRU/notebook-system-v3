@@ -10,6 +10,7 @@ import { db } from '../config/firebase';
 import settingsService from '../services/settingsService';
 import settingsCache from '../utils/settingsCache';
 import { DEFAULT_SETTINGS } from '../types/settings';
+import { useAuth } from './AuthContext';
 
 /**
  * Settings Context
@@ -42,12 +43,26 @@ export const SettingsProvider = ({ children }) => {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user, authInitialized } = useAuth();
 
   /**
    * Initialize settings and set up real-time listener
    */
   useEffect(() => {
     let unsubscribe = null;
+
+    // Wait for auth to initialize so reads are authenticated
+    if (!authInitialized) {
+      return undefined;
+    }
+
+    // If signed out, reset to defaults and stop
+    if (!user) {
+      setSettings(DEFAULT_SETTINGS);
+      setLoading(false);
+      setError(null);
+      return undefined;
+    }
 
     const initializeSettings = async () => {
       try {
@@ -103,13 +118,13 @@ export const SettingsProvider = ({ children }) => {
 
     initializeSettings();
 
-    // Cleanup listener on unmount
+    // Cleanup listener on unmount or when user changes
     return () => {
       if (unsubscribe) {
         unsubscribe();
       }
     };
-  }, []);
+  }, [authInitialized, user]);
 
   /**
    * Update a single setting
