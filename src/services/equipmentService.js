@@ -272,29 +272,39 @@ class EquipmentService {
         console.log('Query result:', {
           collection: collectionName,
           size: querySnapshot.size,
-          empty: querySnapshot.empty
+          empty: querySnapshot.empty,
+          docs: querySnapshot.docs.length
         });
         
         if (querySnapshot.empty) {
           return null; // Try next collection
         }
 
+        // Convert to array first
+        const allDocs = [];
+        querySnapshot.forEach((doc) => {
+          allDocs.push(doc);
+        });
+        
+        console.log('All docs:', allDocs.length);
+        
         const equipment = [];
         let hasNextPage = false;
         
-        querySnapshot.forEach((doc, index) => {
-          if (index < limit) {
+        // Process docs
+        for (let i = 0; i < allDocs.length; i++) {
+          if (i < limit) {
+            const doc = allDocs[i];
             const data = doc.data();
-            const equipmentItem = {
+            console.log(`Doc ${i}:`, { id: doc.id, hasData: !!data, data });
+            equipment.push({
               id: doc.id,
               ...data
-            };
-            console.log('Equipment item:', equipmentItem);
-            equipment.push(equipmentItem);
+            });
           } else {
             hasNextPage = true;
           }
-        });
+        }
 
         console.log('Processed equipment:', equipment.length, 'items');
 
