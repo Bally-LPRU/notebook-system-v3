@@ -248,10 +248,15 @@ class EquipmentService {
         lastDoc = null
       } = filters;
 
-      // Ensure limit doesn't exceed maximum
-      const limit = Math.min(pageLimit, EQUIPMENT_PAGINATION.MAX_LIMIT);
+      // Ensure limit doesn't exceed maximum and is at least 1
+      const limit = Math.max(1, Math.min(pageLimit || EQUIPMENT_PAGINATION.DEFAULT_LIMIT, EQUIPMENT_PAGINATION.MAX_LIMIT));
 
-      console.log('EquipmentService.getEquipmentList called with:', { filters, limit });
+      console.log('EquipmentService.getEquipmentList called with:', { 
+        filters, 
+        pageLimit, 
+        calculatedLimit: limit,
+        DEFAULT_LIMIT: EQUIPMENT_PAGINATION.DEFAULT_LIMIT 
+      });
 
       const result = await this.fetchFromCollections(async (collectionName) => {
         console.log('Trying collection:', collectionName);
