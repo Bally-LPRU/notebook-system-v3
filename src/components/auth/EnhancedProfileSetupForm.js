@@ -116,7 +116,8 @@ const EnhancedProfileSetupForm = ({
     handleFieldChange,
     handleFieldBlur,
     validateForm,
-    setFormData
+    setFormData,
+    clearFieldError
   } = useFormValidation(initialFormData || {
     firstName: '',
     lastName: '',
@@ -124,6 +125,25 @@ const EnhancedProfileSetupForm = ({
     department: '',
     userType: ''
   }, validationRules);
+  
+  // Clear all errors when form data is loaded (from draft or initial)
+  // This allows the button to be enabled if all fields are filled
+  useEffect(() => {
+    const allFieldsFilled = requiredFields.every(field => {
+      const value = formData[field.name];
+      return value && (typeof value !== 'string' || value.trim());
+    });
+    
+    if (allFieldsFilled) {
+      console.log('✅ All required fields filled, clearing errors to enable button');
+      // Clear errors for fields that have values
+      Object.keys(formData).forEach(fieldName => {
+        if (formData[fieldName]) {
+          clearFieldError(fieldName);
+        }
+      });
+    }
+  }, [formData, requiredFields, clearFieldError]);
 
   // Auto-save functionality
   const saveDraft = useCallback(async (data) => {
@@ -190,14 +210,23 @@ const EnhancedProfileSetupForm = ({
   };
 
   // Check for duplicates when user email is available (non-blocking)
+  // Only check once when component mounts
   useEffect(() => {
-    if (user?.email && !hasDuplicate) {
+    let hasChecked = false;
+    
+    if (user?.email && !hasChecked) {
+      hasChecked = true;
+      console.log('🔍 Running initial duplicate check for:', user.email);
+      
       checkDuplicates(user.email).catch(error => {
         console.warn('⚠️ Duplicate check failed in useEffect:', error);
         // Don't block the form if duplicate check fails
       });
     }
-  }, [user?.email, checkDuplicates, hasDuplicate]);
+    
+    // Only run once when user.email is available
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email]);
 
   // Handle duplicate detection result
   useEffect(() => {
@@ -274,12 +303,10 @@ const EnhancedProfileSetupForm = ({
         console.warn('⚠️ Failed to clear draft:', storageError);
       }
       
-      // Wait a moment for state to update
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      console.log('🔄 Redirecting to home (will show pending status)...');
-      // Navigate to home - App.js will handle showing the correct page based on status
-      navigate('/', { replace: true });
+      console.log('🔄 Reloading page to show updated status...');
+      // Reload the page to ensure state is fully updated
+      // This is more reliable than navigate for status changes
+      window.location.href = '/';
       
     } catch (error) {
       console.error('❌ Profile setup error:', error);
