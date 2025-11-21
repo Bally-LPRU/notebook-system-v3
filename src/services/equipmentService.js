@@ -10,6 +10,7 @@ import {
   where, 
   orderBy, 
   startAfter,
+  limit as firestoreLimit,
   serverTimestamp,
   writeBatch
 } from 'firebase/firestore';
@@ -258,7 +259,7 @@ class EquipmentService {
         queryConstraints.push(startAfter(lastDoc));
       }
       
-      queryConstraints.push(limit(limit + 1)); // Get one extra to check if there's next page
+      queryConstraints.push(firestoreLimit(limit + 1)); // Get one extra to check if there's next page
 
       // Build query
       equipmentQuery = query(equipmentQuery, ...queryConstraints);
