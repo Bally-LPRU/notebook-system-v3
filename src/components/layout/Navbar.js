@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import NotificationBell from '../notifications/NotificationBell';
+import PendingUsersBadge from '../admin/PendingUsersBadge';
 
 const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
   const { user, userProfile, signOut, isAdmin } = useAuth();
@@ -117,6 +118,9 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
 
           {/* User Profile Dropdown */}
           <div className="flex items-center space-x-4">
+            {/* Pending Users Badge (Admin only) */}
+            <PendingUsersBadge />
+            
             {/* Notification Bell */}
             <NotificationBell />
             
