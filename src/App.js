@@ -25,12 +25,12 @@ import PublicHomepage from './components/public/PublicHomepage';
 // Direct import for CategoryManagement (temporary fix for 404 issue)
 import CategoryManagement from './components/admin/CategoryManagement';
 
-// Admin Settings
-const LazyAdminSettingsPage = lazy(() => import('./components/admin/settings/AdminSettingsPage'));
-
 // Direct imports (no lazy loading for these)
 import Dashboard from './components/Dashboard';
 import EquipmentPage from './components/EquipmentPage';
+
+// Admin Settings
+const LazyAdminSettingsPage = lazy(() => import('./components/admin/settings/AdminSettingsPage'));
 
 // Lazy loaded components
 const LazyAdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
