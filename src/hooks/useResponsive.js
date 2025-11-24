@@ -14,17 +14,17 @@ const breakpoints = {
  * @returns {Object} Responsive utilities and current screen info
  */
 export const useResponsive = () => {
+  const [mounted, setMounted] = useState(false);
   const [screenSize, setScreenSize] = useState({
     width: 1024, // Default to desktop size to prevent hydration mismatch
     height: 768
   });
 
   const [currentBreakpoint, setCurrentBreakpoint] = useState('lg');
-  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    // Mark that we're on the client
-    setIsClient(true);
+    // Mark that we're mounted on the client
+    setMounted(true);
 
     const handleResize = () => {
       const width = window.innerWidth;
@@ -58,12 +58,12 @@ export const useResponsive = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Utility functions
-  const isMobile = screenSize.width < breakpoints.md;
-  const isTablet = screenSize.width >= breakpoints.md && screenSize.width < breakpoints.lg;
-  const isDesktop = screenSize.width >= breakpoints.lg;
-  const isSmallScreen = screenSize.width < breakpoints.sm;
-  const isLargeScreen = screenSize.width >= breakpoints.xl;
+  // Utility functions - use default desktop values until mounted
+  const isMobile = mounted ? screenSize.width < breakpoints.md : false;
+  const isTablet = mounted ? (screenSize.width >= breakpoints.md && screenSize.width < breakpoints.lg) : false;
+  const isDesktop = mounted ? screenSize.width >= breakpoints.lg : true;
+  const isSmallScreen = mounted ? screenSize.width < breakpoints.sm : false;
+  const isLargeScreen = mounted ? screenSize.width >= breakpoints.xl : false;
 
   // Breakpoint checkers
   const isBreakpoint = (bp) => {
@@ -150,7 +150,7 @@ export const useResponsive = () => {
     // Screen info
     screenSize,
     currentBreakpoint,
-    isClient,
+    mounted,
     
     // Device type checks
     isMobile,

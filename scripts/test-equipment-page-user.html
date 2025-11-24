@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ทดสอบหน้ารายการอุปกรณ์ (User)</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #2563eb;
+      border-bottom: 3px solid #2563eb;
+      padding-bottom: 10px;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 15px;
+      background: #f9fafb;
+      border-left: 4px solid #2563eb;
+      border-radius: 4px;
+    }
+    .issue {
+      background: #fef2f2;
+      border-left-color: #ef4444;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .solution {
+      background: #f0fdf4;
+      border-left-color: #22c55e;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .code {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      margin: 10px 0;
+    }
+    .test-steps {
+      background: #eff6ff;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    .test-steps ol {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    .test-steps li {
+      margin: 8px 0;
+      line-height: 1.6;
+    }
+    .highlight {
+      background: #fef3c7;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+    .url {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .url:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 การแก้ไขปัญหาหน้ารายการอุปกรณ์ (User Role)</h1>
+    
+    <div class="section">
+      <h2>📋 สรุปปัญหา</h2>
+      <div class="issue">
+        <strong>ปัญหา:</strong> เมื่อ user เข้าสู่ระบบแล้วไปที่หน้า 
+        <code>/equipment</code> เจอข้อผิดพลาด <span class="highlight">Minified React error #301</span> 
+        ซึ่งเป็น <strong>Hydration Error</strong>
+      </div>
+      
+      <p><strong>สาเหตุ:</strong></p>
+      <ul>
+        <li>การใช้ <code>isClient</code> check ใน ResponsiveLayout ทำให้ server-side render และ client-side render ไม่ตรงกัน</li>
+        <li>React ตรวจพบความไม่สอดคล้องระหว่าง HTML ที่ render บน server กับ client</li>
+        <li>การใช้ responsive utilities ที่อ้างอิง window.innerWidth ก่อนที่ component จะ mount</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>✅ วิธีแก้ไข</h2>
+      <div class="solution">
+        <strong>แก้ไข 3 ไฟล์หลัก:</strong>
+        
+        <h3>1. src/components/layout/ResponsiveLayout.js</h3>
+        <ul>
+          <li>เปลี่ยนจากการใช้ <code>isClient</code> check เป็น <code>mounted</code> state</li>
+          <li>ใช้ default values สำหรับ desktop ในระหว่าง SSR</li>
+          <li>รอให้ component mount ก่อนใช้ responsive values</li>
+        </ul>
+
+        <h3>2. src/hooks/useResponsive.js</h3>
+        <ul>
+          <li>เปลี่ยน <code>isClient</code> เป็น <code>mounted</code></li>
+          <li>ใช้ default desktop values จนกว่า component จะ mount</li>
+          <li>ป้องกัน hydration mismatch โดยให้ค่าเริ่มต้นที่สอดคล้องกัน</li>
+        </ul>
+
+        <h3>3. การจัดการ Responsive Values</h3>
+        <ul>
+          <li>ใช้ <code>mounted ? actualValue : defaultValue</code> pattern</li>
+          <li>Default values: desktop size (1024x768, lg breakpoint)</li>
+          <li>หลัง mount แล้วจะใช้ค่าจริงจาก window.innerWidth</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>🧪 วิธีทดสอบ</h2>
+      <div class="test-steps">
+        <h3>ขั้นตอนการทดสอบ:</h3>
+        <ol>
+          <li>Deploy โค้ดที่แก้ไขแล้วไปยัง Vercel</li>
+          <li>เข้าสู่ระบบด้วย <span class="highlight">user account</span> (ไม่ใช่ admin)</li>
+          <li>ไปที่หน้า <a href="https://equipment-lending-system-41b49.vercel.app/equipment" class="url" target="_blank">
+            /equipment
+          </a></li>
+          <li>ตรวจสอบว่า:
+            <ul>
+              <li>✅ หน้าโหลดได้ปกติ ไม่มี error</li>
+              <li>✅ แสดงรายการอุปกรณ์ได้</li>
+              <li>✅ Layout responsive ทำงานได้ถูกต้อง</li>
+              <li>✅ ไม่มี hydration error ใน console</li>
+            </ul>
+          </li>
+          <li>ทดสอบบนอุปกรณ์ต่างๆ:
+            <ul>
+              <li>Desktop (1920x1080)</li>
+              <li>Tablet (768x1024)</li>
+              <li>Mobile (375x667)</li>
+            </ul>
+          </li>
+        </ol>
+
+        <h3>ตรวจสอบ Console:</h3>
+        <ul>
+          <li>เปิด Developer Tools (F12)</li>
+          <li>ดูที่ Console tab</li>
+          <li>ไม่ควรมี error ที่เกี่ยวกับ:
+            <ul>
+              <li>"Minified React error #301"</li>
+              <li>"Hydration failed"</li>
+              <li>"Text content does not match"</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>📝 การเปลี่ยนแปลงโค้ด</h2>
+      
+      <h3>ResponsiveLayout.js - Before:</h3>
+      <div class="code">
+const { isMobile, isTablet, getSpacing, isClient } = useResponsive();
+
+if (!isClient) {
+  return (
+    // Static render
+  );
+}
+      </div>
+
+      <h3>ResponsiveLayout.js - After:</h3>
+      <div class="code">
+const { isMobile, isTablet, getSpacing } = useResponsive();
+const [mounted, setMounted] = useState(false);
+
+useEffect(() => {
+  setMounted(true);
+}, []);
+
+const containerPadding = mounted ? getSpacing({...}) : '2rem';
+const maxWidth = mounted ? (isMobile ? 'max-w-full' : ...) : 'max-w-7xl';
+      </div>
+
+      <h3>useResponsive.js - Before:</h3>
+      <div class="code">
+const [isClient, setIsClient] = useState(false);
+
+useEffect(() => {
+  setIsClient(true);
+  // ...
+}, []);
+
+const isMobile = screenSize.width < breakpoints.md;
+      </div>
+
+      <h3>useResponsive.js - After:</h3>
+      <div class="code">
+const [mounted, setMounted] = useState(false);
+
+useEffect(() => {
+  setMounted(true);
+  // ...
+}, []);
+
+const isMobile = mounted ? screenSize.width < breakpoints.md : false;
+const isDesktop = mounted ? screenSize.width >= breakpoints.lg : true;
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>🎯 ผลลัพธ์ที่คาดหวัง</h2>
+      <div class="solution">
+        <ul>
+          <li>✅ หน้า /equipment โหลดได้ปกติสำหรับ user</li>
+          <li>✅ ไม่มี hydration error</li>
+          <li>✅ Responsive layout ทำงานได้ถูกต้อง</li>
+          <li>✅ แสดงรายการอุปกรณ์ได้</li>
+          <li>✅ ทำงานได้ทั้งบน desktop, tablet, และ mobile</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>🔍 หากยังมีปัญหา</h2>
+      <div class="issue">
+        <p><strong>ถ้ายังเจอ error:</strong></p>
+        <ol>
+          <li>ตรวจสอบ browser console เพื่อดู error message ที่แท้จริง</li>
+          <li>ลอง hard refresh (Ctrl+Shift+R หรือ Cmd+Shift+R)</li>
+          <li>Clear browser cache</li>
+          <li>ตรวจสอบว่า Vercel deploy สำเร็จ</li>
+          <li>ตรวจสอบ Vercel logs สำหรับ server-side errors</li>
+        </ol>
+
+        <p><strong>ข้อมูลที่ต้องการเพื่อ debug:</strong></p>
+        <ul>
+          <li>Screenshot ของ error message</li>
+          <li>Browser console logs</li>
+          <li>Network tab (ดู failed requests)</li>
+          <li>Vercel deployment logs</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>📚 ข้อมูลเพิ่มเติม</h2>
+      <p><strong>เกี่ยวกับ Hydration Error:</strong></p>
+      <ul>
+        <li>เกิดเมื่อ HTML ที่ render บน server ไม่ตรงกับ client</li>
+        <li>React ใช้ hydration เพื่อ "attach" event handlers กับ HTML ที่มีอยู่</li>
+        <li>ถ้า HTML ไม่ตรงกัน React จะ throw error และ re-render ทั้งหมด</li>
+        <li>วิธีแก้: ใช้ useEffect และ useState เพื่อจัดการ client-only values</li>
+      </ul>
+
+      <p><strong>Best Practices:</strong></p>
+      <ul>
+        <li>ใช้ default values ที่เหมาะสมสำหรับ SSR</li>
+        <li>รอให้ component mount ก่อนใช้ window/document APIs</li>
+        <li>ใช้ <code>mounted</code> state เพื่อ track client-side rendering</li>
+        <li>ทดสอบทั้งบน development และ production builds</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
