@@ -28,9 +28,11 @@ import CategoryManagement from './components/admin/CategoryManagement';
 // Admin Settings
 const LazyAdminSettingsPage = lazy(() => import('./components/admin/settings/AdminSettingsPage'));
 
+// Direct imports (no lazy loading for these)
+import Dashboard from './components/Dashboard';
+import EquipmentPage from './components/EquipmentPage';
+
 // Lazy loaded components
-const LazyDashboard = lazy(() => import('./components/Dashboard'));
-const LazyEquipmentPage = lazy(() => import('./pages/EquipmentPage'));
 const LazyAdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const LazyUserApprovalList = lazy(() => import('./components/admin/UserApprovalList'));
 const LazyAdminEquipmentManagement = lazy(() => import('./components/admin/AdminEquipmentManagement'));
@@ -116,13 +118,13 @@ const AppRoutes = () => {
         
         <Route path="/dashboard" element={
           <ProtectedRoute>
-            <LazyDashboard />
+            <Dashboard />
           </ProtectedRoute>
         } />
       
       <Route path="/equipment" element={
         <ProtectedRoute>
-          <LazyEquipmentPage />
+          <EquipmentPage />
         </ProtectedRoute>
       } />
       
