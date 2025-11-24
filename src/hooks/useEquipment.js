@@ -124,10 +124,43 @@ export const useEquipment = (initialFilters = {}) => {
     setEquipment(prev => prev.filter(item => item.id !== equipmentId));
   }, []);
 
-  // Load equipment when filters change
+  // Load equipment on mount and when filters change
   useEffect(() => {
-    loadEquipment(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const queryFilters = {
+          ...filters,
+          lastDoc: null
+        };
+
+        console.log('Loading equipment with filters:', queryFilters);
+
+        // Try development service first
+        let result = await DevelopmentService.getEquipmentList(queryFilters);
+        
+        // Fallback to Firebase service
+        if (!result) {
+          console.log('Using Firebase service...');
+          result = await EquipmentService.getEquipmentList(queryFilters);
+        }
+        
+        console.log('Equipment loaded:', result);
+        
+        setEquipment(result.equipment);
+        setLastDoc(result.lastDoc);
+        setPagination(result.pagination);
+      } catch (err) {
+        console.error('Error loading equipment:', err);
+        setError(err.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลอุปกรณ์');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, [filters]);
 
   return {
