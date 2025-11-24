@@ -65,7 +65,7 @@
   },
   "jest": {
     "transformIgnorePatterns": [
-      "node_modules/(?!(fast-check)/)"
+      "node_modules/(?!(fast-check|date-fns)/)"
     ]
   },
   "browserslist": {

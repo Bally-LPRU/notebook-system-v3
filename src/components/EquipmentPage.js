@@ -6,6 +6,10 @@ import { getCategoryId } from '../utils/equipmentHelpers';
 import LoadingSpinner from './common/LoadingSpinner';
 import EmptyState from './common/EmptyState';
 import EquipmentStatusBadge from './equipment/EquipmentStatusBadge';
+import LoanRequestForm from './loans/LoanRequestForm';
+import { useAuth } from '../contexts/AuthContext';
+import { useNotificationContext } from '../contexts/NotificationContext';
+import { EQUIPMENT_STATUS } from '../types/equipment';
 
 /**
  * Equipment Page for Regular Users
@@ -13,10 +17,14 @@ import EquipmentStatusBadge from './equipment/EquipmentStatusBadge';
  * Only shows: View Details, Borrow, Reserve actions
  */
 const EquipmentPage = () => {
+  const { user } = useAuth();
+  const { showToast } = useNotificationContext();
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [selectedEquipment, setSelectedEquipment] = useState(null);
+  const [showBorrowModal, setShowBorrowModal] = useState(false);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -138,16 +146,42 @@ const EquipmentPage = () => {
   }, []);
 
   // User action handlers
+  const handleLoanRequestSuccess = useCallback(() => {
+    showToast?.({
+      title: 'ส่งคำขอยืมสำเร็จ',
+      message: 'ระบบบันทึกคำขอแล้ว กรุณารอการอนุมัติจากผู้ดูแลระบบ',
+    });
+    setShowBorrowModal(false);
+    setSelectedEquipment(null);
+    loadEquipment();
+  }, [loadEquipment, showToast]);
+
+  const handleBorrowModalClose = () => {
+    setShowBorrowModal(false);
+    setSelectedEquipment(null);
+  };
+
+  const handleBorrow = (item) => {
+    if (!user) {
+      showToast?.({
+        title: 'กรุณาเข้าสู่ระบบ',
+        message: 'ต้องเข้าสู่ระบบก่อนส่งคำขอยืมอุปกรณ์',
+      });
+      return;
+    }
+
+    if (!item || item.status !== EQUIPMENT_STATUS.AVAILABLE) {
+      return;
+    }
+
+    setSelectedEquipment(item);
+    setShowBorrowModal(true);
+  };
+
   const handleViewDetails = (item) => {
     // TODO: Navigate to equipment detail page or open modal
     console.log('View details:', item);
     alert(`ดูรายละเอียด: ${item.name}\n\nฟีเจอร์นี้จะพัฒนาในอนาคต`);
-  };
-
-  const handleBorrow = (item) => {
-    // TODO: Navigate to borrow request page
-    console.log('Borrow:', item);
-    alert(`ยืมอุปกรณ์: ${item.name}\n\nฟีเจอร์นี้จะพัฒนาในอนาคต`);
   };
 
   const handleReserve = (item) => {
@@ -558,6 +592,38 @@ const EquipmentPage = () => {
           </>
         )}
       </div>
+
+      {/* Borrow Modal */}
+      {showBorrowModal && selectedEquipment && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center overflow-y-auto px-4 py-8">
+          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full relative">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">ยืมอุปกรณ์</p>
+                <h3 className="text-lg font-semibold text-gray-900">{selectedEquipment.name}</h3>
+              </div>
+              <button
+                onClick={handleBorrowModalClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="ปิดหน้าต่างแบบฟอร์มยืม"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6">
+              <LoanRequestForm
+                key={selectedEquipment.id}
+                equipmentId={selectedEquipment.id}
+                onSuccess={handleLoanRequestSuccess}
+                onCancel={handleBorrowModalClose}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };
