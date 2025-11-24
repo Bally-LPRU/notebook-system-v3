@@ -5,16 +5,19 @@
 
 const { initializeApp } = require('firebase/app');
 const { getFirestore, collection, getDocs, getCountFromServer, limit, query } = require('firebase/firestore');
-require('dotenv').config();
+const path = require('path');
 
-// Initialize Firebase
+// Load environment variables from .env.local
+require('dotenv').config({ path: path.resolve(__dirname, '../.env.local') });
+
+// Initialize Firebase - use production config directly
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID
+  apiKey: "AIzaSyA9D6ReIlhiaaJ1g1Obd-dcjp2R0LO_eyo",
+  authDomain: "equipment-lending-system-41b49.firebaseapp.com",
+  projectId: "equipment-lending-system-41b49",
+  storageBucket: "equipment-lending-system-41b49.firebasestorage.app",
+  messagingSenderId: "47770598089",
+  appId: "1:47770598089:web:9d898f247f742fe1686b18"
 };
 
 const app = initializeApp(firebaseConfig);

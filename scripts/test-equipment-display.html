@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ทดสอบการแสดงอุปกรณ์ (ไม่ต้อง Login)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+  <div class="max-w-4xl mx-auto">
+    <div class="mb-6">
+      <h1 class="text-3xl font-bold mb-2">ทดสอบการแสดงอุปกรณ์</h1>
+      <p class="text-gray-600">ทดสอบการเชื่อมต่อ Firestore โดยตรง (ไม่ต้อง Authentication)</p>
+    </div>
+    
+    <div id="status" class="mb-4 p-4 rounded-lg"></div>
+    
+    <div id="debug-info" class="mb-4 p-4 bg-gray-100 rounded-lg text-xs font-mono"></div>
+    
+    <div id="equipment-list" class="space-y-4"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, collection, getDocs, query, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA9D6ReIlhiaaJ1g1Obd-dcjp2R0LO_eyo",
+      authDomain: "equipment-lending-system-41b49.firebaseapp.com",
+      projectId: "equipment-lending-system-41b49",
+      storageBucket: "equipment-lending-system-41b49.firebasestorage.app",
+      messagingSenderId: "47770598089",
+      appId: "1:47770598089:web:9d898f247f742fe1686b18"
+    };
+
+    const statusDiv = document.getElementById('status');
+    const debugDiv = document.getElementById('debug-info');
+    const equipmentListDiv = document.getElementById('equipment-list');
+
+    function updateStatus(message, type = 'info') {
+      const colors = {
+        info: 'bg-blue-50 text-blue-800',
+        success: 'bg-green-50 text-green-800',
+        warning: 'bg-yellow-50 text-yellow-800',
+        error: 'bg-red-50 text-red-800'
+      };
+      statusDiv.className = `mb-4 p-4 rounded-lg ${colors[type]}`;
+      statusDiv.textContent = message;
+    }
+
+    function updateDebug(info) {
+      debugDiv.innerHTML = `
+        <div class="font-semibold mb-2">Debug Information:</div>
+        <div>${JSON.stringify(info, null, 2)}</div>
+      `;
+    }
+
+    async function loadEquipment() {
+      try {
+        updateStatus('กำลังเริ่มต้น Firebase...', 'info');
+        
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        updateDebug({
+          step: 'Firebase initialized',
+          projectId: firebaseConfig.projectId,
+          timestamp: new Date().toISOString()
+        });
+
+        updateStatus('กำลังโหลดข้อมูลจาก Firestore...', 'info');
+
+        // Try equipmentManagement collection
+        const equipmentRef = collection(db, 'equipmentManagement');
+        const q = query(equipmentRef, limit(50));
+        
+        updateDebug({
+          step: 'Querying Firestore',
+          collection: 'equipmentManagement',
+          limit: 50
+        });
+
+        const snapshot = await getDocs(q);
+
+        updateDebug({
+          step: 'Query completed',
+          size: snapshot.size,
+          empty: snapshot.empty,
+          docs: snapshot.docs.length
+        });
+
+        console.log('Query result:', {
+          size: snapshot.size,
+          empty: snapshot.empty,
+          docs: snapshot.docs.length
+        });
+
+        if (snapshot.empty) {
+          updateStatus('⚠️ ไม่พบข้อมูลอุปกรณ์ใน collection', 'warning');
+          updateDebug({
+            step: 'No data found',
+            collection: 'equipmentManagement',
+            suggestion: 'ตรวจสอบ Firestore Rules หรือเพิ่มข้อมูลทดสอบ'
+          });
+          return;
+        }
+
+        updateStatus(`✅ พบอุปกรณ์ ${snapshot.size} รายการ`, 'success');
+
+        equipmentListDiv.innerHTML = '';
+        
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          console.log('Equipment:', doc.id, data);
+
+          const card = document.createElement('div');
+          card.className = 'bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow';
+          card.innerHTML = `
+            <div class="flex items-start justify-between mb-2">
+              <h3 class="text-lg font-semibold text-gray-900">${data.name || 'ไม่มีชื่อ'}</h3>
+              <span class="px-2 py-1 text-xs rounded ${
+                data.status === 'available' ? 'bg-green-100 text-green-800' :
+                data.status === 'borrowed' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-gray-100 text-gray-800'
+              }">
+                ${data.status || 'ไม่ระบุ'}
+              </span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
+              <div><span class="font-medium">ID:</span> ${doc.id}</div>
+              <div><span class="font-medium">ยี่ห้อ:</span> ${data.brand || '-'}</div>
+              <div><span class="font-medium">รุ่น:</span> ${data.model || '-'}</div>
+              <div><span class="font-medium">Serial:</span> ${data.serialNumber || '-'}</div>
+              <div><span class="font-medium">หมวดหมู่:</span> ${data.category || '-'}</div>
+              <div><span class="font-medium">สถานที่:</span> ${data.location || '-'}</div>
+            </div>
+            ${data.description ? `
+              <div class="mt-2 pt-2 border-t border-gray-200">
+                <p class="text-sm text-gray-600">${data.description}</p>
+              </div>
+            ` : ''}
+          `;
+          equipmentListDiv.appendChild(card);
+        });
+
+        updateDebug({
+          step: 'Rendering completed',
+          itemsRendered: snapshot.size,
+          success: true
+        });
+
+      } catch (error) {
+        console.error('Error:', error);
+        updateStatus(`❌ เกิดข้อผิดพลาด: ${error.message}`, 'error');
+        updateDebug({
+          step: 'Error occurred',
+          error: error.message,
+          code: error.code,
+          stack: error.stack
+        });
+        
+        // Show detailed error info
+        equipmentListDiv.innerHTML = `
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <h3 class="font-semibold text-red-900 mb-2">รายละเอียดข้อผิดพลาด:</h3>
+            <div class="text-sm text-red-800 space-y-1">
+              <p><strong>Message:</strong> ${error.message}</p>
+              <p><strong>Code:</strong> ${error.code || 'N/A'}</p>
+              ${error.code === 'permission-denied' ? `
+                <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                  <p class="font-medium text-yellow-900">💡 แนะนำ:</p>
+                  <p class="text-yellow-800 text-xs mt-1">
+                    ตรวจสอบ Firestore Rules ว่าอนุญาตให้อ่านข้อมูลได้หรือไม่<br>
+                    ไปที่ Firebase Console > Firestore Database > Rules
+                  </p>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // Start loading
+    loadEquipment();
+  </script>
+</body>
+</html>
