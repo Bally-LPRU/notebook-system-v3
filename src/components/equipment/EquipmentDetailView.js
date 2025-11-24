@@ -393,7 +393,7 @@ const EquipmentDetailView = ({
                 </div>
 
                 {/* Additional Information */}
-                {(equipment.purchaseDate || equipment.purchasePrice || equipment.vendor) && (
+                {(equipment.purchaseDate || equipment.purchasePrice || equipment.vendor || equipment.supplier) && (
                   <div>
                     <h3 className="text-lg font-medium text-gray-900 mb-4">ข้อมูลการจัดซื้อ</h3>
                     <dl className="grid grid-cols-1 gap-4">
@@ -412,14 +412,16 @@ const EquipmentDetailView = ({
                         <div>
                           <dt className="text-sm font-medium text-gray-500">ราคาซื้อ</dt>
                           <dd className="mt-1 text-sm text-gray-900">
-                            {equipment.purchasePrice.toLocaleString('th-TH')} บาท
+                            {typeof equipment.purchasePrice === 'number' 
+                              ? equipment.purchasePrice.toLocaleString('th-TH') 
+                              : equipment.purchasePrice} บาท
                           </dd>
                         </div>
                       )}
-                      {equipment.vendor && (
+                      {(equipment.vendor || equipment.supplier) && (
                         <div>
                           <dt className="text-sm font-medium text-gray-500">ผู้จำหน่าย</dt>
-                          <dd className="mt-1 text-sm text-gray-900">{equipment.vendor}</dd>
+                          <dd className="mt-1 text-sm text-gray-900">{equipment.vendor || equipment.supplier}</dd>
                         </div>
                       )}
                       {equipment.warrantyExpiry && (
