@@ -104,27 +104,33 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
       }
     }
 
-    // Return date validation
+    // Return date/time validation
     if (!formData.expectedReturnDate) {
       newErrors.expectedReturnDate = 'กรุณาเลือกวันที่คืน';
-    } else if (formData.borrowDate) {
-      const borrowDate = new Date(formData.borrowDate);
-      const returnDate = new Date(`${formData.expectedReturnDate}T${formData.expectedReturnTime || '23:59'}`);
+    }
+
+    if (!formData.expectedReturnTime) {
+      newErrors.expectedReturnTime = 'กรุณาเลือกเวลาคืน';
+    }
+
+    if (
+      formData.borrowDate &&
+      formData.expectedReturnDate &&
+      formData.expectedReturnTime
+    ) {
+      const borrowDateTime = new Date(`${formData.borrowDate}T00:00`);
+      const returnDateTime = new Date(`${formData.expectedReturnDate}T${formData.expectedReturnTime}`);
       
-      if (returnDate <= borrowDate) {
-        newErrors.expectedReturnDate = 'วันที่คืนต้องหลังจากวันที่ยืม';
+      if (returnDateTime <= borrowDateTime) {
+        newErrors.expectedReturnDate = 'วัน/เวลาคืนต้องหลังจากวันยืม';
       } else {
-        const loanDurationMs = returnDate.getTime() - borrowDate.getTime();
+        const loanDurationMs = returnDateTime.getTime() - borrowDateTime.getTime();
         const loanDurationDays = Math.ceil(loanDurationMs / (1000 * 60 * 60 * 24));
         
         if (loanDurationDays > maxLoanDuration) {
           newErrors.expectedReturnDate = `ระยะเวลายืมต้องไม่เกิน ${maxLoanDuration} วัน (ตามกฎผู้ดูแลระบบ)`;
         }
       }
-    }
-
-    if (!formData.expectedReturnTime) {
-      newErrors.expectedReturnTime = 'กรุณาเลือกเวลาคืน';
     }
 
     setErrors(newErrors);
@@ -164,9 +170,9 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
 
   const calculateLoanDuration = () => {
     if (formData.borrowDate && formData.expectedReturnDate) {
-      const borrowDate = new Date(formData.borrowDate);
-      const returnDate = new Date(`${formData.expectedReturnDate}T${formData.expectedReturnTime || '23:59'}`);
-      const diffTime = returnDate.getTime() - borrowDate.getTime();
+      const borrowDateTime = new Date(`${formData.borrowDate}T00:00`);
+      const returnDateTime = new Date(`${formData.expectedReturnDate}T${formData.expectedReturnTime || '23:59'}`);
+      const diffTime = returnDateTime.getTime() - borrowDateTime.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return diffDays > 0 ? diffDays : 0;
     }
