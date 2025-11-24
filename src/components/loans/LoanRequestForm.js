@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../hooks/useSettings';
 import LoanRequestService from '../../services/loanRequestService';
 import EquipmentService from '../../services/equipmentService';
 import { 
   DEFAULT_LOAN_REQUEST_FORM, 
-  LOAN_REQUEST_VALIDATION,
   DEFAULT_LOAN_DURATION_DAYS,
   MAX_LOAN_DURATION_DAYS
 } from '../../types/loanRequest';
@@ -12,10 +12,19 @@ import { EQUIPMENT_STATUS } from '../../types/equipment';
 
 const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
   const { user } = useAuth();
-  const [formData, setFormData] = useState(DEFAULT_LOAN_REQUEST_FORM);
+  const { settings } = useSettings();
+  const [formData, setFormData] = useState({
+    ...DEFAULT_LOAN_REQUEST_FORM,
+    expectedReturnTime: ''
+  });
   const [equipment, setEquipment] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  const maxLoanDuration = useMemo(
+    () => settings?.maxLoanDuration || MAX_LOAN_DURATION_DAYS,
+    [settings?.maxLoanDuration]
+  );
 
   useEffect(() => {
     const loadEquipmentData = async () => {
@@ -44,7 +53,8 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
         ...prev,
         equipmentId,
         borrowDate: borrowDate.toISOString().split('T')[0],
-        expectedReturnDate: returnDate.toISOString().split('T')[0]
+        expectedReturnDate: returnDate.toISOString().split('T')[0],
+        expectedReturnTime: '17:00'
       }));
     }
   }, [equipmentId]);
@@ -99,7 +109,7 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
       newErrors.expectedReturnDate = 'กรุณาเลือกวันที่คืน';
     } else if (formData.borrowDate) {
       const borrowDate = new Date(formData.borrowDate);
-      const returnDate = new Date(formData.expectedReturnDate);
+      const returnDate = new Date(`${formData.expectedReturnDate}T${formData.expectedReturnTime || '23:59'}`);
       
       if (returnDate <= borrowDate) {
         newErrors.expectedReturnDate = 'วันที่คืนต้องหลังจากวันที่ยืม';
@@ -107,24 +117,14 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
         const loanDurationMs = returnDate.getTime() - borrowDate.getTime();
         const loanDurationDays = Math.ceil(loanDurationMs / (1000 * 60 * 60 * 24));
         
-        if (loanDurationDays > MAX_LOAN_DURATION_DAYS) {
-          newErrors.expectedReturnDate = `ระยะเวลายืมต้องไม่เกิน ${MAX_LOAN_DURATION_DAYS} วัน`;
+        if (loanDurationDays > maxLoanDuration) {
+          newErrors.expectedReturnDate = `ระยะเวลายืมต้องไม่เกิน ${maxLoanDuration} วัน (ตามกฎผู้ดูแลระบบ)`;
         }
       }
     }
 
-    // Purpose validation
-    if (!formData.purpose.trim()) {
-      newErrors.purpose = 'กรุณาระบุวัตถุประสงค์การใช้งาน';
-    } else if (formData.purpose.trim().length < LOAN_REQUEST_VALIDATION.purpose.minLength) {
-      newErrors.purpose = `วัตถุประสงค์ต้องมีอย่างน้อย ${LOAN_REQUEST_VALIDATION.purpose.minLength} ตัวอักษร`;
-    } else if (formData.purpose.trim().length > LOAN_REQUEST_VALIDATION.purpose.maxLength) {
-      newErrors.purpose = `วัตถุประสงค์ต้องไม่เกิน ${LOAN_REQUEST_VALIDATION.purpose.maxLength} ตัวอักษร`;
-    }
-
-    // Notes validation
-    if (formData.notes && formData.notes.trim().length > LOAN_REQUEST_VALIDATION.notes.maxLength) {
-      newErrors.notes = `หมายเหตุต้องไม่เกิน ${LOAN_REQUEST_VALIDATION.notes.maxLength} ตัวอักษร`;
+    if (!formData.expectedReturnTime) {
+      newErrors.expectedReturnTime = 'กรุณาเลือกเวลาคืน';
     }
 
     setErrors(newErrors);
@@ -142,7 +142,17 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
     setErrors({});
 
     try {
-      await LoanRequestService.createLoanRequest(formData, user.uid);
+      const expectedReturnDateTime = new Date(`${formData.expectedReturnDate}T${formData.expectedReturnTime || '23:59'}`);
+
+      await LoanRequestService.createLoanRequest(
+        {
+          ...formData,
+          expectedReturnDate: expectedReturnDateTime,
+          purpose: 'ยืมอุปกรณ์เพื่อการปฏิบัติงาน',
+          notes: ''
+        },
+        user.uid
+      );
       onSuccess?.();
     } catch (error) {
       console.error('Error creating loan request:', error);
@@ -155,7 +165,7 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
   const calculateLoanDuration = () => {
     if (formData.borrowDate && formData.expectedReturnDate) {
       const borrowDate = new Date(formData.borrowDate);
-      const returnDate = new Date(formData.expectedReturnDate);
+      const returnDate = new Date(`${formData.expectedReturnDate}T${formData.expectedReturnTime || '23:59'}`);
       const diffTime = returnDate.getTime() - borrowDate.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return diffDays > 0 ? diffDays : 0;
@@ -217,11 +227,19 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
             <div className="flex-1">
               <h4 className="font-medium text-gray-900">{equipment.name}</h4>
               <p className="text-gray-600">{equipment.brand} {equipment.model}</p>
-              <p className="text-sm text-gray-500">รหัส: {equipment.serialNumber}</p>
+              <p className="text-sm text-gray-500">หมายเลขอุปกรณ์: {equipment.equipmentNumber || equipment.serialNumber || '-'}</p>
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
                 พร้อมใช้งาน
               </span>
             </div>
+          </div>
+          <div className="mt-3 text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="font-medium">กฎการยืม</p>
+            <ul className="list-disc list-inside mt-1 space-y-1">
+              <li>ยืมได้สูงสุด {maxLoanDuration} วัน (ตามที่ผู้ดูแลระบบกำหนด)</li>
+              <li>เวลายืมถูกบันทึกอัตโนมัติเมื่อผู้ดูแลอนุมัติ</li>
+              <li>โปรดระบุเวลาคืนที่ต้องการ</li>
+            </ul>
           </div>
         </div>
 
@@ -237,9 +255,9 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
           </div>
         )}
 
-        {/* Date Fields */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
+        {/* Date & Time Fields */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-1">
             <label htmlFor="borrowDate" className="block text-sm font-medium text-gray-700 mb-2">
               วันที่ต้องการยืม <span className="text-red-500">*</span>
             </label>
@@ -260,7 +278,7 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
             )}
           </div>
 
-          <div>
+          <div className="md:col-span-1">
             <label htmlFor="expectedReturnDate" className="block text-sm font-medium text-gray-700 mb-2">
               วันที่คาดว่าจะคืน <span className="text-red-500">*</span>
             </label>
@@ -280,6 +298,26 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
               <p className="mt-1 text-sm text-red-600">{errors.expectedReturnDate}</p>
             )}
           </div>
+
+          <div className="md:col-span-1">
+            <label htmlFor="expectedReturnTime" className="block text-sm font-medium text-gray-700 mb-2">
+              เวลาคืนที่ต้องการ <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="time"
+              id="expectedReturnTime"
+              name="expectedReturnTime"
+              value={formData.expectedReturnTime}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.expectedReturnTime ? 'border-red-300' : 'border-gray-300'
+              }`}
+              required
+            />
+            {errors.expectedReturnTime && (
+              <p className="mt-1 text-sm text-red-600">{errors.expectedReturnTime}</p>
+            )}
+          </div>
         </div>
 
         {/* Loan Duration Display */}
@@ -291,76 +329,19 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
               </svg>
               <span className="text-blue-800">
                 ระยะเวลายืม: <strong>{calculateLoanDuration()} วัน</strong>
-                {calculateLoanDuration() > MAX_LOAN_DURATION_DAYS && (
-                  <span className="text-red-600 ml-2">(เกินกำหนดสูงสุด {MAX_LOAN_DURATION_DAYS} วัน)</span>
+                {calculateLoanDuration() > maxLoanDuration && (
+                  <span className="text-red-600 ml-2">(เกินกฎสูงสุด {maxLoanDuration} วัน)</span>
                 )}
               </span>
             </div>
           </div>
         )}
 
-        {/* Purpose Field */}
-        <div>
-          <label htmlFor="purpose" className="block text-sm font-medium text-gray-700 mb-2">
-            วัตถุประสงค์การใช้งาน <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            id="purpose"
-            name="purpose"
-            value={formData.purpose}
-            onChange={handleInputChange}
-            rows={4}
-            placeholder="กรุณาระบุวัตถุประสงค์การใช้งานอุปกรณ์อย่างละเอียด..."
-            className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.purpose ? 'border-red-300' : 'border-gray-300'
-            }`}
-            required
-          />
-          <div className="flex justify-between mt-1">
-            {errors.purpose ? (
-              <p className="text-sm text-red-600">{errors.purpose}</p>
-            ) : (
-              <p className="text-sm text-gray-500">
-                อย่างน้อย {LOAN_REQUEST_VALIDATION.purpose.minLength} ตัวอักษร
-              </p>
-            )}
-            <p className="text-sm text-gray-500">
-              {formData.purpose.length}/{LOAN_REQUEST_VALIDATION.purpose.maxLength}
-            </p>
-          </div>
-        </div>
-
-        {/* Notes Field */}
-        <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-            หมายเหตุเพิ่มเติม
-          </label>
-          <textarea
-            id="notes"
-            name="notes"
-            value={formData.notes}
-            onChange={handleInputChange}
-            rows={3}
-            placeholder="หมายเหตุหรือข้อมูลเพิ่มเติม (ไม่บังคับ)"
-            className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.notes ? 'border-red-300' : 'border-gray-300'
-            }`}
-          />
-          <div className="flex justify-between mt-1">
-            {errors.notes && (
-              <p className="text-sm text-red-600">{errors.notes}</p>
-            )}
-            <p className="text-sm text-gray-500 ml-auto">
-              {formData.notes.length}/{LOAN_REQUEST_VALIDATION.notes.maxLength}
-            </p>
-          </div>
-        </div>
-
         {/* Action Buttons */}
-        <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-          <button
-            type="button"
-            onClick={onCancel}
+      <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+        <button
+          type="button"
+          onClick={onCancel}
             className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
             disabled={loading}
           >
