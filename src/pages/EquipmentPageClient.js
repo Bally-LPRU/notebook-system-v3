@@ -10,6 +10,7 @@ const EquipmentPageClient = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedEquipment, setSelectedEquipment] = useState(null);
+  const [imageErrors, setImageErrors] = useState({});
 
   // Simple client-side filtering
   const filteredEquipment = equipment.filter(item => {
@@ -106,32 +107,20 @@ const EquipmentPageClient = () => {
             >
               {/* Equipment Image */}
               <div className="h-48 bg-gray-100 relative">
-                {item.images && item.images.length > 0 ? (
+                {!imageErrors[item.id] && (item.images?.length > 0 || item.imageURL) ? (
                   <img
-                    src={item.images[0].url || item.images[0].thumbnailUrl}
+                    src={item.images?.[0]?.url || item.images?.[0]?.thumbnailUrl || item.imageURL}
                     alt={item.name}
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
+                    onError={() => setImageErrors(prev => ({ ...prev, [item.id]: true }))}
                   />
-                ) : item.imageURL ? (
-                  <img
-                    src={item.imageURL}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
-                  />
-                ) : null}
-                <div className="absolute inset-0 flex items-center justify-center" style={{ display: (item.images?.length > 0 || item.imageURL) ? 'none' : 'flex' }}>
-                  <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </div>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                )}
                 
                 {/* Status Badge */}
                 <div className="absolute top-2 right-2">
