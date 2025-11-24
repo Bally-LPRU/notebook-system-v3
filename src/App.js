@@ -30,7 +30,7 @@ const LazyAdminSettingsPage = lazy(() => import('./components/admin/settings/Adm
 
 // Lazy loaded components
 const LazyDashboard = lazy(() => import('./components/Dashboard'));
-const LazyEquipmentList = lazy(() => import('./components/equipment/EquipmentList'));
+const LazyEquipmentList = lazy(() => import('./components/equipment/EquipmentListSimple'));
 const LazyAdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const LazyUserApprovalList = lazy(() => import('./components/admin/UserApprovalList'));
 const LazyAdminEquipmentManagement = lazy(() => import('./components/admin/AdminEquipmentManagement'));
