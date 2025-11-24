@@ -419,56 +419,140 @@ const EquipmentManagementContainer = ({
             {paginatedEquipment.map((item) => (
               <div
                 key={item.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
               >
-                <div className="flex items-center justify-between">
-                  {/* Equipment Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-base font-semibold text-gray-900 truncate">
-                        {item.name}
-                      </h3>
-                      <EquipmentStatusBadge 
-                        status={item.status} 
-                        size="sm"
-                        className="whitespace-nowrap"
-                      />
-                    </div>
+                <div className="flex">
+                  {/* Equipment Image */}
+                  <div className="w-32 h-32 flex-shrink-0 bg-gray-100 relative">
+                    {item.images && item.images.length > 0 ? (
+                      <>
+                        <img
+                          src={item.images[0].thumbnailUrl || item.images[0].url}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                        <div className="absolute inset-0 hidden items-center justify-center" style={{ display: 'none' }}>
+                          <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      </>
+                    ) : item.imageURL ? (
+                      <>
+                        <img
+                          src={item.imageURL}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                        <div className="absolute inset-0 hidden items-center justify-center" style={{ display: 'none' }}>
+                          <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
                     
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
-                      <span>
-                        <span className="font-medium text-gray-700">ยี่ห้อ:</span> {item.brand || '-'}
-                      </span>
-                      <span>
-                        <span className="font-medium text-gray-700">รุ่น:</span> {item.model || '-'}
-                      </span>
-                      <span>
-                        <span className="font-medium text-gray-700">หมายเลข:</span> 
-                        <span className="font-mono ml-1">{item.equipmentNumber || item.serialNumber || '-'}</span>
-                      </span>
-                    </div>
+                    {/* Image Count Badge */}
+                    {item.images && item.images.length > 1 && (
+                      <div className="absolute bottom-2 left-2">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-black bg-opacity-50 text-white">
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {item.images.length}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 ml-4">
-                    {onViewEquipment && (
-                      <button
-                        onClick={() => onViewEquipment(item)}
-                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                        title="ดูรายละเอียด"
-                      >
-                        ดูรายละเอียด
-                      </button>
-                    )}
-                    {isAdmin && onEditEquipment && (
-                      <button
-                        onClick={() => onEditEquipment(item)}
-                        className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        title="แก้ไข"
-                      >
-                        แก้ไข
-                      </button>
-                    )}
+                  {/* Equipment Info */}
+                  <div className="flex-1 p-4 flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-base font-semibold text-gray-900 truncate">
+                          {item.name}
+                        </h3>
+                        <EquipmentStatusBadge 
+                          status={item.status} 
+                          size="sm"
+                          className="whitespace-nowrap"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600">
+                        <span>
+                          <span className="font-medium text-gray-700">ยี่ห้อ:</span> {item.brand || '-'}
+                        </span>
+                        <span>
+                          <span className="font-medium text-gray-700">รุ่น:</span> {item.model || '-'}
+                        </span>
+                        <span>
+                          <span className="font-medium text-gray-700">หมายเลข:</span> 
+                          <span className="font-mono ml-1">{item.equipmentNumber || item.serialNumber || '-'}</span>
+                        </span>
+                        <span>
+                          <span className="font-medium text-gray-700">สถานที่:</span> {
+                            typeof item.location === 'object' 
+                              ? `${item.location.building || ''} ${item.location.room || ''}`.trim() || '-'
+                              : item.location || '-'
+                          }
+                        </span>
+                        
+                        {/* Purchase Price */}
+                        {item.purchasePrice && (
+                          <span>
+                            <span className="font-medium text-gray-700">ราคาซื้อ:</span> {
+                              typeof item.purchasePrice === 'number' 
+                                ? item.purchasePrice.toLocaleString('th-TH') 
+                                : item.purchasePrice
+                            } บาท
+                          </span>
+                        )}
+                        
+                        {/* Supplier/Vendor */}
+                        {(item.supplier || item.vendor) && (
+                          <span>
+                            <span className="font-medium text-gray-700">ผู้จำหน่าย:</span> {item.supplier || item.vendor}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 ml-4">
+                      {onViewEquipment && (
+                        <button
+                          onClick={() => onViewEquipment(item)}
+                          className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                          title="ดูรายละเอียด"
+                        >
+                          ดูรายละเอียด
+                        </button>
+                      )}
+                      {isAdmin && onEditEquipment && (
+                        <button
+                          onClick={() => onEditEquipment(item)}
+                          className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          title="แก้ไข"
+                        >
+                          แก้ไข
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
