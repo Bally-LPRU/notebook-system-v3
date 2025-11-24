@@ -41,19 +41,3 @@ const EquipmentPage = () => {
 };
 
 export default EquipmentPage;
-
-  // Simple client-side filtering
-  const filteredEquipment = equipment.filter(item => {
-    const matchesSearch = !searchTerm || 
-      item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.model?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = selectedStatus === 'all' || item.status === selectedStatus;
-    
-    return matchesSearch && matchesStatus;
-  });
-
-
-
-export default EquipmentPage;
