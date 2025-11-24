@@ -32,7 +32,9 @@ const LoanRulesTab = () => {
   // Form state
   const [formData, setFormData] = useState({
     maxLoanDuration: settings.maxLoanDuration || 14,
-    maxAdvanceBookingDays: settings.maxAdvanceBookingDays || 30
+    maxAdvanceBookingDays: settings.maxAdvanceBookingDays || 30,
+    loanReturnStartTime: settings.loanReturnStartTime || '',
+    loanReturnEndTime: settings.loanReturnEndTime || ''
   });
   
   // UI state
@@ -45,7 +47,9 @@ const LoanRulesTab = () => {
   useEffect(() => {
     setFormData({
       maxLoanDuration: settings.maxLoanDuration || 14,
-      maxAdvanceBookingDays: settings.maxAdvanceBookingDays || 30
+      maxAdvanceBookingDays: settings.maxAdvanceBookingDays || 30,
+      loanReturnStartTime: settings.loanReturnStartTime || '',
+      loanReturnEndTime: settings.loanReturnEndTime || ''
     });
   }, [settings]);
 
@@ -53,7 +57,9 @@ const LoanRulesTab = () => {
   useEffect(() => {
     const changed = 
       formData.maxLoanDuration !== settings.maxLoanDuration ||
-      formData.maxAdvanceBookingDays !== settings.maxAdvanceBookingDays;
+      formData.maxAdvanceBookingDays !== settings.maxAdvanceBookingDays ||
+      (formData.loanReturnStartTime || '') !== (settings.loanReturnStartTime || '') ||
+      (formData.loanReturnEndTime || '') !== (settings.loanReturnEndTime || '');
     setHasChanges(changed);
   }, [formData, settings]);
 
@@ -66,7 +72,9 @@ const LoanRulesTab = () => {
     
     setFormData(prev => ({
       ...prev,
-      [name]: isNaN(numValue) ? '' : numValue
+      [name]: name === 'loanReturnStartTime' || name === 'loanReturnEndTime'
+        ? value
+        : (isNaN(numValue) ? '' : numValue)
     }));
     
     // Clear error for this field
@@ -104,6 +112,25 @@ const LoanRulesTab = () => {
     } else if (formData.maxAdvanceBookingDays > 365) {
       newErrors.maxAdvanceBookingDays = 'จำนวนวันต้องไม่เกิน 365 วัน';
     }
+
+    // Validate return time window (optional)
+    const timeRegex = /^\d{2}:\d{2}$/;
+    if (formData.loanReturnStartTime && !timeRegex.test(formData.loanReturnStartTime)) {
+      newErrors.loanReturnStartTime = 'รูปแบบเวลาไม่ถูกต้อง (HH:MM)';
+    }
+    if (formData.loanReturnEndTime && !timeRegex.test(formData.loanReturnEndTime)) {
+      newErrors.loanReturnEndTime = 'รูปแบบเวลาไม่ถูกต้อง (HH:MM)';
+    }
+    if (
+      formData.loanReturnStartTime &&
+      formData.loanReturnEndTime &&
+      timeRegex.test(formData.loanReturnStartTime) &&
+      timeRegex.test(formData.loanReturnEndTime)
+    ) {
+      if (formData.loanReturnStartTime >= formData.loanReturnEndTime) {
+        newErrors.loanReturnEndTime = 'เวลาสิ้นสุดต้องมากกว่าเวลาเริ่ม';
+      }
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -128,7 +155,9 @@ const LoanRulesTab = () => {
       await updateMultipleSettings(
         {
           maxLoanDuration: formData.maxLoanDuration,
-          maxAdvanceBookingDays: formData.maxAdvanceBookingDays
+          maxAdvanceBookingDays: formData.maxAdvanceBookingDays,
+          loanReturnStartTime: formData.loanReturnStartTime || null,
+          loanReturnEndTime: formData.loanReturnEndTime || null
         },
         userProfile.uid,
         userProfile.displayName || userProfile.email
@@ -158,7 +187,9 @@ const LoanRulesTab = () => {
   const handleReset = () => {
     setFormData({
       maxLoanDuration: settings.maxLoanDuration || 14,
-      maxAdvanceBookingDays: settings.maxAdvanceBookingDays || 30
+      maxAdvanceBookingDays: settings.maxAdvanceBookingDays || 30,
+      loanReturnStartTime: settings.loanReturnStartTime || '',
+      loanReturnEndTime: settings.loanReturnEndTime || ''
     });
     setErrors({});
     setSaveSuccess(false);
@@ -242,6 +273,48 @@ const LoanRulesTab = () => {
             <p className="mt-2 text-sm text-gray-500">
               จำนวนวันล่วงหน้าสูงสุดที่ผู้ใช้สามารถจองอุปกรณ์ได้ (ค่าปัจจุบัน: {settings.maxAdvanceBookingDays} วัน)
             </p>
+          </div>
+
+          {/* Return time window (optional) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <FieldLabel
+                htmlFor="loanReturnStartTime"
+                label="เวลาคืนเริ่มต้น (ถ้ามี)"
+                tooltip="หากกำหนด ระบบจะตรวจสอบว่าเวลาคืนต้องไม่ก่อนเวลานี้"
+              />
+              <input
+                type="time"
+                id="loanReturnStartTime"
+                name="loanReturnStartTime"
+                value={formData.loanReturnStartTime}
+                onChange={handleInputChange}
+                className={`block w-full px-3 py-2 border rounded-md shadow-sm sm:text-sm focus:ring-blue-500 focus:border-blue-500 ${errors.loanReturnStartTime ? 'border-red-300' : 'border-gray-300'}`}
+              />
+              {errors.loanReturnStartTime && (
+                <p className="mt-1 text-sm text-red-600">{errors.loanReturnStartTime}</p>
+              )}
+              <p className="mt-2 text-sm text-gray-500">ปล่อยว่างหากไม่จำกัดเวลาเริ่มคืนอุปกรณ์</p>
+            </div>
+            <div>
+              <FieldLabel
+                htmlFor="loanReturnEndTime"
+                label="เวลาคืนสิ้นสุด (ถ้ามี)"
+                tooltip="หากกำหนด เวลาคืนต้องไม่เกินเวลานี้"
+              />
+              <input
+                type="time"
+                id="loanReturnEndTime"
+                name="loanReturnEndTime"
+                value={formData.loanReturnEndTime}
+                onChange={handleInputChange}
+                className={`block w-full px-3 py-2 border rounded-md shadow-sm sm:text-sm focus:ring-blue-500 focus:border-blue-500 ${errors.loanReturnEndTime ? 'border-red-300' : 'border-gray-300'}`}
+              />
+              {errors.loanReturnEndTime && (
+                <p className="mt-1 text-sm text-red-600">{errors.loanReturnEndTime}</p>
+              )}
+              <p className="mt-2 text-sm text-gray-500">ปล่อยว่างหากไม่จำกัดเวลาสิ้นสุด</p>
+            </div>
           </div>
 
           {/* Submit Error */}

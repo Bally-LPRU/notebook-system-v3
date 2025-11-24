@@ -25,6 +25,8 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
     () => settings?.maxLoanDuration || MAX_LOAN_DURATION_DAYS,
     [settings?.maxLoanDuration]
   );
+  const returnWindowStart = settings?.loanReturnStartTime || null;
+  const returnWindowEnd = settings?.loanReturnEndTime || null;
 
   useEffect(() => {
     const loadEquipmentData = async () => {
@@ -129,6 +131,15 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
         
         if (loanDurationDays > maxLoanDuration) {
           newErrors.expectedReturnDate = `ระยะเวลายืมต้องไม่เกิน ${maxLoanDuration} วัน (ตามกฎผู้ดูแลระบบ)`;
+        }
+
+        // Optional admin-defined return window
+        const selectedTime = formData.expectedReturnTime;
+        if (returnWindowStart && selectedTime < returnWindowStart) {
+          newErrors.expectedReturnTime = `เวลาคืนต้องไม่น้อยกว่า ${returnWindowStart}`;
+        }
+        if (returnWindowEnd && selectedTime > returnWindowEnd) {
+          newErrors.expectedReturnTime = `เวลาคืนต้องไม่เกิน ${returnWindowEnd}`;
         }
       }
     }
@@ -245,6 +256,9 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
               <li>ยืมได้สูงสุด {maxLoanDuration} วัน (ตามที่ผู้ดูแลระบบกำหนด)</li>
               <li>เวลายืมถูกบันทึกอัตโนมัติเมื่อผู้ดูแลอนุมัติ</li>
               <li>โปรดระบุเวลาคืนที่ต้องการ</li>
+              {returnWindowStart && returnWindowEnd && (
+                <li>เวลาคืนต้องอยู่ระหว่าง {returnWindowStart} - {returnWindowEnd}</li>
+              )}
             </ul>
           </div>
         </div>

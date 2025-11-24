@@ -734,6 +734,8 @@ class SettingsService {
           maxLoanDuration: settings.maxLoanDuration,
           maxAdvanceBookingDays: settings.maxAdvanceBookingDays,
           defaultCategoryLimit: settings.defaultCategoryLimit,
+          loanReturnStartTime: settings.loanReturnStartTime || null,
+          loanReturnEndTime: settings.loanReturnEndTime || null,
           discordEnabled: settings.discordEnabled
         },
         closedDates: closedDates.map(cd => ({
@@ -811,6 +813,12 @@ class SettingsService {
           }
           if (settingsData.settings.defaultCategoryLimit !== undefined) {
             settingsToUpdate.defaultCategoryLimit = settingsData.settings.defaultCategoryLimit;
+          }
+          if (settingsData.settings.loanReturnStartTime !== undefined) {
+            settingsToUpdate.loanReturnStartTime = settingsData.settings.loanReturnStartTime;
+          }
+          if (settingsData.settings.loanReturnEndTime !== undefined) {
+            settingsToUpdate.loanReturnEndTime = settingsData.settings.loanReturnEndTime;
           }
           if (settingsData.settings.discordEnabled !== undefined) {
             settingsToUpdate.discordEnabled = settingsData.settings.discordEnabled;
@@ -975,6 +983,29 @@ class SettingsService {
         }
       }
 
+      const isValidTimeString = (value) => typeof value === 'string' && /^\d{2}:\d{2}$/.test(value);
+
+      if (data.settings.loanReturnStartTime !== undefined && data.settings.loanReturnStartTime !== null) {
+        if (!isValidTimeString(data.settings.loanReturnStartTime)) {
+          errors.push('Invalid loanReturnStartTime: must be HH:mm or null');
+        }
+      }
+      if (data.settings.loanReturnEndTime !== undefined && data.settings.loanReturnEndTime !== null) {
+        if (!isValidTimeString(data.settings.loanReturnEndTime)) {
+          errors.push('Invalid loanReturnEndTime: must be HH:mm or null');
+        }
+      }
+      if (
+        data.settings.loanReturnStartTime &&
+        data.settings.loanReturnEndTime &&
+        isValidTimeString(data.settings.loanReturnStartTime) &&
+        isValidTimeString(data.settings.loanReturnEndTime)
+      ) {
+        if (data.settings.loanReturnStartTime >= data.settings.loanReturnEndTime) {
+          errors.push('Invalid return time window: start must be before end');
+        }
+      }
+
       if (data.settings.discordEnabled !== undefined) {
         if (typeof data.settings.discordEnabled !== 'boolean') {
           errors.push('Invalid discordEnabled: must be boolean');
@@ -1053,6 +1084,16 @@ class SettingsService {
       validateDiscordWebhookUrl
     } = await import('../utils/settingsValidation.js');
 
+    const validateTimeString = (value) => {
+      if (value === null || value === undefined || value === '') {
+        return { isValid: true, error: null };
+      }
+      const isValid = typeof value === 'string' && /^\d{2}:\d{2}$/.test(value);
+      return isValid
+        ? { isValid: true, error: null }
+        : { isValid: false, error: 'Invalid time format (HH:mm)' };
+    };
+
     switch (key) {
       case 'maxLoanDuration':
         return validateLoanDuration(value);
@@ -1060,6 +1101,9 @@ class SettingsService {
         return validateAdvanceBookingDays(value);
       case 'defaultCategoryLimit':
         return validateCategoryLimit(value);
+      case 'loanReturnStartTime':
+      case 'loanReturnEndTime':
+        return validateTimeString(value);
       case 'discordWebhookUrl':
         return value === null || value === '' 
           ? { isValid: true, error: null }

@@ -9,6 +9,8 @@
  * @property {number} maxLoanDuration - Maximum loan duration in days
  * @property {number} maxAdvanceBookingDays - Maximum advance booking period in days
  * @property {number} defaultCategoryLimit - Default items per category limit
+ * @property {string|null} loanReturnStartTime - Allowed return start time (HH:mm, 24h) or null for no restriction
+ * @property {string|null} loanReturnEndTime - Allowed return end time (HH:mm, 24h) or null for no restriction
  * @property {string|null} discordWebhookUrl - Discord webhook URL for notifications
  * @property {boolean} discordEnabled - Whether Discord notifications are enabled
  * @property {Date} lastUpdated - Last update timestamp
@@ -136,6 +138,8 @@ export const CRITICAL_SETTINGS = [
   'maxLoanDuration',
   'maxAdvanceBookingDays',
   'defaultCategoryLimit',
+  'loanReturnStartTime',
+  'loanReturnEndTime',
   'closedDates',
   'categoryLimits'
 ];
@@ -155,6 +159,8 @@ export const DEFAULT_SETTINGS = {
   maxLoanDuration: 14,
   maxAdvanceBookingDays: 30,
   defaultCategoryLimit: 3,
+  loanReturnStartTime: null,
+  loanReturnEndTime: null,
   discordWebhookUrl: null,
   discordEnabled: false,
   version: 1
