@@ -15,6 +15,8 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
   const { settings } = useSettings();
   const [formData, setFormData] = useState({
     ...DEFAULT_LOAN_REQUEST_FORM,
+    borrowDate: '',
+    expectedReturnDate: '',
     expectedReturnTime: ''
   });
   const [equipment, setEquipment] = useState(null);
@@ -41,22 +43,17 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
 
     if (equipmentId) {
       loadEquipmentData();
-      setFormData(prev => ({ ...prev, equipmentId }));
-      
-      // Set default dates
+
+      // Default borrow date = today, return fields empty
       const today = new Date();
-      const borrowDate = new Date(today);
-      borrowDate.setDate(today.getDate() + 1); // Tomorrow
-      
-      const returnDate = new Date(borrowDate);
-      returnDate.setDate(borrowDate.getDate() + DEFAULT_LOAN_DURATION_DAYS);
+      const borrowDate = today.toISOString().split('T')[0];
       
       setFormData(prev => ({
         ...prev,
         equipmentId,
-        borrowDate: borrowDate.toISOString().split('T')[0],
-        expectedReturnDate: returnDate.toISOString().split('T')[0],
-        expectedReturnTime: '17:00'
+        borrowDate,
+        expectedReturnDate: '',
+        expectedReturnTime: ''
       }));
     }
   }, [equipmentId]);
@@ -72,15 +69,12 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
 
-    // Auto-calculate return date when borrow date changes
+    // Reset return date/time when borrow date changes
     if (name === 'borrowDate' && value) {
-      const borrowDate = new Date(value);
-      const returnDate = new Date(borrowDate);
-      returnDate.setDate(borrowDate.getDate() + DEFAULT_LOAN_DURATION_DAYS);
-      
       setFormData(prev => ({
         ...prev,
-        expectedReturnDate: returnDate.toISOString().split('T')[0]
+        expectedReturnDate: '',
+        expectedReturnTime: ''
       }));
     }
   };
@@ -190,10 +184,9 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
     return 0;
   };
 
-  const getTomorrowDate = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
   };
 
   if (!equipment) {
@@ -287,7 +280,7 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
               name="borrowDate"
               value={formData.borrowDate}
               onChange={handleInputChange}
-              min={getTomorrowDate()}
+              min={getTodayDate()}
               className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.borrowDate ? 'border-red-300' : 'border-gray-300'
               }`}
@@ -308,7 +301,7 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
               name="expectedReturnDate"
               value={formData.expectedReturnDate}
               onChange={handleInputChange}
-              min={formData.borrowDate || getTomorrowDate()}
+              min={formData.borrowDate || getTodayDate()}
               className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.expectedReturnDate ? 'border-red-300' : 'border-gray-300'
               }`}
