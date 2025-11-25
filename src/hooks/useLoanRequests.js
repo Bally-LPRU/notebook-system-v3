@@ -32,6 +32,16 @@ export const useLoanRequests = (initialFilters = {}) => {
    * 3. This prevents infinite re-render loops
    */
   const loadLoanRequests = useCallback(async (resetPagination = false) => {
+    // For user-scoped views, wait until userId is available
+    const hasUserIdFilter = Object.prototype.hasOwnProperty.call(filters, 'userId');
+    if (hasUserIdFilter && !filters.userId) {
+      setLoanRequests([]);
+      setPagination(prev => ({ ...prev, currentPage: 1, hasNextPage: false, totalItems: 0 }));
+      setLastDoc(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
