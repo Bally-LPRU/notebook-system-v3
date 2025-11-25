@@ -59,8 +59,7 @@ export const useLoanRequests = (initialFilters = {}) => {
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // ✅ Empty dependencies - intentional to prevent re-render loops
+  }, [filters, pagination.currentPage, lastDoc]);
 
   /**
    * Load more loan requests (pagination)
