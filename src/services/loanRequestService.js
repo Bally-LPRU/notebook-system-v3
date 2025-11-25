@@ -275,8 +275,8 @@ class LoanRequestService {
       loanRequestQuery = query(loanRequestQuery, ...queryConstraints);
       
       // Execute query
-      const querySnapshot = await getDocs(loanRequestQuery);
-      const loanRequests = [];
+      let querySnapshot = await getDocs(loanRequestQuery);
+      let loanRequests = [];
       let hasNextPage = false;
       
       querySnapshot.forEach((doc, index) => {
@@ -290,6 +290,21 @@ class LoanRequestService {
           hasNextPage = true;
         }
       });
+
+      // Fallback: if nothing returned for user-scoped view, try a simpler query without pagination
+      if (loanRequests.length === 0 && userId) {
+        const fallbackQuery = query(
+          collection(db, this.COLLECTION_NAME),
+          where('userId', '==', userId),
+          firestoreLimit(limit)
+        );
+        querySnapshot = await getDocs(fallbackQuery);
+        loanRequests = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        hasNextPage = loanRequests.length >= limit;
+      }
 
       // Enrich with equipment and user data
       const enrichedLoanRequests = await this.enrichLoanRequestsWithDetails(loanRequests);
