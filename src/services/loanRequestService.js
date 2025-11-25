@@ -157,8 +157,12 @@ class LoanRequestService {
         updatedAt: new Date()
       };
 
-      // Notify admins about new loan request
-      await this.notifyAdminsNewLoanRequest(createdRequest, equipment);
+      // Notify admins about new loan request (best effort)
+      try {
+        await this.notifyAdminsNewLoanRequest(createdRequest, equipment);
+      } catch (notifyError) {
+        console.warn('Skipping admin notification for loan request:', notifyError);
+      }
       
       return createdRequest;
     } catch (error) {
@@ -837,8 +841,12 @@ class LoanRequestService {
 
       if (!user) return;
 
-      // Use the enhanced notification service
-      await NotificationService.notifyAdminsNewLoanRequest(loanRequest, equipment, user);
+      // Use the enhanced notification service (best effort)
+      try {
+        await NotificationService.notifyAdminsNewLoanRequest(loanRequest, equipment, user);
+      } catch (notifyError) {
+        console.warn('Failed to notify admins (ignored):', notifyError);
+      }
 
       // Send Discord notification
       try {
@@ -853,10 +861,10 @@ class LoanRequestService {
         });
       } catch (discordError) {
         // Log but don't fail the operation
-        console.error('Error sending Discord notification for new loan request:', discordError);
+        console.warn('Error sending Discord notification for new loan request (ignored):', discordError);
       }
     } catch (error) {
-      console.error('Error notifying admins about new loan request:', error);
+      console.warn('Error notifying admins about new loan request (ignored):', error);
     }
   }
 
@@ -1055,6 +1063,14 @@ class LoanRequestService {
    */
   static async checkCategoryLimit(userId, categoryId) {
     try {
+      // If category is missing, allow the request (fail open)
+      if (!categoryId || typeof categoryId !== 'string') {
+        return {
+          allowed: true,
+          message: 'ไม่มีหมวดหมู่ อนุญาตให้ยืมต่อ'
+        };
+      }
+
       // Import settingsService dynamically to avoid circular dependencies
       const settingsService = (await import('./settingsService.js')).default;
 
