@@ -95,13 +95,21 @@ class LoanRequestService {
         userData
       );
 
+      // Normalize some frequently used fields
+      const equipmentCategory = equipment.category || equipment.categoryId || null;
+      const equipmentNumber = equipment.equipmentNumber || equipment.inventoryNumber || equipment.serialNumber || equipment.assetNumber || null;
+      const userDepartment = typeof userData?.department === 'object'
+        ? userData.department.value || userData.department.label || null
+        : userData?.department || null;
+
       // Prepare loan request data with denormalized fields for data consistency
       const loanRequest = {
         equipmentId: loanRequestData.equipmentId,
+        equipmentNumber,
         userId,
         requestDate: serverTimestamp(),
-        borrowDate: borrowDate,
-        expectedReturnDate: expectedReturnDate,
+        borrowDate: Timestamp.fromDate(borrowDate),
+        expectedReturnDate: Timestamp.fromDate(expectedReturnDate),
         actualReturnDate: null,
         purpose: loanRequestData.purpose.trim(),
         notes: loanRequestData.notes?.trim() || '',
@@ -111,22 +119,28 @@ class LoanRequestService {
         rejectionReason: null,
         searchKeywords, // Add search keywords for efficient searching
         // ✅ Denormalized fields for server-side filtering
-        equipmentCategory: equipment.category || null, // For efficient category filtering
+        equipmentCategory, // For efficient category filtering
         equipmentName: equipment.name || 'ไม่ทราบชื่อ', // For sorting and display
+        equipmentStatus: equipment.status || null,
         userName: userData?.displayName || 'ไม่ทราบชื่อ', // For sorting and display
-        userDepartment: userData?.department || null, // For department filtering
+        userEmail: userData?.email || '',
+        userDepartment, // For department filtering
         // ✅ Denormalized data for consistency and fallback
         equipmentSnapshot: {
           name: equipment.name || 'ไม่ทราบชื่อ',
-          category: equipment.category || null,
+          category: equipmentCategory,
           serialNumber: equipment.serialNumber || null,
-          imageUrl: equipment.imageUrl || equipment.images?.[0] || null
+          equipmentNumber,
+          imageUrl: equipment.imageUrl || equipment.images?.[0] || equipment.imageURL || null,
+          brand: equipment.brand || null,
+          model: equipment.model || null,
+          status: equipment.status || null
         },
         userSnapshot: {
           displayName: userData?.displayName || 'ไม่ทราบชื่อ',
           email: userData?.email || '',
-          department: userData?.department || null,
-          studentId: userData?.studentId || null
+          department: userDepartment,
+          studentId: userData?.studentId || userData?.studentID || null
         },
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -1103,4 +1117,3 @@ class LoanRequestService {
 }
 
 export default LoanRequestService;
-
