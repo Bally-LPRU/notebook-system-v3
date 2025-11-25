@@ -89,6 +89,13 @@ export const useLoanRequests = (initialFilters = {}) => {
     setLastDoc(null);
   }, [initialFilters]);
 
+  // Update filters when initialFilters change (e.g., when userId becomes available)
+  useEffect(() => {
+    setFilters(initialFilters);
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+    setLastDoc(null);
+  }, [JSON.stringify(initialFilters)]);
+
   /**
    * Refresh loan requests data
    */
