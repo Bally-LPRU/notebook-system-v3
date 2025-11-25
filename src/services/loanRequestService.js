@@ -53,21 +53,6 @@ class LoanRequestService {
         throw new Error('มีคำขอยืมอุปกรณ์นี้รอการอนุมัติอยู่แล้ว');
       }
 
-      // Normalize some frequently used fields
-      const equipmentCategory = equipment.category || equipment.categoryId || null;
-      const equipmentNumber = equipment.equipmentNumber || equipment.inventoryNumber || equipment.serialNumber || equipment.assetNumber || null;
-      const userDepartment = typeof userData?.department === 'object'
-        ? userData.department.value || userData.department.label || null
-        : userData?.department || null;
-
-      // Check category limit (skip if category is missing)
-      if (equipmentCategory) {
-        const canBorrow = await this.checkCategoryLimit(userId, equipmentCategory);
-        if (!canBorrow.allowed) {
-          throw new Error(canBorrow.message);
-        }
-      }
-
       // Validate dates
       const borrowDate = new Date(loanRequestData.borrowDate);
       const expectedReturnDate = new Date(loanRequestData.expectedReturnDate);
@@ -94,6 +79,21 @@ class LoanRequestService {
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
       const userData = userDoc.exists() ? userDoc.data() : null;
+
+      // Normalize some frequently used fields
+      const equipmentCategory = equipment.category || equipment.categoryId || null;
+      const equipmentNumber = equipment.equipmentNumber || equipment.inventoryNumber || equipment.serialNumber || equipment.assetNumber || null;
+      const userDepartment = typeof userData?.department === 'object'
+        ? userData.department.value || userData.department.label || null
+        : userData?.department || null;
+
+      // Check category limit (skip if category is missing)
+      if (equipmentCategory) {
+        const canBorrow = await this.checkCategoryLimit(userId, equipmentCategory);
+        if (!canBorrow.allowed) {
+          throw new Error(canBorrow.message);
+        }
+      }
 
       // Generate search keywords
       const searchKeywords = LoanRequestSearchService.generateSearchKeywords(
