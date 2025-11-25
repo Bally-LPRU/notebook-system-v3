@@ -15,6 +15,11 @@ service cloud.firestore {
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
+
+    function isAdminUser(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId)) &&
+             get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin';
+    }
     
     function isApprovedUser() {
       return isAuthenticated() && 
@@ -173,7 +178,13 @@ service cloud.firestore {
                        request.auth.uid == resource.data.userId &&
                        (request.resource.data.isRead == true || resource.data.isRead == true);
       
-      allow create: if isAdmin();
+      // Allow admins to create notifications, or allow authenticated users to create notifications
+      // targeted at admins (used for user-submitted loan requests)
+      allow create: if isAdmin() ||
+                       (isAuthenticated() &&
+                        isAdminUser(request.resource.data.userId) &&
+                        request.resource.data.userId is string &&
+                        request.resource.data.type is string);
       
       // Allow users to delete their own notifications
       allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
