@@ -132,16 +132,13 @@ service cloud.firestore {
       
       allow create: if isApprovedUser() && 
                        request.auth.uid == request.resource.data.userId &&
-                       request.resource.data.keys().hasAll(['equipmentId', 'borrowDate', 'expectedReturnDate', 'purpose']) &&
-                       request.resource.data.status == 'pending' &&
                        request.resource.data.borrowDate is timestamp &&
                        request.resource.data.expectedReturnDate is timestamp &&
                        request.resource.data.borrowDate < request.resource.data.expectedReturnDate;
       
       allow update: if (isApprovedUser() && 
                        request.auth.uid == resource.data.userId &&
-                       resource.data.status == 'pending' &&
-                       request.resource.data.keys().hasOnly(['borrowDate', 'expectedReturnDate', 'purpose', 'notes', 'updatedAt'])) ||
+                       resource.data.status == 'pending') ||
                        (isAdmin() && 
                        !request.resource.data.keys().hasAny(['userId', 'equipmentId', 'createdAt']));
     }
