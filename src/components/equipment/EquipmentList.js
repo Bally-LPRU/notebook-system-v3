@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Layout } from '../layout';
 import { useEquipment } from '../../hooks/useEquipment';
@@ -9,15 +9,19 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import EmptyState from '../common/EmptyState';
 import LoanRequestForm from '../loans/LoanRequestForm';
 import EquipmentService from '../../services/equipmentService';
+import LoanRequestService from '../../services/loanRequestService';
+import { useNavigate } from 'react-router-dom';
 
 const EquipmentList = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const navigate = useNavigate();
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [showBorrowModal, setShowBorrowModal] = useState(false);
   const [showReserveModal, setShowReserveModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedItems, setSelectedItems] = useState([]);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [userActiveRequests, setUserActiveRequests] = useState({});
 
   const {
     equipment,
@@ -180,12 +184,34 @@ const EquipmentList = () => {
   };
 
   // Handle successful loan request
-  const handleLoanRequestSuccess = () => {
+  const handleLoanRequestSuccess = (createdRequest) => {
     closeModals();
     refreshEquipment(); // Refresh equipment list to update status
-    // Show success message (could be implemented with a toast notification)
+    if (createdRequest?.equipmentId) {
+      setUserActiveRequests((prev) => ({
+        ...prev,
+        [createdRequest.equipmentId]: createdRequest
+      }));
+    }
     alert('ส่งคำขอยืมเรียบร้อยแล้ว รอการอนุมัติจากผู้ดูแลระบบ');
+    navigate('/my-requests');
   };
+
+  const loadUserActiveRequests = useCallback(async () => {
+    if (!user || isAdmin) return;
+    const active = await LoanRequestService.getActiveRequestsForUser(user.uid);
+    const map = {};
+    active.forEach((req) => {
+      if (req.equipmentId && !map[req.equipmentId]) {
+        map[req.equipmentId] = req;
+      }
+    });
+    setUserActiveRequests(map);
+  }, [user, isAdmin]);
+
+  useEffect(() => {
+    loadUserActiveRequests();
+  }, [loadUserActiveRequests]);
 
   return (
     <Layout>
@@ -293,12 +319,13 @@ const EquipmentList = () => {
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {equipment.map((item) => (
-                    <EquipmentCard
-                      key={item.id}
-                      equipment={item}
-                      onBorrow={handleBorrow}
-                      onReserve={handleReserve}
-                      onEdit={handleEdit}
+                <EquipmentCard
+                  key={item.id}
+                  equipment={item}
+                  userActiveRequest={userActiveRequests[item.id]}
+                  onBorrow={handleBorrow}
+                  onReserve={handleReserve}
+                  onEdit={handleEdit}
                       onDelete={handleDelete}
                       onViewDetail={handleViewDetail}
                       isSelectable={isAdmin}

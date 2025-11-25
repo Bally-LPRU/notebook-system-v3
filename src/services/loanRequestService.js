@@ -683,6 +683,36 @@ class LoanRequestService {
   }
 
   /**
+   * Get active loan requests for a user (pending/approved/borrowed)
+   * @param {string} userId - User ID
+   * @returns {Promise<Array>} Active requests
+   */
+  static async getActiveRequestsForUser(userId) {
+    if (!userId) return [];
+
+    try {
+      const loanRequestRef = collection(db, this.COLLECTION_NAME);
+      const activeStatuses = [LOAN_REQUEST_STATUS.PENDING, LOAN_REQUEST_STATUS.APPROVED, LOAN_REQUEST_STATUS.BORROWED];
+
+      // Firestore supports 'in' with up to 10 values
+      const q = query(
+        loanRequestRef,
+        where('userId', '==', userId),
+        where('status', 'in', activeStatuses)
+      );
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+    } catch (error) {
+      console.error('Error getting active requests for user:', error);
+      return [];
+    }
+  }
+
+  /**
    * Enrich loan requests with equipment and user details
    * ✅ Fixed N+1 Query Problem: Uses batch fetching instead of individual queries
    * @param {Array} loanRequests - Array of loan requests

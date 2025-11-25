@@ -9,6 +9,7 @@ import EquipmentStatusBadge from './EquipmentStatusBadge';
 
 const EquipmentCard = ({ 
   equipment, 
+  userActiveRequest = null,
   onBorrow, 
   onReserve, 
   onEdit, 
@@ -63,6 +64,31 @@ const EquipmentCard = ({
   };
 
   const canBorrow = canBorrowEquipment(equipment);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const hasUserActiveRequest = (() => {
+    if (!userActiveRequest) return false;
+    const status = userActiveRequest.status;
+    const blocking = ['pending', 'approved', 'borrowed'];
+    if (!blocking.includes(status)) return false;
+
+    if (userActiveRequest.expectedReturnDate) {
+      const expected = userActiveRequest.expectedReturnDate.toDate
+        ? userActiveRequest.expectedReturnDate.toDate()
+        : new Date(userActiveRequest.expectedReturnDate);
+      if (expected < today) {
+        return false;
+      }
+    }
+    return true;
+  })();
+
+  const userBlockReason = hasUserActiveRequest
+    ? 'คุณมีคำขอหรือกำลังยืมอุปกรณ์นี้อยู่'
+    : null;
+  const isBorrowDisabled = !canBorrow.canBorrow || hasUserActiveRequest;
+  const borrowDisableReason = userBlockReason || canBorrow.reason;
 
   const handleSelectChange = (e) => {
     if (onSelect) {
@@ -200,13 +226,13 @@ const EquipmentCard = ({
             <div className={isListMode ? 'flex space-x-1' : 'flex space-x-2'}>
               <button
                 onClick={handleBorrow}
-                disabled={!canBorrow.canBorrow}
+                disabled={isBorrowDisabled}
                 className={`${isListMode ? 'px-2 py-1' : 'flex-1 px-3 py-2'} text-sm font-medium rounded-md transition-colors ${
-                  canBorrow.canBorrow
+                  !isBorrowDisabled
                     ? 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
-                title={!canBorrow.canBorrow ? canBorrow.reason : 'ขอยืมอุปกรณ์'}
+                title={borrowDisableReason || 'ขอยืมอุปกรณ์'}
               >
                 <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -216,13 +242,13 @@ const EquipmentCard = ({
               
               <button
                 onClick={handleReserve}
-                disabled={!canBorrow.canBorrow}
+                disabled={isBorrowDisabled}
                 className={`${isListMode ? 'px-2 py-1' : 'flex-1 px-3 py-2'} text-sm font-medium rounded-md transition-colors ${
-                  canBorrow.canBorrow
+                  !isBorrowDisabled
                     ? 'bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2'
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
-                title={!canBorrow.canBorrow ? canBorrow.reason : 'จองล่วงหน้า'}
+                title={borrowDisableReason || 'จองล่วงหน้า'}
               >
                 <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />

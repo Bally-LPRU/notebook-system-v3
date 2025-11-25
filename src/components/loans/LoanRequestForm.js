@@ -155,7 +155,7 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
     try {
       const expectedReturnDateTime = new Date(`${formData.expectedReturnDate}T${formData.expectedReturnTime || '23:59'}`);
 
-      await LoanRequestService.createLoanRequest(
+      const createdRequest = await LoanRequestService.createLoanRequest(
         {
           ...formData,
           expectedReturnDate: expectedReturnDateTime,
@@ -164,7 +164,7 @@ const LoanRequestForm = ({ equipmentId, onSuccess, onCancel }) => {
         },
         user.uid
       );
-      onSuccess?.();
+      onSuccess?.(createdRequest);
     } catch (error) {
       console.error('Error creating loan request:', error);
       setErrors({ general: error.message || 'เกิดข้อผิดพลาดในการส่งคำขอยืม' });
