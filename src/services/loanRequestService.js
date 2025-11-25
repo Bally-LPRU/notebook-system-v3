@@ -53,9 +53,16 @@ class LoanRequestService {
         throw new Error('มีคำขอยืมอุปกรณ์นี้รอการอนุมัติอยู่แล้ว');
       }
 
-      // Check category limit
-      if (equipment.category) {
-        const canBorrow = await this.checkCategoryLimit(userId, equipment.category);
+      // Normalize some frequently used fields
+      const equipmentCategory = equipment.category || equipment.categoryId || null;
+      const equipmentNumber = equipment.equipmentNumber || equipment.inventoryNumber || equipment.serialNumber || equipment.assetNumber || null;
+      const userDepartment = typeof userData?.department === 'object'
+        ? userData.department.value || userData.department.label || null
+        : userData?.department || null;
+
+      // Check category limit (skip if category is missing)
+      if (equipmentCategory) {
+        const canBorrow = await this.checkCategoryLimit(userId, equipmentCategory);
         if (!canBorrow.allowed) {
           throw new Error(canBorrow.message);
         }
@@ -94,13 +101,6 @@ class LoanRequestService {
         equipment,
         userData
       );
-
-      // Normalize some frequently used fields
-      const equipmentCategory = equipment.category || equipment.categoryId || null;
-      const equipmentNumber = equipment.equipmentNumber || equipment.inventoryNumber || equipment.serialNumber || equipment.assetNumber || null;
-      const userDepartment = typeof userData?.department === 'object'
-        ? userData.department.value || userData.department.label || null
-        : userData?.department || null;
 
       // Prepare loan request data with denormalized fields for data consistency
       const loanRequest = {

@@ -62,12 +62,34 @@ class LoanRequestSearchService {
    */
   static addKeywords(keywords, text) {
     if (!text) return;
-    
-    const words = text.toLowerCase()
+
+    // Normalize different data types to string
+    let normalized = '';
+    if (Array.isArray(text)) {
+      normalized = text.filter(Boolean).join(' ');
+    } else if (typeof text === 'object') {
+      const candidates = [
+        text.value,
+        text.label,
+        text.name,
+        text.displayName,
+        text.email,
+        text.category,
+        text.model,
+        text.brand
+      ].filter(Boolean);
+      normalized = candidates.join(' ');
+    } else {
+      normalized = String(text);
+    }
+
+    if (!normalized) return;
+
+    const words = normalized.toLowerCase()
       .replace(/[^\u0E00-\u0E7Fa-zA-Z0-9\s]/g, ' ')
       .split(/\s+/)
       .filter(word => word.length >= 2);
-    
+
     words.forEach(word => keywords.add(word));
   }
 
