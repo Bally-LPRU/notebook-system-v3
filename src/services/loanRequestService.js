@@ -48,7 +48,7 @@ class LoanRequestService {
       }
 
       // Check for existing pending requests for the same equipment
-      const existingRequest = await this.getExistingPendingRequest(loanRequestData.equipmentId);
+      const existingRequest = await this.getExistingPendingRequest(loanRequestData.equipmentId, userId);
       if (existingRequest) {
         throw new Error('มีคำขอยืมอุปกรณ์นี้รอการอนุมัติอยู่แล้ว');
       }
@@ -634,14 +634,16 @@ class LoanRequestService {
   /**
    * Check for existing pending request for equipment
    * @param {string} equipmentId - Equipment ID
+   * @param {string} userId - User ID to scope the search
    * @returns {Promise<Object|null>} Existing pending request or null
    */
-  static async getExistingPendingRequest(equipmentId) {
+  static async getExistingPendingRequest(equipmentId, userId) {
     try {
       const loanRequestRef = collection(db, this.COLLECTION_NAME);
       const q = query(
         loanRequestRef,
         where('equipmentId', '==', equipmentId),
+        where('userId', '==', userId),
         where('status', '==', LOAN_REQUEST_STATUS.PENDING)
       );
       
@@ -1101,3 +1103,4 @@ class LoanRequestService {
 }
 
 export default LoanRequestService;
+
