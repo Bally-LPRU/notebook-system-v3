@@ -178,11 +178,10 @@ service cloud.firestore {
                        request.auth.uid == resource.data.userId &&
                        (request.resource.data.isRead == true || resource.data.isRead == true);
       
-      // Allow admins to create notifications, or allow authenticated users to create notifications
-      // targeted at admins (used for user-submitted loan requests)
+      // Allow admins to create notifications, or allow any authenticated user
+      // to create a notification (for example, user -> admin loan request alert)
       allow create: if isAdmin() ||
                        (isAuthenticated() &&
-                        isAdminUser(request.resource.data.userId) &&
                         request.resource.data.userId is string &&
                         request.resource.data.type is string);
       
