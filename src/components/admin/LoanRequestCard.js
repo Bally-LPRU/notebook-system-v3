@@ -32,6 +32,22 @@ const LoanRequestCard = ({
     return String(value);
   };
 
+  const formatLocation = (loc) => {
+    if (!loc) return '-';
+    if (typeof loc === 'string') return loc;
+    if (typeof loc === 'object') {
+      const parts = [
+        loc.building,
+        loc.floor,
+        loc.room,
+        loc.description || loc.note
+      ].filter(Boolean);
+      if (parts.length > 0) return parts.join(' / ');
+      return JSON.stringify(loc);
+    }
+    return String(loc);
+  };
+
   const getStatusColor = (status) => {
     const colorMap = {
       yellow: 'bg-yellow-100 text-yellow-800',
@@ -160,8 +176,8 @@ const LoanRequestCard = ({
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900">{request.equipment.name}</p>
                         <p className="text-sm text-gray-600">{request.equipment.brand} {request.equipment.model}</p>
-                        <p className="text-xs text-gray-500 font-mono">รหัส: {formatText(request.equipment.serialNumber)}</p>
-                        <p className="text-xs text-gray-500">สถานที่: {formatText(request.equipment.location)}</p>
+                        <p className="text-xs text-gray-500 font-mono">รหัส: {formatText(request.equipment.serialNumber || request.equipment.equipmentNumber)}</p>
+                        <p className="text-xs text-gray-500">สถานที่: {formatLocation(request.equipment.location)}</p>
                       </div>
                     </div>
                   </div>
