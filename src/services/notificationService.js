@@ -340,12 +340,16 @@ class NotificationService {
 
   // Get user notification settings
   static async getUserNotificationSettings(userId) {
+    if (!userId) {
+      return DEFAULT_NOTIFICATION_SETTINGS;
+    }
+
     try {
       const settingsRef = doc(db, 'notificationSettings', userId);
       const settingsDoc = await getDoc(settingsRef);
       
       if (settingsDoc.exists()) {
-        return settingsDoc.data();
+        return { ...DEFAULT_NOTIFICATION_SETTINGS, ...settingsDoc.data() };
       } else {
         // Create default settings if they don't exist
         const defaultSettings = {
@@ -359,7 +363,8 @@ class NotificationService {
         return defaultSettings;
       }
     } catch (error) {
-      console.error('Error getting notification settings:', error);
+      // Permission denied or other issues: fall back to defaults so notifications still send
+      console.warn('Error getting notification settings, using defaults:', error);
       return DEFAULT_NOTIFICATION_SETTINGS;
     }
   }
