@@ -306,6 +306,21 @@ class LoanRequestService {
         hasNextPage = loanRequests.length >= limit;
       }
 
+      // Fallback for admin/general view: simple latest list if main query is empty
+      if (loanRequests.length === 0 && !userId) {
+        const fallbackQuery = query(
+          collection(db, this.COLLECTION_NAME),
+          orderBy('createdAt', 'desc'),
+          firestoreLimit(limit)
+        );
+        querySnapshot = await getDocs(fallbackQuery);
+        loanRequests = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        hasNextPage = loanRequests.length >= limit;
+      }
+
       // Enrich with equipment and user data
       const enrichedLoanRequests = await this.enrichLoanRequestsWithDetails(loanRequests);
 
