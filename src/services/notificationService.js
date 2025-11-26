@@ -31,7 +31,14 @@ class NotificationService {
   static async createNotification(userId, type, title, message, data = {}) {
     try {
       // Check user notification settings
-      const settings = await this.getUserNotificationSettings(userId);
+      let settings = null;
+      try {
+        settings = await this.getUserNotificationSettings(userId);
+      } catch (settingsError) {
+        // In cases where the caller is not allowed to read admin settings,
+        // fall back to default behavior instead of failing the notification.
+        console.warn('Notification settings not readable, using defaults:', settingsError?.message || settingsError);
+      }
       if (!this.shouldSendNotification(type, settings)) {
         return null;
       }
