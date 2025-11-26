@@ -23,6 +23,15 @@ const LoanRequestCard = ({
     }
   };
 
+  const formatText = (value) => {
+    if (!value) return '-';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object') {
+      return value.value || value.label || value.name || value.id || JSON.stringify(value);
+    }
+    return String(value);
+  };
+
   const getStatusColor = (status) => {
     const colorMap = {
       yellow: 'bg-yellow-100 text-yellow-800',
@@ -151,8 +160,8 @@ const LoanRequestCard = ({
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900">{request.equipment.name}</p>
                         <p className="text-sm text-gray-600">{request.equipment.brand} {request.equipment.model}</p>
-                        <p className="text-xs text-gray-500 font-mono">รหัส: {request.equipment.serialNumber}</p>
-                        <p className="text-xs text-gray-500">สถานที่: {request.equipment.location}</p>
+                        <p className="text-xs text-gray-500 font-mono">รหัส: {formatText(request.equipment.serialNumber)}</p>
+                        <p className="text-xs text-gray-500">สถานที่: {formatText(request.equipment.location)}</p>
                       </div>
                     </div>
                   </div>
@@ -178,14 +187,14 @@ const LoanRequestCard = ({
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900">
-                          {request.user.firstName} {request.user.lastName}
+                          {formatText(request.user.firstName)} {formatText(request.user.lastName)}
                         </p>
-                        <p className="text-sm text-gray-600">{request.user.email}</p>
+                        <p className="text-sm text-gray-600">{formatText(request.user.email)}</p>
                         <p className="text-xs text-gray-500">
-                          {request.user.department} ({request.user.userType})
+                          {formatText(request.user.department)} ({formatText(request.user.userType)})
                         </p>
                         {request.user.phoneNumber && (
-                          <p className="text-xs text-gray-500">โทร: {request.user.phoneNumber}</p>
+                          <p className="text-xs text-gray-500">โทร: {formatText(request.user.phoneNumber)}</p>
                         )}
                       </div>
                     </div>
