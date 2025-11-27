@@ -3,9 +3,11 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import NotificationBell from '../notifications/NotificationBell';
 import PendingUsersBadge from '../admin/PendingUsersBadge';
+import { useNotificationContext } from '../../contexts/NotificationContext';
 
 const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
   const { user, userProfile, signOut, isAdmin } = useAuth();
+  const { showToast } = useNotificationContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const location = useLocation();
@@ -28,6 +30,19 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
     { name: 'จองอุปกรณ์', href: '/reservations', icon: 'reservations' },
     { name: 'คำขอของฉัน', href: '/my-requests', icon: 'requests' },
   ];
+
+  const handleReservationClick = (e) => {
+    // Prevent default navigation when using anchor-like elements
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+
+    showToast({
+      type: 'info',
+      title: 'ฟีเจอร์กำลังพัฒนา',
+      message: 'หน้าจองอุปกรณ์จะพัฒนาในอนาคต ขอบคุณสำหรับความอดทนของคุณ',
+      icon: 'clock',
+      duration: 6000
+    });
+  };
 
   const getIcon = (iconName) => {
     const icons = {
@@ -114,18 +129,34 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
           {!isAdmin && (
             <div className="hidden md:flex items-center space-x-1">
               {navigationItems.map((item) => (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                    isActivePath(item.href)
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  {getIcon(item.icon)}
-                  <span className="ml-2">{item.name}</span>
-                </Link>
+                item.href === '/reservations' ? (
+                  <button
+                    key={item.name}
+                    onClick={handleReservationClick}
+                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                      isActivePath(item.href)
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                    aria-label={item.name}
+                  >
+                    {getIcon(item.icon)}
+                    <span className="ml-2">{item.name}</span>
+                  </button>
+                ) : (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                      isActivePath(item.href)
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    {getIcon(item.icon)}
+                    <span className="ml-2">{item.name}</span>
+                  </Link>
+                )
               ))}
             </div>
           )}
@@ -244,19 +275,37 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-50 border-t border-gray-200">
             {navigationItems.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`flex items-center px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
-                  isActivePath(item.href)
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                {getIcon(item.icon)}
-                <span className="ml-3">{item.name}</span>
-              </Link>
+              item.href === '/reservations' ? (
+                <button
+                  key={item.name}
+                  onClick={(e) => {
+                    handleReservationClick(e);
+                    setIsMenuOpen(false);
+                  }}
+                  className={`flex items-center px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
+                    isActivePath(item.href)
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  {getIcon(item.icon)}
+                  <span className="ml-3">{item.name}</span>
+                </button>
+              ) : (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`flex items-center px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
+                    isActivePath(item.href)
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {getIcon(item.icon)}
+                  <span className="ml-3">{item.name}</span>
+                </Link>
+              )
             ))}
           </div>
         </div>
