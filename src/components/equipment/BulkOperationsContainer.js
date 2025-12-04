@@ -15,14 +15,12 @@ const BulkOperationsContainer = ({
   
   const [modals, setModals] = useState({
     bulkEdit: false,
-    bulkDelete: false,
-    bulkExport: false
+    bulkDelete: false
   });
   
   const [loading, setLoading] = useState({
     bulkEdit: false,
-    bulkDelete: false,
-    bulkExport: false
+    bulkDelete: false
   });
 
   // Memoize modal control functions
@@ -116,40 +114,6 @@ const BulkOperationsContainer = ({
     openModal('bulkEdit');
   }, [openModal]);
 
-  const handleBulkExport = useCallback(async (equipmentList) => {
-    setModalLoading('bulkExport', true);
-    
-    try {
-      const result = await BulkOperationsService.exportEquipmentData(
-        equipmentList, 
-        'excel'
-      );
-      
-      // In a real implementation, this would trigger a file download
-      console.log('Export data:', result);
-      
-      showNotification({
-        type: 'success',
-        title: 'ส่งออกสำเร็จ',
-        message: `ส่งออกข้อมูลอุปกรณ์ ${result.count} รายการ`
-      });
-      
-      if (onOperationComplete) {
-        onOperationComplete('bulkExport', result);
-      }
-      
-    } catch (error) {
-      console.error('Bulk export error:', error);
-      showNotification({
-        type: 'error',
-        title: 'เกิดข้อผิดพลาด',
-        message: error.message || 'ไม่สามารถส่งออกข้อมูลได้'
-      });
-    } finally {
-      setModalLoading('bulkExport', false);
-    }
-  }, [showNotification, onOperationComplete, setModalLoading]);
-
   const handleGenerateQRCodes = useCallback(async (equipmentList) => {
     try {
       const result = await BulkOperationsService.generateBulkQRCodes(equipmentList);
@@ -214,12 +178,11 @@ const BulkOperationsContainer = ({
   const childrenWithProps = useMemo(() => children({
     onBulkEdit: isAdmin ? () => openModal('bulkEdit') : null,
     onBulkDelete: isAdmin ? () => openModal('bulkDelete') : null,
-    onBulkExport: handleBulkExport,
     onBulkStatusUpdate: isAdmin ? handleBulkStatusUpdate : null,
     onBulkLocationUpdate: isAdmin ? handleBulkLocationUpdate : null,
     onGenerateQRCodes: handleGenerateQRCodes,
     onPrintLabels: handlePrintLabels
-  }), [children, isAdmin, openModal, handleBulkExport, handleBulkStatusUpdate, handleBulkLocationUpdate, handleGenerateQRCodes, handlePrintLabels]);
+  }), [children, isAdmin, openModal, handleBulkStatusUpdate, handleBulkLocationUpdate, handleGenerateQRCodes, handlePrintLabels]);
 
   return (
     <>

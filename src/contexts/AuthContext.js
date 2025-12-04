@@ -9,6 +9,38 @@ import { withRetry, withProfileRetry } from '../utils/retryHandler';
 import { logError } from '../utils/errorLogger';
 import { AuthDebugger } from '../utils/authDebugger';
 
+const VALID_DEPARTMENTS = new Set([
+  'accounting',
+  'digital-business',
+  'business-admin',
+  'management',
+  'computer-business',
+  'communication',
+  'logistics',
+  'tourism',
+  'modern-business',
+  'dean-office'
+]);
+
+const STATUS_TRANSITIONS = {
+  incomplete: ['pending'],
+  pending: ['approved', 'rejected'],
+  approved: ['approved'],
+  rejected: ['pending']
+};
+
+const isValidStatusTransition = (currentStatus = 'incomplete', nextStatus) => {
+  if (!nextStatus || nextStatus === currentStatus) {
+    return true;
+  }
+
+  const allowedTargets = STATUS_TRANSITIONS[currentStatus];
+  if (!allowedTargets) {
+    return false;
+  }
+
+  return allowedTargets.includes(nextStatus);
+};
 
 const AuthContext = createContext();
 
@@ -337,6 +369,37 @@ export const AuthProvider = ({ children }) => {
         console.error('❌ No user logged in');
         throw new Error('กรุณาเข้าสู่ระบบก่อนอัปเดตโปรไฟล์');
       }
+
+      if ('firstName' in data && (!data.firstName || !data.firstName.trim())) {
+        throw new Error('ชื่อต้องมีความยาว 1-50 ตัวอักษร');
+      }
+
+      if ('lastName' in data && (!data.lastName || !data.lastName.trim())) {
+        throw new Error('นามสกุลต้องมีความยาว 1-50 ตัวอักษร');
+      }
+
+      if ('department' in data) {
+        const departmentValue = data.department;
+        if (!departmentValue || !departmentValue.value || !departmentValue.label) {
+          throw new Error('กรุณาเลือกสังกัด');
+        }
+
+        if (!VALID_DEPARTMENTS.has(departmentValue.value)) {
+          throw new Error('สังกัดที่เลือกไม่ถูกต้อง');
+        }
+      }
+
+      const validationResult = AuthService.validateProfileData(data);
+      if (!validationResult.isValid) {
+        throw new Error(validationResult.errors[0] || 'ข้อมูลโปรไฟล์ไม่ถูกต้อง');
+      }
+
+      if (typeof data.status !== 'undefined') {
+        const currentStatus = userProfile?.status || 'incomplete';
+        if (!isValidStatusTransition(currentStatus, data.status)) {
+          throw new Error('Invalid status transition');
+        }
+      }
       
       return await withProfileRetry(async () => {
         const userDocRef = doc(db, 'users', currentUser.uid);
@@ -490,6 +553,8 @@ export const AuthProvider = ({ children }) => {
     errorState,
     signIn,
     signOut: handleSignOut,
+    login: signIn,
+    logout: handleSignOut,
     updateProfile,
     clearError,
     retryLastOperation,

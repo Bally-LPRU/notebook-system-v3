@@ -36,14 +36,11 @@ jest.mock('../Header', () => {
 });
 
 jest.mock('../HeroSection', () => {
-  return function HeroSection({ title, subtitle, onGetStarted }) {
+  return function HeroSection({ title, subtitle }) {
     return (
       <div data-testid="hero-section">
         <h1>{title}</h1>
         <p>{subtitle}</p>
-        <button data-testid="get-started-button" onClick={onGetStarted}>
-          Get Started
-        </button>
       </div>
     );
   };
@@ -175,25 +172,6 @@ describe('PublicHomepage', () => {
 
       const loginButton = screen.getByTestId('login-button');
       fireEvent.click(loginButton);
-
-      await waitFor(() => {
-        expect(mockSignIn).toHaveBeenCalled();
-      });
-    });
-
-    it('should handle get started button click', async () => {
-      const mockSignIn = jest.fn();
-      mockUseAuth.mockReturnValue({
-        signIn: mockSignIn,
-        user: null,
-        userProfile: null,
-        needsProfileSetup: jest.fn(() => false)
-      });
-
-      renderWithRouter(<PublicHomepage />);
-
-      const getStartedButton = screen.getByTestId('get-started-button');
-      fireEvent.click(getStartedButton);
 
       await waitFor(() => {
         expect(mockSignIn).toHaveBeenCalled();

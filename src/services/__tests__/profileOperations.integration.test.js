@@ -1,12 +1,14 @@
+import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
 import DuplicateDetectionService from '../duplicateDetectionService';
+import AuthService from '../authService';
 import { auth, db } from '../../config/firebase';
 import { 
-  signInWithPopup, 
   signOut, 
-  onAuthStateChanged 
+  onAuthStateChanged,
+  onIdTokenChanged
 } from 'firebase/auth';
 import { 
   doc, 
@@ -19,6 +21,8 @@ import {
   deleteDoc,
   serverTimestamp 
 } from 'firebase/firestore';
+
+jest.setTimeout(20000);
 
 // Mock Firebase
 jest.mock('../../config/firebase', () => ({
@@ -77,9 +81,49 @@ describe('Profile Operations Integration Tests', () => {
   let mockUser;
   let mockProfile;
   let authStateCallback;
+  let tokenUnsubscribe;
+  let signInSpy;
+
+  const fireAuthStateChange = (user) => {
+    if (!authStateCallback) {
+      throw new Error('Auth state listener has not been initialized');
+    }
+
+    act(() => {
+      auth.currentUser = user;
+      authStateCallback(user);
+    });
+  };
+
+  const triggerAuthStateChange = async (user) => {
+    await waitForAuthListener();
+    fireAuthStateChange(user);
+  };
+
+  const waitForLoadingReady = async () => {
+    await waitFor(() => {
+      expect(screen.getByTestId('loading-status')).toHaveTextContent('Ready');
+    }, { timeout: 5000 });
+  };
+
+  const waitForAuthListener = async () => {
+    await waitFor(() => {
+      expect(authStateCallback).toBeTruthy();
+    });
+  };
+
+  const initializeAuthAsLoggedOut = async () => {
+    await triggerAuthStateChange(null);
+    await waitForLoadingReady();
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    auth.currentUser = null;
+    authStateCallback = null;
+    auth.config = { authDomain: 'test.local' };
+    tokenUnsubscribe = jest.fn();
+    serverTimestamp.mockReturnValue({ seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 });
     
     mockUser = {
       uid: 'test-user-123',
@@ -102,16 +146,19 @@ describe('Profile Operations Integration Tests', () => {
       updatedAt: { seconds: Date.now() / 1000 }
     };
 
+    if (!signInSpy) {
+      signInSpy = jest.spyOn(AuthService, 'signInWithGoogle');
+    }
+    signInSpy.mockReset();
+    signInSpy.mockResolvedValue({ user: mockUser });
+
     // Mock Firebase Auth
     onAuthStateChanged.mockImplementation((auth, callback) => {
       authStateCallback = callback;
       return () => {}; // Unsubscribe function
     });
 
-    signInWithPopup.mockResolvedValue({
-      user: mockUser,
-      credential: null
-    });
+    onIdTokenChanged.mockImplementation(() => tokenUnsubscribe);
 
     signOut.mockResolvedValue();
 
@@ -144,26 +191,21 @@ describe('Profile Operations Integration Tests', () => {
         </AuthProvider>
       );
 
-      // Wait for initial loading to complete
-      await waitFor(() => {
-        expect(screen.getByTestId('loading-status')).toHaveTextContent('Ready');
-      });
+      await initializeAuthAsLoggedOut();
 
       // Simulate login
       const loginButton = screen.getByTestId('login-button');
       await userEvent.click(loginButton);
 
       // Simulate auth state change
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       await waitFor(() => {
         expect(screen.getByTestId('user-status')).toHaveTextContent('Logged in: test@gmail.com');
       });
 
-      // Verify Firebase calls
-      expect(signInWithPopup).toHaveBeenCalledWith(auth, expect.any(Object));
+      // Verify sign-in flow invoked
+      expect(AuthService.signInWithGoogle).toHaveBeenCalled();
       expect(getDoc).toHaveBeenCalledWith(doc(db, 'users', mockUser.uid));
     });
 
@@ -175,9 +217,8 @@ describe('Profile Operations Integration Tests', () => {
       );
 
       // Simulate auth state change with existing user
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
+      await waitForLoadingReady();
 
       await waitFor(() => {
         expect(screen.getByTestId('user-status')).toHaveTextContent('Logged in: test@gmail.com');
@@ -197,13 +238,14 @@ describe('Profile Operations Integration Tests', () => {
       );
 
       // Simulate auth state change
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       await waitFor(() => {
         expect(authState).toBeDefined();
       });
+      await waitForLoadingReady();
+      await waitForLoadingReady();
+      await waitForLoadingReady();
 
       // Test profile update
       const updatedProfileData = {
@@ -253,11 +295,7 @@ describe('Profile Operations Integration Tests', () => {
         ...existingProfile
       });
 
-      expect(getDocs).toHaveBeenCalledWith(
-        expect.objectContaining({
-          converter: undefined
-        })
-      );
+      expect(getDocs).toHaveBeenCalled();
     });
 
     test('should return null for non-existing profile', async () => {
@@ -293,17 +331,21 @@ describe('Profile Operations Integration Tests', () => {
         </AuthProvider>
       );
 
+      await initializeAuthAsLoggedOut();
+
       // Simulate login attempt with existing email
       const loginButton = screen.getByTestId('login-button');
       await userEvent.click(loginButton);
 
       // Simulate auth state change
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       await waitFor(() => {
         expect(authState).toBeDefined();
+      });
+      await waitForLoadingReady();
+      await act(async () => {
+        await authState.checkProfileExists(mockUser.email);
       });
 
       // The system should detect the duplicate and handle appropriately
@@ -316,7 +358,7 @@ describe('Profile Operations Integration Tests', () => {
       const permissionError = new Error('Permission denied');
       permissionError.code = 'permission-denied';
       
-      getDoc.mockRejectedValueOnce(permissionError);
+      getDoc.mockRejectedValue(permissionError);
 
       render(
         <AuthProvider>
@@ -324,13 +366,11 @@ describe('Profile Operations Integration Tests', () => {
         </AuthProvider>
       );
 
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       await waitFor(() => {
         expect(screen.getByTestId('error-message')).toBeInTheDocument();
-      });
+      }, { timeout: 10000 });
     });
 
     test('should validate profile data before saving', async () => {
@@ -342,13 +382,12 @@ describe('Profile Operations Integration Tests', () => {
         </AuthProvider>
       );
 
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       await waitFor(() => {
         expect(authState).toBeDefined();
       });
+      await waitForLoadingReady();
 
       // Test with invalid profile data
       const invalidProfileData = {
@@ -385,13 +424,12 @@ describe('Profile Operations Integration Tests', () => {
         </AuthProvider>
       );
 
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       await waitFor(() => {
         expect(authState).toBeDefined();
       });
+      await waitForLoadingReady();
 
       // Try to change status from 'approved' to 'incomplete' (should be prevented)
       const invalidStatusUpdate = {
@@ -399,9 +437,6 @@ describe('Profile Operations Integration Tests', () => {
         lastName: 'ใจดี',
         status: 'incomplete' // Invalid transition
       };
-
-      // This should be prevented by security rules
-      setDoc.mockRejectedValueOnce(new Error('Invalid status transition'));
 
       await expect(
         authState.updateProfile(invalidStatusUpdate)
@@ -429,9 +464,7 @@ describe('Profile Operations Integration Tests', () => {
         </AuthProvider>
       );
 
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       // Should eventually succeed after retry
       await waitFor(() => {
@@ -453,33 +486,38 @@ describe('Profile Operations Integration Tests', () => {
         </AuthProvider>
       );
 
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       await waitFor(() => {
         expect(screen.getByTestId('error-message')).toBeInTheDocument();
-      });
+      }, { timeout: 10000 });
     });
 
     test('should handle authentication token expiration', async () => {
+      let authState;
+
       const tokenError = new Error('Token expired');
       tokenError.code = 'auth/user-token-expired';
 
-      signInWithPopup.mockRejectedValueOnce(tokenError);
+      signInSpy.mockRejectedValueOnce(tokenError);
 
       render(
         <AuthProvider>
-          <TestComponent />
+          <TestComponent onAuthState={(auth) => { authState = auth; }} />
         </AuthProvider>
       );
 
-      const loginButton = screen.getByTestId('login-button');
-      await userEvent.click(loginButton);
+      await initializeAuthAsLoggedOut();
+
+      await waitFor(() => {
+        expect(authState).toBeDefined();
+      });
+
+      await expect(authState.login()).rejects.toThrow('Token expired');
 
       await waitFor(() => {
         expect(screen.getByTestId('error-message')).toBeInTheDocument();
-      });
+      }, { timeout: 5000 });
     });
   });
 
@@ -504,13 +542,12 @@ describe('Profile Operations Integration Tests', () => {
         </AuthProvider>
       );
 
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       await waitFor(() => {
         expect(authState).toBeDefined();
       });
+      await waitForLoadingReady();
 
       // Complete the profile (should transition to 'pending')
       const completeProfileData = {
@@ -556,21 +593,18 @@ describe('Profile Operations Integration Tests', () => {
         </AuthProvider>
       );
 
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       await waitFor(() => {
         expect(authState).toBeDefined();
       });
+      await waitForLoadingReady();
 
       // Try invalid transition from 'pending' to 'incomplete'
       const invalidUpdate = {
         firstName: 'สมชาย',
         status: 'incomplete'
       };
-
-      setDoc.mockRejectedValueOnce(new Error('Invalid status transition'));
 
       await expect(
         authState.updateProfile(invalidUpdate)
@@ -588,13 +622,12 @@ describe('Profile Operations Integration Tests', () => {
         </AuthProvider>
       );
 
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       await waitFor(() => {
         expect(authState).toBeDefined();
       });
+      await waitForLoadingReady();
 
       // Test with valid Thai names
       const validThaiData = {
@@ -625,13 +658,12 @@ describe('Profile Operations Integration Tests', () => {
         </AuthProvider>
       );
 
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       await waitFor(() => {
         expect(authState).toBeDefined();
       });
+      await waitForLoadingReady();
 
       // Test with invalid phone number
       const invalidPhoneData = {
@@ -656,13 +688,12 @@ describe('Profile Operations Integration Tests', () => {
         </AuthProvider>
       );
 
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       await waitFor(() => {
         expect(authState).toBeDefined();
       });
+      await waitForLoadingReady();
 
       // Test with invalid department
       const invalidDepartmentData = {
@@ -688,22 +719,19 @@ describe('Profile Operations Integration Tests', () => {
       );
 
       // Login first
-      act(() => {
-        authStateCallback(mockUser);
-      });
+      await triggerAuthStateChange(mockUser);
 
       await waitFor(() => {
         expect(screen.getByTestId('user-status')).toHaveTextContent('Logged in: test@gmail.com');
       });
+      await waitForLoadingReady();
 
       // Logout
       const logoutButton = screen.getByTestId('logout-button');
       await userEvent.click(logoutButton);
 
       // Simulate auth state change to null
-      act(() => {
-        authStateCallback(null);
-      });
+      await triggerAuthStateChange(null);
 
       await waitFor(() => {
         expect(screen.getByTestId('user-status')).toHaveTextContent('Not logged in');

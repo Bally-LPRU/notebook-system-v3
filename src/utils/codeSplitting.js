@@ -160,12 +160,6 @@ export const LazyEquipmentComponents = {
     { fallback: <div className="p-4">กำลังโหลดการจัดการแบบกลุ่ม...</div> }
   ),
   
-  // Export and reports
-  ExportReportContainer: createLazyComponent(
-    () => import('../components/equipment/ExportReportContainer'),
-    { fallback: <div className="p-4">กำลังโหลดระบบรายงาน...</div> }
-  ),
-  
   // QR Code system
   QRCodeGenerator: createLazyComponent(
     () => import('../components/equipment/QRCodeGenerator'),

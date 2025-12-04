@@ -22,7 +22,6 @@ class PermissionService {
     EQUIPMENT_DELETE: 'equipment:delete',
     EQUIPMENT_BULK_EDIT: 'equipment:bulk_edit',
     EQUIPMENT_BULK_DELETE: 'equipment:bulk_delete',
-    EQUIPMENT_EXPORT: 'equipment:export',
     
     // Category permissions
     CATEGORY_VIEW: 'category:view',
@@ -55,7 +54,6 @@ class PermissionService {
       this.PERMISSIONS.EQUIPMENT_VIEW,
       this.PERMISSIONS.EQUIPMENT_CREATE,
       this.PERMISSIONS.EQUIPMENT_UPDATE,
-      this.PERMISSIONS.EQUIPMENT_EXPORT,
       this.PERMISSIONS.CATEGORY_VIEW,
       this.PERMISSIONS.REPORT_VIEW,
       this.PERMISSIONS.REPORT_GENERATE
@@ -67,7 +65,6 @@ class PermissionService {
       this.PERMISSIONS.EQUIPMENT_DELETE,
       this.PERMISSIONS.EQUIPMENT_BULK_EDIT,
       this.PERMISSIONS.EQUIPMENT_BULK_DELETE,
-      this.PERMISSIONS.EQUIPMENT_EXPORT,
       this.PERMISSIONS.CATEGORY_VIEW,
       this.PERMISSIONS.CATEGORY_MANAGE,
       this.PERMISSIONS.REPORT_VIEW,
@@ -167,8 +164,7 @@ class PermissionService {
       update: this.PERMISSIONS.EQUIPMENT_UPDATE,
       delete: this.PERMISSIONS.EQUIPMENT_DELETE,
       bulk_edit: this.PERMISSIONS.EQUIPMENT_BULK_EDIT,
-      bulk_delete: this.PERMISSIONS.EQUIPMENT_BULK_DELETE,
-      export: this.PERMISSIONS.EQUIPMENT_EXPORT
+      bulk_delete: this.PERMISSIONS.EQUIPMENT_BULK_DELETE
     };
 
     const requiredPermission = operationPermissions[operation];
@@ -245,7 +241,7 @@ class PermissionService {
       },
       [this.ROLES.EDITOR]: {
         name: 'ผู้แก้ไข',
-        description: 'สามารถเพิ่ม แก้ไข และส่งออกข้อมูลอุปกรณ์ได้',
+        description: 'สามารถเพิ่มและแก้ไขข้อมูลอุปกรณ์ได้',
         color: 'green',
         icon: 'edit'
       },
@@ -283,8 +279,7 @@ class PermissionService {
     // Map bulk operations to basic operations for permission checking
     const operationMap = {
       bulk_edit: 'update',
-      bulk_delete: 'delete',
-      bulk_export: 'export'
+      bulk_delete: 'delete'
     };
     
     const baseOperation = operationMap[operation] || operation;

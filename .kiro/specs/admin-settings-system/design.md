@@ -6,6 +6,8 @@
 
 ระบบจะแบ่งการตั้งค่าออกเป็นหมวดหมู่ต่างๆ เพื่อความง่ายในการจัดการ และจะมีระบบ caching เพื่อเพิ่มประสิทธิภาพ การเปลี่ยนแปลงการตั้งค่าจะถูกบันทึกใน audit log และสามารถ export/import ได้
 
+> **Status (Dec 2025):** ฟีเจอร์ import/export/backup ถูกเลื่อนออกจากรอบส่งมอบล่าสุดและไม่มีโค้ดที่ทำงานอยู่ในระบบจริงอีกต่อไป เอกสารฉบับนี้ยังคงอธิบายแนวคิดเดิมเพื่อเก็บ requirement สำหรับการพัฒนาต่อในอนาคตเท่านั้น
+
 ## Architecture
 
 ### System Components
@@ -94,6 +96,8 @@ class SettingsService {
 }
 ```
 
+> หมายเหตุ: เมธอด import/export/backup ถูกเก็บไว้ในสเปกเพื่อใช้เป็นข้อมูลอ้างอิงเมื่อกลับมาดำเนินการต่อ แม้จะไม่มีอยู่ในโค้ดโปรดักชันแล้ว
+
 ### 2. Settings Context (`SettingsContext.js`)
 
 ```javascript
@@ -138,7 +142,8 @@ const SettingsContext = {
     <CategoryLimitsTab />
     <NotificationsTab />
     <AuditLogTab />
-    <ImportExportTab />
+      {/* Deferred until import/export scope returns */}
+      <ImportExportTab />
   </SettingsTabs>
 </AdminSettingsPage>
 ```
@@ -151,7 +156,7 @@ const SettingsContext = {
 - `CategoryLimitsTab`: จัดการจำนวนการยืมตามประเภท
 - `NotificationsTab`: จัดการ Discord webhook และข้อความแจ้งเตือน
 - `AuditLogTab`: แสดงประวัติการเปลี่ยนแปลง
-- `ImportExportTab`: นำเข้า/ส่งออกการตั้งค่า
+- `ImportExportTab` (deferred): นำเข้า/ส่งออก/สำรองการตั้งค่า (ยังไม่มีการใช้งานในระบบปัจจุบัน)
 
 ## Data Models
 

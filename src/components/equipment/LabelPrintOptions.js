@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import LabelPrintingService from '../../services/labelPrintingService';
 
+const DEFAULT_PAPER_SIZES = {
+  a4: { width: 210, height: 297, name: 'A4' },
+  letter: { width: 216, height: 279, name: 'Letter' },
+  label: { width: 100, height: 150, name: 'Label Sheet' }
+};
+
 const LabelPrintOptions = ({ 
   options = {}, 
   onOptionsChange, 
@@ -15,7 +21,9 @@ const LabelPrintOptions = ({
     ...options
   });
 
-  const paperSizes = Object.entries(LabelPrintingService.PAPER_SIZES).map(([key, value]) => ({
+  const availablePaperSizes = LabelPrintingService.PAPER_SIZES || DEFAULT_PAPER_SIZES;
+
+  const paperSizes = Object.entries(availablePaperSizes).map(([key, value]) => ({
     id: key,
     name: value.name,
     dimensions: `${value.width} × ${value.height} mm`

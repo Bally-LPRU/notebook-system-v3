@@ -3,6 +3,16 @@
 // expect(element).toHaveTextContent(/react/i)
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
+import fc from 'fast-check';
+
+// Polyfill setImmediate for environments where jsdom doesn't provide it (grpc-js relies on it)
+if (typeof global.setImmediate !== 'function') {
+  global.setImmediate = (callback, ...args) => setTimeout(callback, 0, ...args);
+}
+
+if (typeof global.clearImmediate !== 'function') {
+  global.clearImmediate = timeoutId => clearTimeout(timeoutId);
+}
 
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
@@ -205,3 +215,34 @@ console.warn = (...args) => {
   }
   originalConsoleWarn.call(console, ...args);
 };
+
+if (process.env.NODE_ENV === 'test') {
+  const fastCheckRuns = Number(process.env.FAST_CHECK_NUM_RUNS);
+  const fastCheckTimeLimit = Number(process.env.FAST_CHECK_TIME_LIMIT_MS);
+
+  if (Number.isFinite(fastCheckRuns) || Number.isFinite(fastCheckTimeLimit)) {
+    const config = {};
+    if (Number.isFinite(fastCheckRuns)) {
+      config.numRuns = fastCheckRuns;
+    }
+    if (Number.isFinite(fastCheckTimeLimit)) {
+      config.interruptAfterTimeLimit = fastCheckTimeLimit;
+    }
+    fc.configureGlobal(config);
+  }
+
+  afterAll(async () => {
+    try {
+      const [{ db }, { terminate }] = await Promise.all([
+        import('./config/firebase'),
+        import('firebase/firestore')
+      ]);
+
+      if (db && typeof terminate === 'function') {
+        await terminate(db);
+      }
+    } catch (error) {
+      console.warn('⚠️ Firestore terminate warning (non-blocking):', error.message);
+    }
+  });
+}

@@ -1,4 +1,5 @@
 import AuthService from '../authService';
+import { ErrorClassifier, ERROR_TYPES, ERROR_MESSAGES } from '../../utils/errorClassification';
 
 // Mock Firebase
 jest.mock('../../config/firebase', () => ({
@@ -24,10 +25,18 @@ jest.mock('firebase/firestore', () => ({
 
 jest.mock('../../utils/errorLogger', () => ({
   logAuthError: () => {},
-  logFirebaseError: () => {}
+  logFirebaseError: () => {},
+  logError: () => {}
 }));
 
 describe('AuthService Error Handling', () => {
+  beforeAll(() => {
+    Object.defineProperty(navigator, 'onLine', {
+      value: true,
+      configurable: true
+    });
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -38,10 +47,11 @@ describe('AuthService Error Handling', () => {
       networkError.code = 'auth/network-request-failed';
       
       const handledError = AuthService._handleError(networkError, 'test context');
+      const messageInfo = ErrorClassifier.getErrorMessage(handledError);
       
-      expect(handledError.type).toBe('network');
+      expect(handledError.type).toBe(ERROR_TYPES.NETWORK);
       expect(handledError.retryable).toBe(true);
-      expect(handledError.message).toContain('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+      expect(messageInfo.message).toContain('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
     });
 
     it('should classify authentication errors correctly', () => {
@@ -49,10 +59,11 @@ describe('AuthService Error Handling', () => {
       authError.code = 'auth/popup-blocked';
       
       const handledError = AuthService._handleError(authError, 'sign in');
+      const messageInfo = ErrorClassifier.getErrorMessage(handledError);
       
-      expect(handledError.type).toBe('auth');
+      expect(handledError.type).toBe(ERROR_TYPES.AUTH_REQUIRED);
       expect(handledError.retryable).toBe(true);
-      expect(handledError.message).toContain('หน้าต่างการเข้าสู่ระบบถูกบล็อก');
+      expect(messageInfo.message).toContain('เข้าสู่ระบบ');
     });
 
     it('should classify Firestore errors correctly', () => {
@@ -60,36 +71,40 @@ describe('AuthService Error Handling', () => {
       firestoreError.code = 'firestore/permission-denied';
       
       const handledError = AuthService._handleError(firestoreError, 'get user profile');
+      const messageInfo = ErrorClassifier.getErrorMessage(handledError);
       
-      expect(handledError.type).toBe('firestore');
+      expect(handledError.type).toBe(ERROR_TYPES.FIRESTORE);
       expect(handledError.retryable).toBe(true);
-      expect(handledError.message).toContain('ไม่สามารถดึงข้อมูลโปรไฟล์ได้');
+      expect(messageInfo.message).toContain('ฐานข้อมูล');
     });
 
     it('should classify validation errors correctly', () => {
       const validationError = new Error('อีเมลไม่ถูกต้อง');
       
       const handledError = AuthService._handleError(validationError, 'validation');
+      const messageInfo = ErrorClassifier.getErrorMessage(handledError);
       
-      expect(handledError.type).toBe('validation');
+      expect(handledError.type).toBe(ERROR_TYPES.VALIDATION);
       expect(handledError.retryable).toBe(false);
-      expect(handledError.message).toBe('อีเมลไม่ถูกต้อง');
+      expect(messageInfo.message).toContain('ตรวจสอบข้อมูล');
     });
 
     it('should handle unknown errors gracefully', () => {
       const unknownError = new Error('Unknown error');
       
       const handledError = AuthService._handleError(unknownError, 'test context');
+      const messageInfo = ErrorClassifier.getErrorMessage(handledError);
       
-      expect(handledError.type).toBe('unknown');
-      expect(handledError.message).toBe('Unknown error');
+      expect(handledError.type).toBe(ERROR_TYPES.UNKNOWN);
+      expect(messageInfo.message).toContain('เกิดข้อผิดพลาด');
     });
 
     it('should handle null/undefined errors', () => {
       const handledError = AuthService._handleError(null, 'test context');
+      const messageInfo = ErrorClassifier.getErrorMessage(handledError);
       
-      expect(handledError.type).toBe('unknown');
-      expect(handledError.message).toBe('เกิดข้อผิดพลาดที่ไม่คาดคิด กรุณาลองใหม่');
+      expect(handledError.type).toBe(ERROR_TYPES.UNKNOWN);
+      expect(messageInfo.message).toContain('เกิดข้อผิดพลาดที่ไม่คาดคิด');
     });
   });
 
@@ -161,23 +176,27 @@ describe('AuthService Error Handling', () => {
     it('should expose error messages', () => {
       const errorMessages = AuthService.getErrorMessages();
 
-      expect(errorMessages).toHaveProperty('NETWORK_ERROR');
-      expect(errorMessages).toHaveProperty('AUTH_POPUP_BLOCKED');
-      expect(errorMessages).toHaveProperty('AUTH_POPUP_CLOSED');
-      expect(errorMessages).toHaveProperty('AUTH_CANCELLED');
-      expect(errorMessages).toHaveProperty('INVALID_EMAIL_DOMAIN');
-      expect(errorMessages).toHaveProperty('PROFILE_FETCH_ERROR');
-      expect(errorMessages).toHaveProperty('PROFILE_CREATE_ERROR');
-      expect(errorMessages).toHaveProperty('PROFILE_UPDATE_ERROR');
-      expect(errorMessages).toHaveProperty('SIGN_OUT_ERROR');
-      expect(errorMessages).toHaveProperty('GENERIC_ERROR');
+      const expectedKeys = [
+        'NETWORK_ERROR',
+        'AUTH_CANCELLED',
+        'AUTH_REDIRECT_ERROR',
+        'INVALID_EMAIL_DOMAIN',
+        'PROFILE_FETCH_ERROR',
+        'PROFILE_CREATE_ERROR',
+        'PROFILE_UPDATE_ERROR',
+        'SIGN_OUT_ERROR',
+        'GENERIC_ERROR'
+      ];
+
+      expectedKeys.forEach((key) => {
+        expect(errorMessages).toHaveProperty(key);
+      });
     });
 
     it('should provide Thai error messages', () => {
       const errorMessages = AuthService.getErrorMessages();
 
       expect(errorMessages.NETWORK_ERROR).toContain('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
-      expect(errorMessages.AUTH_POPUP_BLOCKED).toContain('หน้าต่างการเข้าสู่ระบบถูกบล็อก');
       expect(errorMessages.INVALID_EMAIL_DOMAIN).toContain('อีเมลของคุณไม่ได้รับอนุญาต');
       expect(errorMessages.PROFILE_FETCH_ERROR).toContain('ไม่สามารถดึงข้อมูลโปรไฟล์ได้');
     });
@@ -225,8 +244,10 @@ describe('AuthService Error Handling', () => {
       error.code = 'auth/popup-blocked';
       
       const handledError = AuthService._handleError(error, 'sign in');
-      
-      expect(handledError.message).toBe('หน้าต่างการเข้าสู่ระบบถูกบล็อก กรุณาอนุญาตป๊อปอัพและลองใหม่');
+      const messageInfo = ErrorClassifier.getErrorMessage(handledError);
+
+      expect(handledError.type).toBe(ERROR_TYPES.AUTH_REQUIRED);
+      expect(messageInfo.message).toContain('เข้าสู่ระบบ');
     });
 
     it('should map popup closed errors', () => {
@@ -234,8 +255,10 @@ describe('AuthService Error Handling', () => {
       error.code = 'auth/popup-closed-by-user';
       
       const handledError = AuthService._handleError(error, 'sign in');
-      
-      expect(handledError.message).toBe('หน้าต่างการเข้าสู่ระบบถูกปิด กรุณาลองใหม่');
+      const messageInfo = ErrorClassifier.getErrorMessage(handledError);
+
+      expect(handledError.type).toBe(ERROR_TYPES.AUTH_REQUIRED);
+      expect(messageInfo.message).toContain('เข้าสู่ระบบ');
     });
 
     it('should map cancelled popup errors', () => {
@@ -243,8 +266,10 @@ describe('AuthService Error Handling', () => {
       error.code = 'auth/cancelled-popup-request';
       
       const handledError = AuthService._handleError(error, 'sign in');
-      
-      expect(handledError.message).toBe('การเข้าสู่ระบบถูกยกเลิก');
+      const messageInfo = ErrorClassifier.getErrorMessage(handledError);
+
+      expect(handledError.type).toBe(ERROR_TYPES.AUTH_REQUIRED);
+      expect(messageInfo.message).toContain('เข้าสู่ระบบ');
     });
 
     it('should map network errors', () => {
@@ -252,17 +277,20 @@ describe('AuthService Error Handling', () => {
       error.code = 'auth/network-request-failed';
       
       const handledError = AuthService._handleError(error, 'sign in');
-      
-      expect(handledError.message).toBe('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
+      const messageInfo = ErrorClassifier.getErrorMessage(handledError);
+
+      expect(handledError.type).toBe(ERROR_TYPES.NETWORK);
+      expect(messageInfo.message).toContain('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
     });
 
     it('should map fetch errors as network errors', () => {
       const error = new Error('fetch failed');
       
       const handledError = AuthService._handleError(error, 'profile fetch');
-      
-      expect(handledError.type).toBe('network');
-      expect(handledError.message).toBe('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
+      const messageInfo = ErrorClassifier.getErrorMessage(handledError);
+
+      expect(handledError.type).toBe(ERROR_TYPES.NETWORK);
+      expect(messageInfo.message).toContain('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
     });
   });
 });

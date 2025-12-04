@@ -12,12 +12,12 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ReservationForm from '../ReservationForm';
-import { useSettings } from '../../../hooks/useSettings';
+import { useSettings } from '../../../contexts/SettingsContext';
 import { useClosedDates } from '../../../hooks/useClosedDates';
 import { useReservations } from '../../../hooks/useReservations';
 
 // Mock hooks
-jest.mock('../../../hooks/useSettings');
+jest.mock('../../../contexts/SettingsContext');
 jest.mock('../../../hooks/useClosedDates');
 jest.mock('../../../hooks/useReservations');
 

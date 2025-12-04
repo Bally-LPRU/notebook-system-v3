@@ -11,6 +11,44 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import settingsService from '../services/settingsService';
 import { useSettings } from './useSettings';
+import { DEFAULT_SETTINGS } from '../types/settings';
+
+const sanitizeLimitValue = (value) => {
+  if (typeof value !== 'number') {
+    return null;
+  }
+  if (!Number.isInteger(value)) {
+    return null;
+  }
+  return value > 0 ? value : null;
+};
+
+const sanitizeCategoryLimit = (entry, fallbackLimit) => {
+  if (!entry) {
+    return null;
+  }
+
+  const normalizedId = typeof entry.categoryId === 'string'
+    ? entry.categoryId.trim()
+    : (typeof entry.id === 'string' ? entry.id.trim() : '');
+
+  const normalizedName = typeof entry.categoryName === 'string' && entry.categoryName.trim().length > 0
+    ? entry.categoryName
+    : 'Unspecified category';
+
+  const resolvedLimit = sanitizeLimitValue(entry.limit) ?? fallbackLimit;
+
+  return {
+    id: entry.id || normalizedId || `category-${Math.random().toString(36).slice(2)}`,
+    categoryId: normalizedId,
+    categoryName: normalizedName,
+    limit: resolvedLimit,
+    updatedAt: entry.updatedAt instanceof Date
+      ? entry.updatedAt
+      : entry.updatedAt?.toDate?.() ?? null,
+    updatedBy: entry.updatedBy || 'system'
+  };
+};
 
 /**
  * Hook to access category limits with real-time updates
@@ -65,7 +103,41 @@ export const useCategoryLimits = () => {
   
   // Get default category limit from settings
   const { settings } = useSettings();
-  const defaultLimit = settings?.defaultCategoryLimit || 3;
+  const [resolvedDefaultLimit, setResolvedDefaultLimit] = useState(() => {
+    return sanitizeLimitValue(settings?.defaultCategoryLimit) ?? DEFAULT_SETTINGS.defaultCategoryLimit;
+  });
+
+  useEffect(() => {
+    const contextLimit = sanitizeLimitValue(settings?.defaultCategoryLimit);
+    if (contextLimit !== null) {
+      setResolvedDefaultLimit(contextLimit);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const resolveDefaultLimit = async () => {
+      try {
+        const latestSettings = await settingsService.getSettings();
+        if (!cancelled) {
+          const fallback = sanitizeLimitValue(latestSettings?.defaultCategoryLimit);
+          if (fallback !== null) {
+            setResolvedDefaultLimit(fallback);
+          }
+        }
+      } catch (err) {
+        if (process.env.NODE_ENV === 'test') {
+          console.warn('useCategoryLimits: unable to resolve default limit from settingsService', err);
+        }
+      }
+    };
+
+    resolveDefaultLimit();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [settings?.defaultCategoryLimit]);
 
   /**
    * Initialize category limits and set up real-time listener
@@ -80,7 +152,11 @@ export const useCategoryLimits = () => {
 
         // Fetch initial data
         const fetchedCategoryLimits = await settingsService.getAllCategoryLimits();
-        setCategoryLimits(fetchedCategoryLimits);
+        setCategoryLimits(
+          fetchedCategoryLimits
+            .map((limit) => sanitizeCategoryLimit(limit, resolvedDefaultLimit))
+            .filter(Boolean)
+        );
         setLoading(false);
 
         // Set up real-time listener
@@ -91,13 +167,18 @@ export const useCategoryLimits = () => {
           (snapshot) => {
             const updatedCategoryLimits = [];
             snapshot.forEach((doc) => {
-              updatedCategoryLimits.push({
-                id: doc.id,
-                ...doc.data(),
-                updatedAt: doc.data().updatedAt?.toDate()
-              });
+              updatedCategoryLimits.push(
+                sanitizeCategoryLimit(
+                  {
+                    id: doc.id,
+                    ...doc.data(),
+                    updatedAt: doc.data().updatedAt
+                  },
+                  resolvedDefaultLimit
+                )
+              );
             });
-            setCategoryLimits(updatedCategoryLimits);
+            setCategoryLimits(updatedCategoryLimits.filter(Boolean));
           },
           (err) => {
             console.error('Error in category limits listener:', err);
@@ -119,7 +200,7 @@ export const useCategoryLimits = () => {
         unsubscribe();
       }
     };
-  }, []);
+  }, [resolvedDefaultLimit]);
 
   /**
    * Get category limit with default fallback
@@ -131,21 +212,18 @@ export const useCategoryLimits = () => {
    * @returns {number} Category limit (specific or default)
    */
   const getCategoryLimit = useCallback((categoryId) => {
-    if (!categoryId || typeof categoryId !== 'string') {
-      console.warn('Invalid category ID provided to getCategoryLimit');
-      return defaultLimit;
+    const normalizedId = typeof categoryId === 'string' ? categoryId.trim() : '';
+    if (!normalizedId) {
+      return resolvedDefaultLimit;
     }
 
-    // Find the specific category limit
-    const categoryLimit = categoryLimits.find(cl => cl.categoryId === categoryId);
-    
-    // Return specific limit if found, otherwise return default
-    if (categoryLimit && typeof categoryLimit.limit === 'number') {
+    const categoryLimit = categoryLimits.find(cl => cl.categoryId === normalizedId);
+    if (categoryLimit && sanitizeLimitValue(categoryLimit.limit) !== null) {
       return categoryLimit.limit;
     }
-    
-    return defaultLimit;
-  }, [categoryLimits, defaultLimit]);
+
+    return resolvedDefaultLimit;
+  }, [categoryLimits, resolvedDefaultLimit]);
 
   /**
    * Manually refresh category limits from Firestore
@@ -158,7 +236,11 @@ export const useCategoryLimits = () => {
       setError(null);
       
       const fetchedCategoryLimits = await settingsService.getAllCategoryLimits();
-      setCategoryLimits(fetchedCategoryLimits);
+      setCategoryLimits(
+        fetchedCategoryLimits
+          .map((limit) => sanitizeCategoryLimit(limit, resolvedDefaultLimit))
+          .filter(Boolean)
+      );
       
       setLoading(false);
     } catch (err) {
@@ -167,7 +249,7 @@ export const useCategoryLimits = () => {
       setLoading(false);
       throw err;
     }
-  }, []);
+  }, [resolvedDefaultLimit]);
 
   return {
     categoryLimits,
@@ -175,7 +257,7 @@ export const useCategoryLimits = () => {
     loading,
     error,
     refresh,
-    defaultLimit
+    defaultLimit: resolvedDefaultLimit
   };
 };
 

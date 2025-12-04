@@ -4,25 +4,61 @@ import { ErrorClassifier } from '../../utils/errorClassification';
 
 // Mock the error classification and retry handler
 jest.mock('../../utils/errorClassification');
-jest.mock('../../utils/retryHandler');
+jest.mock('../../utils/retryHandler', () => {
+  const mockExecuteWithRetry = jest.fn(async (operation) => {
+    if (typeof operation === 'function') {
+      return await operation();
+    }
+    return undefined;
+  });
+
+  class MockRetryHandler {
+    constructor() {
+      this.executeWithRetry = mockExecuteWithRetry;
+    }
+  }
+
+  return {
+    __esModule: true,
+    RetryHandler: MockRetryHandler,
+    __TESTING__: {
+      mockExecuteWithRetry
+    }
+  };
+});
 jest.mock('../../utils/errorLogger');
 
-describe('useEnhancedErrorHandling', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    ErrorClassifier.classify.mockReturnValue({
-      type: 'network',
-      severity: 'high',
-      retryable: true,
-      category: 'network',
-      originalError: new Error('Test error')
-    });
-    ErrorClassifier.getErrorMessage.mockReturnValue({
-      title: 'ปัญหาการเชื่อมต่อ',
-      message: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้',
-      suggestion: 'ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต'
-    });
+import { __TESTING__ as retryHandlerTesting } from '../../utils/retryHandler';
+const { mockExecuteWithRetry } = retryHandlerTesting;
+
+const setDefaultRetryImplementation = () => {
+  mockExecuteWithRetry.mockImplementation(async (operation) => {
+    if (typeof operation === 'function') {
+      return await operation();
+    }
+    return undefined;
   });
+};
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockExecuteWithRetry.mockClear();
+  setDefaultRetryImplementation();
+  ErrorClassifier.classify.mockReturnValue({
+    type: 'network',
+    severity: 'high',
+    retryable: true,
+    category: 'network',
+    originalError: new Error('Test error')
+  });
+  ErrorClassifier.getErrorMessage.mockReturnValue({
+    title: 'ปัญหาการเชื่อมต่อ',
+    message: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้',
+    suggestion: 'ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต'
+  });
+});
+
+describe('useEnhancedErrorHandling', () => {
 
   test('initializes with correct default state', () => {
     const { result } = renderHook(() => useEnhancedErrorHandling());
@@ -208,11 +244,10 @@ describe('useProfileErrorHandling', () => {
     const mockUpdateFunction = jest.fn().mockRejectedValue(testError);
 
     await act(async () => {
-      try {
-        await result.current.updateProfile(mockUpdateFunction, {});
-      } catch (error) {
-        expect(error).toBe(testError);
-      }
+      await expect(result.current.updateProfile(mockUpdateFunction, {})).rejects.toMatchObject({
+        canRetry: true,
+        manualRetryAvailable: true
+      });
     });
 
     expect(result.current.hasError).toBe(true);

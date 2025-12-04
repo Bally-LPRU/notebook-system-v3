@@ -61,6 +61,18 @@ class EquipmentManagementService {
         }
       }
 
+      if (!equipmentData?.equipmentNumber || !equipmentData.equipmentNumber.trim()) {
+        throw new Error('กรุณาระบุหมายเลขครุภัณฑ์');
+      }
+
+      if (!equipmentData?.name || !equipmentData.name.trim()) {
+        throw new Error('กรุณาระบุชื่ออุปกรณ์');
+      }
+
+      if (equipmentData?.purchasePrice !== undefined && equipmentData.purchasePrice < 0) {
+        throw new Error('ราคาซื้อไม่สามารถเป็นค่าติดลบได้');
+      }
+
       // Check if equipment number is unique
       const isUnique = await this.isEquipmentNumberUnique(equipmentData.equipmentNumber);
       if (!isUnique) {
@@ -168,6 +180,29 @@ class EquipmentManagementService {
         throw new Error('ไม่พบอุปกรณ์ที่ต้องการแก้ไข');
       }
 
+      // Merge incoming data with current state so optional fields stay intact
+      const mergedEquipmentData = { ...currentEquipment };
+      Object.entries(equipmentData || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+          mergedEquipmentData[key] = value;
+        }
+      });
+
+      const normalizeDateValue = (value) => {
+        if (!value) return null;
+        if (value instanceof Date) return value;
+        if (typeof value?.toDate === 'function') {
+          return value.toDate();
+        }
+        return new Date(value);
+      };
+
+      const providedEquipmentNumber = typeof equipmentData?.equipmentNumber === 'string'
+        ? equipmentData.equipmentNumber.trim().toUpperCase()
+        : null;
+      const normalizedEquipmentNumber = providedEquipmentNumber || currentEquipment.equipmentNumber;
+      mergedEquipmentData.equipmentNumber = normalizedEquipmentNumber;
+
       // Validate permissions
       if (user) {
         const permissionCheck = PermissionService.validateEquipmentAccess(user, 'update', currentEquipment);
@@ -183,8 +218,13 @@ class EquipmentManagementService {
       }
 
       // Check equipment number uniqueness if changed
-      if (equipmentData.equipmentNumber !== currentEquipment.equipmentNumber) {
-        const isUnique = await this.isEquipmentNumberUnique(equipmentData.equipmentNumber, equipmentId);
+      const isUpdatingEquipmentNumber =
+        typeof equipmentData?.equipmentNumber === 'string' &&
+        equipmentData.equipmentNumber.trim().length > 0 &&
+        normalizedEquipmentNumber !== currentEquipment.equipmentNumber;
+
+      if (isUpdatingEquipmentNumber) {
+        const isUnique = await this.isEquipmentNumberUnique(normalizedEquipmentNumber, equipmentId);
         if (!isUnique) {
           throw new Error('หมายเลขครุภัณฑ์นี้มีอยู่ในระบบแล้ว');
         }
@@ -202,35 +242,35 @@ class EquipmentManagementService {
 
       // Add new images
       if (newImageFiles.length > 0) {
-        const newImages = await this.processImages(newImageFiles, equipmentData.equipmentNumber);
+        const newImages = await this.processImages(newImageFiles, mergedEquipmentData.equipmentNumber || currentEquipment.equipmentNumber);
         updatedImages = [...updatedImages, ...newImages];
       }
 
       // Generate search keywords
-      const searchKeywords = this.generateSearchKeywords(equipmentData);
+      const searchKeywords = this.generateSearchKeywords(mergedEquipmentData);
 
       // Track changes for audit log
-      const changes = this.trackChanges(currentEquipment, equipmentData);
+      const changes = this.trackChanges(currentEquipment, mergedEquipmentData);
 
       // Prepare update data
       const updateData = {
-        equipmentNumber: equipmentData.equipmentNumber.trim().toUpperCase(),
-        name: equipmentData.name.trim(),
-        category: equipmentData.category,
-        brand: equipmentData.brand?.trim() || '',
-        model: equipmentData.model?.trim() || '',
-        description: equipmentData.description?.trim() || '',
-        specifications: equipmentData.specifications || {},
-        status: equipmentData.status,
-        location: equipmentData.location,
-        purchaseDate: equipmentData.purchaseDate ? new Date(equipmentData.purchaseDate) : null,
-        purchasePrice: equipmentData.purchasePrice || 0,
-        vendor: equipmentData.vendor?.trim() || '',
-        warrantyExpiry: equipmentData.warrantyExpiry ? new Date(equipmentData.warrantyExpiry) : null,
-        responsiblePerson: equipmentData.responsiblePerson || null,
+        equipmentNumber: normalizedEquipmentNumber,
+        name: mergedEquipmentData.name?.trim() || currentEquipment.name,
+        category: mergedEquipmentData.category ?? currentEquipment.category,
+        brand: mergedEquipmentData.brand?.trim() || '',
+        model: mergedEquipmentData.model?.trim() || '',
+        description: mergedEquipmentData.description?.trim() || '',
+        specifications: mergedEquipmentData.specifications || {},
+        status: mergedEquipmentData.status ?? currentEquipment.status,
+        location: mergedEquipmentData.location ?? currentEquipment.location,
+        purchaseDate: normalizeDateValue(mergedEquipmentData.purchaseDate),
+        purchasePrice: mergedEquipmentData.purchasePrice ?? currentEquipment.purchasePrice ?? 0,
+        vendor: mergedEquipmentData.vendor?.trim() || '',
+        warrantyExpiry: normalizeDateValue(mergedEquipmentData.warrantyExpiry),
+        responsiblePerson: mergedEquipmentData.responsiblePerson ?? currentEquipment.responsiblePerson ?? null,
         images: updatedImages,
-        tags: equipmentData.tags || [],
-        notes: equipmentData.notes?.trim() || '',
+        tags: mergedEquipmentData.tags ?? currentEquipment.tags ?? [],
+        notes: mergedEquipmentData.notes?.trim() || '',
         updatedAt: serverTimestamp(),
         updatedBy,
         version: increment(1),

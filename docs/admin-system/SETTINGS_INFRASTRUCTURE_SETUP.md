@@ -97,10 +97,19 @@ Created service class with method stubs for:
 - `logSettingChange()` - Log change (stub)
 - `getAuditLog()` - Get audit log (stub)
 
-**Import/Export:**
-- `exportSettings()` - Export to JSON (stub)
-- `importSettings()` - Import from JSON (stub)
-- `createBackup()` - Create backup (stub)
+
+> **Update (Dec 2025):** The originally planned import/export/backup APIs were intentionally removed from `settingsService` during the hardening phase. All runtime code and UI entry points are gone, but the requirements have been preserved here for future reference so the team can revive the work without rediscovery.
+
+#### Future Enhancements (Deferred)
+
+These items are not implemented in the current release. Keep this specification as the source of truth should we revisit the feature:
+
+- **Settings Export**: Generate a signed JSON snapshot containing `systemSettings`, `closedDates`, and `categoryLimits`, with an explicit toggle for sensitive fields (e.g., Discord webhook URL). Expected to emit audit log entries under `settings_export`.
+- **Settings Import**: Validate uploaded JSON against the same schema/limits, stage a dry-run preview, then apply updates transactionally with per-section stats. Any import must create a backup first and emit `settings_import` audit events.
+- **Automated Backups**: Persist encrypted snapshots inside `settingsBackups` (or Cloud Storage) with metadata such as operator, timestamp, version, and included scopes. Backups are intended for point-in-time recovery and to serve as the data source for future imports.
+- **Import/Export UI**: A dedicated admin tab (formerly `ImportExportTab`) with controls for exporting, uploading files, previewing diffs, acknowledging sensitive data, and reviewing the history of export/import/backup actions.
+
+Until the project decides to resume this scope, no runtime hooks remain; this documentation simply captures the intended behavior for later phases.
 
 ### 5. Settings Cache Utility (`src/utils/settingsCache.js`)
 

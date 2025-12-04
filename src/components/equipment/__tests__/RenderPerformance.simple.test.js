@@ -8,9 +8,25 @@
 import React, { Profiler } from 'react';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import AuthContext from '../../../contexts/AuthContext';
 import EquipmentCard from '../EquipmentCard';
 import EnhancedEquipmentCard from '../EnhancedEquipmentCard';
 import EquipmentStatusBadge from '../EquipmentStatusBadge';
+
+const authContextValue = {
+  user: null,
+  isAdmin: false,
+  signIn: jest.fn(),
+  signOut: jest.fn()
+};
+
+const wrapWithProviders = (ui) => (
+  <MemoryRouter>
+    <AuthContext.Provider value={authContextValue}>
+      {ui}
+    </AuthContext.Provider>
+  </MemoryRouter>
+);
 
 // Performance metrics storage
 const performanceMetrics = {};
@@ -104,21 +120,21 @@ describe('Render Performance Profiling - Simple Tests', () => {
     const equipment = generateEquipment(1)[0];
     
     const { rerender } = render(
-      <MemoryRouter>
+      wrapWithProviders(
         <Profiler id="EquipmentCard" onRender={onRenderCallback}>
           <EquipmentCard equipment={equipment} />
         </Profiler>
-      </MemoryRouter>
+      )
     );
 
     // Trigger multiple re-renders to get average
     for (let i = 0; i < 20; i++) {
       rerender(
-        <MemoryRouter>
+        wrapWithProviders(
           <Profiler id="EquipmentCard" onRender={onRenderCallback}>
             <EquipmentCard equipment={{ ...equipment, name: `Equipment ${i}` }} />
           </Profiler>
-        </MemoryRouter>
+        )
       );
     }
 
@@ -131,21 +147,21 @@ describe('Render Performance Profiling - Simple Tests', () => {
     const equipment = generateEquipment(1)[0];
     
     const { rerender } = render(
-      <MemoryRouter>
+      wrapWithProviders(
         <Profiler id="EnhancedEquipmentCard" onRender={onRenderCallback}>
           <EnhancedEquipmentCard equipment={equipment} />
         </Profiler>
-      </MemoryRouter>
+      )
     );
 
     // Trigger multiple re-renders
     for (let i = 0; i < 20; i++) {
       rerender(
-        <MemoryRouter>
+        wrapWithProviders(
           <Profiler id="EnhancedEquipmentCard" onRender={onRenderCallback}>
             <EnhancedEquipmentCard equipment={{ ...equipment, name: `Equipment ${i}` }} />
           </Profiler>
-        </MemoryRouter>
+        )
       );
     }
 
@@ -223,26 +239,26 @@ describe('Render Performance Profiling - Simple Tests', () => {
 
     // Single card
     const { rerender: rerenderSingle } = render(
-      <MemoryRouter>
+      wrapWithProviders(
         <Profiler id="SingleCard" onRender={onRenderCallback}>
           <EquipmentCard equipment={singleEquipment} />
         </Profiler>
-      </MemoryRouter>
+      )
     );
 
     for (let i = 0; i < 10; i++) {
       rerenderSingle(
-        <MemoryRouter>
+        wrapWithProviders(
           <Profiler id="SingleCard" onRender={onRenderCallback}>
             <EquipmentCard equipment={{ ...singleEquipment, name: `Equipment ${i}` }} />
           </Profiler>
-        </MemoryRouter>
+        )
       );
     }
 
     // Multiple cards
     const { rerender: rerenderMultiple } = render(
-      <MemoryRouter>
+      wrapWithProviders(
         <Profiler id="MultipleCards" onRender={onRenderCallback}>
           <div>
             {multipleEquipment.map(eq => (
@@ -250,20 +266,20 @@ describe('Render Performance Profiling - Simple Tests', () => {
             ))}
           </div>
         </Profiler>
-      </MemoryRouter>
+      )
     );
 
     for (let i = 0; i < 5; i++) {
       rerenderMultiple(
-        <MemoryRouter>
+        wrapWithProviders(
           <Profiler id="MultipleCards" onRender={onRenderCallback}>
             <div>
               {multipleEquipment.map(eq => (
-                <EquipmentCard key={eq.id} equipment={{ ...eq, name: `${eq.name} - ${i}` }} />
+                <EquipmentCard key={eq.id} equipment={{ ...eq, name: `${eq.name}-${i}` }} />
               ))}
             </div>
           </Profiler>
-        </MemoryRouter>
+        )
       );
     }
 
@@ -274,7 +290,8 @@ describe('Render Performance Profiling - Simple Tests', () => {
     console.log(`10 cards average: ${multipleAvg.toFixed(2)}ms`);
     console.log(`Per-card cost in list: ${(multipleAvg / 10).toFixed(2)}ms`);
 
-    // Multiple cards should scale reasonably
-    expect(multipleAvg).toBeLessThan(singleAvg * 15); // Allow some overhead
+    // Multiple cards should scale reasonably even when averages are near 0
+    const baseline = Math.max(singleAvg, 0.001);
+    expect(multipleAvg).toBeLessThanOrEqual(baseline * 15); // Allow some overhead
   });
 });

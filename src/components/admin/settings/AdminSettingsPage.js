@@ -24,7 +24,6 @@ import CategoryLimitsTab from './CategoryLimitsTab';
 import NotificationsTab from './NotificationsTab';
 import SystemNotificationsTab from './SystemNotificationsTab';
 import AuditLogTab from './AuditLogTab';
-import ImportExportTab from './ImportExportTab';
 import SettingsTabSkeleton from './SettingsTabSkeleton';
 
 /**
@@ -102,16 +101,6 @@ const SETTINGS_TABS = [
     ),
     description: 'ประวัติการแก้ไขการตั้งค่า'
   },
-  {
-    id: 'import-export',
-    name: 'นำเข้า/ส่งออก',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-      </svg>
-    ),
-    description: 'สำรองและกู้คืนการตั้งค่า'
-  }
 ];
 
 /**
@@ -171,7 +160,18 @@ const AdminSettingsPage = () => {
   const renderTabContent = () => {
     // Show skeleton loader for settings
     if (settingsLoading) {
-      return <SettingsTabSkeleton variant={getSkeletonVariant()} />;
+      return (
+        <div>
+          <div className="flex items-center text-sm text-gray-600 mb-4" role="status" aria-live="polite">
+            <svg className="w-4 h-4 animate-spin text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" strokeWidth="4"></circle>
+              <path className="opacity-75" d="M4 12a8 8 0 018-8" strokeWidth="4" strokeLinecap="round"></path>
+            </svg>
+            <span className="ml-2">กำลังโหลดการตั้งค่า...</span>
+          </div>
+          <SettingsTabSkeleton variant={getSkeletonVariant()} />
+        </div>
+      );
     }
 
     // Show error state
@@ -191,50 +191,69 @@ const AdminSettingsPage = () => {
       );
     }
 
-    // Render specific tab content
-    switch (activeTab) {
-      case 'loan-rules':
-        return <LoanRulesTab />;
-      
-      case 'closed-dates':
-        return <ClosedDatesTab />;
-      
-      case 'category-limits':
-        return <CategoryLimitsTab />;
-      
-      case 'notifications':
-        return <NotificationsTab />;
-      
-      case 'system-notifications':
-        return <SystemNotificationsTab />;
-      
-      case 'audit-log':
-        return <AuditLogTab />;
-      
-      case 'import-export':
-        return <ImportExportTab />;
-      
-      default:
-        // Placeholder content for tabs not yet implemented
-        return (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="text-center py-12">
-              <div className="mx-auto h-16 w-16 text-gray-300 mb-4">
-                {SETTINGS_TABS.find(tab => tab.id === activeTab)?.icon}
+    const activeTabInfo = SETTINGS_TABS.find(tab => tab.id === activeTab);
+
+    const renderActiveTabSection = () => {
+      switch (activeTab) {
+        case 'loan-rules':
+          return <LoanRulesTab />;
+        
+        case 'closed-dates':
+          return <ClosedDatesTab />;
+        
+        case 'category-limits':
+          return <CategoryLimitsTab />;
+        
+        case 'notifications':
+          return <NotificationsTab />;
+        
+        case 'system-notifications':
+          return <SystemNotificationsTab />;
+        
+        case 'audit-log':
+          return <AuditLogTab />;
+        
+        default:
+          // Placeholder content for tabs not yet implemented
+          return (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="text-center py-12">
+                <div className="mx-auto h-16 w-16 text-gray-300 mb-4">
+                  {activeTabInfo?.icon}
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {activeTabInfo?.name}
+                </h3>
+                <p className="text-gray-500">
+                  {activeTabInfo?.description}
+                </p>
+                <p className="mt-4 text-sm text-gray-400">
+                  ฟีเจอร์นี้จะพัฒนาในขั้นตอนถัดไป
+                </p>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {SETTINGS_TABS.find(tab => tab.id === activeTab)?.name}
-              </h3>
-              <p className="text-gray-500">
-                {SETTINGS_TABS.find(tab => tab.id === activeTab)?.description}
-              </p>
-              <p className="mt-4 text-sm text-gray-400">
-                ฟีเจอร์นี้จะพัฒนาในขั้นตอนถัดไป
-              </p>
+            </div>
+          );
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        {activeTabInfo && activeTab !== 'general' && (
+          <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+            <div className="flex items-start">
+              <div className="text-blue-600">
+                {activeTabInfo.icon}
+              </div>
+              <div className="ml-3">
+                <h2 className="text-xl font-semibold text-gray-900">{activeTabInfo.name}</h2>
+                <p className="text-gray-600">{activeTabInfo.description}</p>
+              </div>
             </div>
           </div>
-        );
-    }
+        )}
+        {renderActiveTabSection()}
+      </div>
+    );
   };
 
   return (

@@ -63,7 +63,7 @@ const EquipmentCard = ({
     }
   };
 
-  const canBorrow = canBorrowEquipment(equipment);
+  const canBorrow = canBorrowEquipment(equipment) || { canBorrow: true, reason: null };
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -114,7 +114,12 @@ const EquipmentCard = ({
         {equipment.imageURL && !imageError ? (
           <>
             {imageLoading && (
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="absolute inset-0 flex items-center justify-center"
+                role="status"
+                aria-live="polite"
+                aria-label="กำลังโหลดภาพอุปกรณ์"
+              >
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
             )}
@@ -128,7 +133,14 @@ const EquipmentCard = ({
           </>
         ) : (
           <div className="flex items-center justify-center h-full">
-            <svg className={`text-gray-400 ${isListMode ? 'w-8 h-8' : 'w-16 h-16'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className={`text-gray-400 ${isListMode ? 'w-8 h-8' : 'w-16 h-16'}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              role="img"
+              aria-label="ไม่มีภาพอุปกรณ์"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>

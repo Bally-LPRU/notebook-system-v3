@@ -1,22 +1,61 @@
 import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
-import { jest } from '@jest/globals';
-import { AuthProvider, useAuth } from '../AuthContext';
 
-// Mock Firebase
+// Keep references to firebase auth listeners for assertions
+const mockOnAuthStateChanged = jest.fn();
+const mockOnIdTokenChanged = jest.fn();
+const mockAuthUnsubscribe = jest.fn();
+const mockTokenUnsubscribe = jest.fn();
+
+// Mock Firebase config
 jest.mock('../../config/firebase', () => ({
   auth: {
     currentUser: null,
-    onAuthStateChanged: jest.fn()
+    config: {
+      authDomain: 'test.firebaseapp.com'
+    }
   }
 }));
 
+const mockDoc = jest.fn(() => ({ id: 'users/user1' }));
+const mockGetDoc = jest.fn();
+const mockSetDoc = jest.fn();
+const mockServerTimestamp = jest.fn(() => ({ seconds: Date.now() / 1000 }));
+
+// Mock Firebase auth SDK functions used inside AuthContext
+jest.mock('firebase/auth', () => ({
+  signOut: jest.fn(),
+  onAuthStateChanged: jest.fn(),
+  onIdTokenChanged: jest.fn()
+}));
+
+jest.mock('firebase/firestore', () => {
+  const actual = jest.requireActual('firebase/firestore');
+  return {
+    __esModule: true,
+    ...actual,
+    doc: mockDoc,
+    getDoc: mockGetDoc,
+    setDoc: mockSetDoc,
+    serverTimestamp: mockServerTimestamp
+  };
+});
+
+const retryHandler = require('../../utils/retryHandler');
+const mockWithRetry = jest.spyOn(retryHandler, 'withRetry');
+const mockWithProfileRetry = jest.spyOn(retryHandler, 'withProfileRetry');
+
+const mockedFirebaseAuth = require('firebase/auth');
+const mockedFirebaseConfig = require('../../config/firebase');
+
+const { AuthProvider, useAuth } = require('../AuthContext');
 jest.mock('../../services/authService', () => ({
   signInWithGoogle: jest.fn(),
   signOut: jest.fn(),
   getUserProfile: jest.fn(),
   createUserProfile: jest.fn(),
-  updateUserProfile: jest.fn()
+  updateUserProfile: jest.fn(),
+  validateProfileData: jest.fn(() => ({ isValid: true, errors: [] }))
 }));
 
 // Test component to access auth context
@@ -27,9 +66,8 @@ const TestComponent = () => {
     isAuthenticated,
     loading,
     isAdmin,
-    signInWithGoogle,
+    signIn,
     signOut,
-    createProfile,
     updateProfile,
     needsProfileSetup
   } = useAuth();
@@ -42,11 +80,18 @@ const TestComponent = () => {
       <div data-testid="user">{user ? user.displayName : 'no-user'}</div>
       <div data-testid="profile">{userProfile ? userProfile.firstName : 'no-profile'}</div>
       <div data-testid="needs-setup">{needsProfileSetup() ? 'needs-setup' : 'no-setup'}</div>
-      <button onClick={signInWithGoogle} data-testid="sign-in">Sign In</button>
-      <button onClick={signOut} data-testid="sign-out">Sign Out</button>
-      <button onClick={() => createProfile({ firstName: 'Test' })} data-testid="create-profile">
-        Create Profile
+      <button
+        onClick={() => {
+          const result = signIn();
+          if (result?.catch) {
+            result.catch(() => {});
+          }
+        }}
+        data-testid="sign-in"
+      >
+        Sign In
       </button>
+      <button onClick={signOut} data-testid="sign-out">Sign Out</button>
       <button onClick={() => updateProfile({ firstName: 'Updated' })} data-testid="update-profile">
         Update Profile
       </button>
@@ -54,27 +99,46 @@ const TestComponent = () => {
   );
 };
 
+const renderAuthProvider = () => render(
+  <AuthProvider>
+    <TestComponent />
+  </AuthProvider>
+);
+
+const waitForAuthStateCallback = async () => {
+  await waitFor(() => expect(mockOnAuthStateChanged).toHaveBeenCalled());
+  return mockOnAuthStateChanged.mock.calls[0][0];
+};
+
 describe('AuthContext', () => {
-  let mockOnAuthStateChanged;
   let mockAuthService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    const { auth } = require('../../config/firebase');
-    mockOnAuthStateChanged = jest.fn();
-    auth.onAuthStateChanged = mockOnAuthStateChanged;
-    
+    mockWithRetry.mockImplementation(async (operation, ...args) => operation(...args));
+    mockWithProfileRetry.mockImplementation(async (operation, ...args) => operation(...args));
     mockAuthService = require('../../services/authService');
+    mockAuthService.validateProfileData.mockReturnValue({ isValid: true, errors: [] });
+    mockedFirebaseAuth.onAuthStateChanged.mockImplementation((auth, callback, errorCallback) => {
+      mockOnAuthStateChanged(callback, errorCallback);
+      return () => mockAuthUnsubscribe();
+    });
+
+    mockedFirebaseAuth.onIdTokenChanged.mockImplementation((auth, callback) => {
+      mockOnIdTokenChanged(callback);
+      return () => mockTokenUnsubscribe();
+    });
+
+    mockDoc.mockImplementation(() => ({ id: 'users/user1' }));
+    mockGetDoc.mockReset();
+    mockGetDoc.mockResolvedValue({ exists: () => false });
+    mockSetDoc.mockResolvedValue(undefined);
+    mockedFirebaseConfig.auth.currentUser = null;
   });
 
   describe('Initial State', () => {
     it('should provide initial loading state', () => {
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
+      renderAuthProvider();
 
       expect(screen.getByTestId('loading')).toHaveTextContent('loading');
       expect(screen.getByTestId('authenticated')).toHaveTextContent('not-authenticated');
@@ -83,14 +147,10 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('profile')).toHaveTextContent('no-profile');
     });
 
-    it('should set up auth state listener on mount', () => {
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
+    it('should set up auth state listener on mount', async () => {
+      renderAuthProvider();
 
-      expect(mockOnAuthStateChanged).toHaveBeenCalled();
+      await waitFor(() => expect(mockOnAuthStateChanged).toHaveBeenCalled());
     });
   });
 
@@ -111,20 +171,21 @@ describe('AuthContext', () => {
         status: 'approved'
       };
 
-      mockAuthService.getUserProfile.mockResolvedValue(mockProfile);
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => mockProfile
+      });
 
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
+      renderAuthProvider();
 
-      // Simulate auth state change
-      const authStateCallback = mockOnAuthStateChanged.mock.calls[0][0];
+      const authStateCallback = await waitForAuthStateCallback();
       
       await act(async () => {
         await authStateCallback(mockUser);
       });
+
+      expect(mockWithProfileRetry).toHaveBeenCalled();
+      await waitFor(() => expect(mockGetDoc).toHaveBeenCalled());
 
       await waitFor(() => {
         expect(screen.getByTestId('loading')).toHaveTextContent('not-loading');
@@ -136,14 +197,13 @@ describe('AuthContext', () => {
     });
 
     it('should update state when user signs out', async () => {
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
+      mockGetDoc.mockResolvedValue({
+        exists: () => false
+      });
 
-      // Simulate auth state change to null (sign out)
-      const authStateCallback = mockOnAuthStateChanged.mock.calls[0][0];
+      renderAuthProvider();
+
+      const authStateCallback = await waitForAuthStateCallback();
       
       await act(async () => {
         await authStateCallback(null);
@@ -172,15 +232,14 @@ describe('AuthContext', () => {
         status: 'approved'
       };
 
-      mockAuthService.getUserProfile.mockResolvedValue(mockProfile);
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => mockProfile
+      });
 
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
+      renderAuthProvider();
 
-      const authStateCallback = mockOnAuthStateChanged.mock.calls[0][0];
+      const authStateCallback = await waitForAuthStateCallback();
       
       await act(async () => {
         await authStateCallback(mockUser);
@@ -189,6 +248,34 @@ describe('AuthContext', () => {
       await waitFor(() => {
         expect(screen.getByTestId('is-admin')).toHaveTextContent('admin');
       });
+    });
+
+    it('should create a profile when one does not exist', async () => {
+      const mockUser = {
+        uid: 'user1',
+        email: 'test@gmail.com',
+        displayName: 'Test User'
+      };
+
+      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+
+      renderAuthProvider();
+
+      const authStateCallback = await waitForAuthStateCallback();
+
+      await act(async () => {
+        await authStateCallback(mockUser);
+      });
+
+      await waitFor(() => expect(mockSetDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          uid: 'user1',
+          email: 'test@gmail.com',
+          role: 'user',
+          status: 'incomplete'
+        })
+      ));
     });
   });
 
@@ -201,15 +288,11 @@ describe('AuthContext', () => {
       };
 
       // No profile found
-      mockAuthService.getUserProfile.mockResolvedValue(null);
+      mockGetDoc.mockResolvedValue({ exists: () => false });
 
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
+      renderAuthProvider();
 
-      const authStateCallback = mockOnAuthStateChanged.mock.calls[0][0];
+      const authStateCallback = await waitForAuthStateCallback();
       
       await act(async () => {
         await authStateCallback(mockUser);
@@ -235,15 +318,14 @@ describe('AuthContext', () => {
         status: 'approved'
       };
 
-      mockAuthService.getUserProfile.mockResolvedValue(mockProfile);
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => mockProfile
+      });
 
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
+      renderAuthProvider();
 
-      const authStateCallback = mockOnAuthStateChanged.mock.calls[0][0];
+      const authStateCallback = await waitForAuthStateCallback();
       
       await act(async () => {
         await authStateCallback(mockUser);
@@ -265,11 +347,7 @@ describe('AuthContext', () => {
 
       mockAuthService.signInWithGoogle.mockResolvedValue(mockUser);
 
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
+      renderAuthProvider();
 
       const signInButton = screen.getByTestId('sign-in');
       
@@ -277,17 +355,11 @@ describe('AuthContext', () => {
         signInButton.click();
       });
 
-      expect(mockAuthService.signInWithGoogle).toHaveBeenCalled();
+      await waitFor(() => expect(mockAuthService.signInWithGoogle).toHaveBeenCalled());
     });
 
     it('should handle sign out', async () => {
-      mockAuthService.signOut.mockResolvedValue();
-
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
+      renderAuthProvider();
 
       const signOutButton = screen.getByTestId('sign-out');
       
@@ -295,48 +367,7 @@ describe('AuthContext', () => {
         signOutButton.click();
       });
 
-      expect(mockAuthService.signOut).toHaveBeenCalled();
-    });
-
-    it('should handle profile creation', async () => {
-      const mockUser = {
-        uid: 'user1',
-        email: 'test@gmail.com',
-        displayName: 'Test User'
-      };
-
-      const mockProfile = {
-        uid: 'user1',
-        firstName: 'Test',
-        lastName: 'User',
-        role: 'user',
-        status: 'pending'
-      };
-
-      mockAuthService.createUserProfile.mockResolvedValue(mockProfile);
-
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
-
-      // Set up user first
-      const authStateCallback = mockOnAuthStateChanged.mock.calls[0][0];
-      await act(async () => {
-        await authStateCallback(mockUser);
-      });
-
-      const createProfileButton = screen.getByTestId('create-profile');
-      
-      await act(async () => {
-        createProfileButton.click();
-      });
-
-      expect(mockAuthService.createUserProfile).toHaveBeenCalledWith(
-        mockUser,
-        { firstName: 'Test' }
-      );
+      await waitFor(() => expect(mockedFirebaseAuth.signOut).toHaveBeenCalled());
     });
 
     it('should handle profile update', async () => {
@@ -354,20 +385,23 @@ describe('AuthContext', () => {
         status: 'approved'
       };
 
-      mockAuthService.getUserProfile.mockResolvedValue(mockProfile);
-      mockAuthService.updateUserProfile.mockResolvedValue();
+      mockGetDoc
+        .mockResolvedValueOnce({
+          exists: () => true,
+          data: () => mockProfile
+        })
+        .mockResolvedValueOnce({
+          exists: () => true,
+          data: () => ({ ...mockProfile, firstName: 'Updated' })
+        });
 
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
+      renderAuthProvider();
 
-      // Set up user first
-      const authStateCallback = mockOnAuthStateChanged.mock.calls[0][0];
+      const authStateCallback = await waitForAuthStateCallback();
       await act(async () => {
         await authStateCallback(mockUser);
       });
+      mockedFirebaseConfig.auth.currentUser = mockUser;
 
       const updateProfileButton = screen.getByTestId('update-profile');
       
@@ -375,10 +409,13 @@ describe('AuthContext', () => {
         updateProfileButton.click();
       });
 
-      expect(mockAuthService.updateUserProfile).toHaveBeenCalledWith(
-        'user1',
-        { firstName: 'Updated' }
-      );
+      await waitFor(() => expect(mockSetDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          firstName: 'Updated'
+        }),
+        { merge: true }
+      ));
     });
   });
 
@@ -390,11 +427,7 @@ describe('AuthContext', () => {
       // Mock console.error to avoid test output noise
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
+      renderAuthProvider();
 
       const signInButton = screen.getByTestId('sign-in');
       
@@ -402,7 +435,7 @@ describe('AuthContext', () => {
         signInButton.click();
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith('Sign in error:', mockError);
+      await waitFor(() => expect(consoleSpy).toHaveBeenCalledWith('❌ SignIn error in AuthContext:', mockError));
       
       consoleSpy.mockRestore();
     });
@@ -415,24 +448,20 @@ describe('AuthContext', () => {
       };
 
       const mockError = new Error('Profile fetch failed');
-      mockAuthService.getUserProfile.mockRejectedValue(mockError);
+      mockGetDoc.mockRejectedValue(mockError);
 
       // Mock console.error to avoid test output noise
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
+      renderAuthProvider();
 
-      const authStateCallback = mockOnAuthStateChanged.mock.calls[0][0];
+      const authStateCallback = await waitForAuthStateCallback();
       
       await act(async () => {
         await authStateCallback(mockUser);
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith('Error fetching user profile:', mockError);
+      expect(consoleSpy).toHaveBeenCalledWith('❌ Auth state change error:', mockError);
       
       consoleSpy.mockRestore();
     });

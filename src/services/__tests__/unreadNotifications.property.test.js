@@ -24,6 +24,15 @@ import { db } from '../../config/firebase';
 // Test timeout
 const TEST_TIMEOUT = 30000;
 
+const sanitizeUserId = (userId) => {
+  if (typeof userId !== 'string') {
+    return 'test-user';
+  }
+
+  const normalized = userId.replace(/[^a-zA-Z0-9_-]/g, '').trim().toLowerCase();
+  return normalized.length > 0 ? normalized : 'test-user';
+};
+
 // Helper to create a test user
 const createTestUser = async (userId) => {
   const userData = {
@@ -112,7 +121,7 @@ describe('Unread System Notifications Property-Based Tests', () => {
           async (userId, totalNotifications, readCount) => {
             // Ensure readCount doesn't exceed totalNotifications
             const actualReadCount = Math.min(readCount, totalNotifications);
-            const testUserId = `test-user-${userId}`;
+            const testUserId = `test-user-${sanitizeUserId(userId)}`;
 
             try {
               // Create test user
@@ -196,7 +205,7 @@ describe('Unread System Notifications Property-Based Tests', () => {
         fc.asyncProperty(
           fc.string({ minLength: 5, maxLength: 20 }),
           async (userId) => {
-            const testUserId = `test-user-${userId}`;
+            const testUserId = `test-user-${sanitizeUserId(userId)}`;
 
             try {
               // Create test user
@@ -272,4 +281,5 @@ describe('Unread System Notifications Property-Based Tests', () => {
     },
     TEST_TIMEOUT
   );
+
 });

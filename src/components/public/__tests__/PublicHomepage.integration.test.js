@@ -16,14 +16,16 @@ jest.mock('../../../contexts/AuthContext', () => ({
 }));
 
 // Mock the stats hook
+const createDefaultStats = () => ({
+  totalEquipment: 100,
+  availableEquipment: 75,
+  borrowedEquipment: 20,
+  pendingReservations: 5,
+  lastUpdated: new Date()
+});
+
 const mockStatsHook = {
-  stats: {
-    totalEquipment: 100,
-    availableEquipment: 75,
-    borrowedEquipment: 20,
-    pendingReservations: 5,
-    lastUpdated: new Date()
-  },
+  stats: createDefaultStats(),
   loading: false,
   error: null,
   isRefreshing: false,
@@ -31,6 +33,15 @@ const mockStatsHook = {
   wasOffline: false,
   refreshStats: jest.fn(),
   retryWhenOnline: jest.fn()
+};
+
+const resetMockStatsHook = () => {
+  mockStatsHook.stats = createDefaultStats();
+  mockStatsHook.loading = false;
+  mockStatsHook.error = null;
+  mockStatsHook.isRefreshing = false;
+  mockStatsHook.isOnline = true;
+  mockStatsHook.wasOffline = false;
 };
 
 jest.mock('../../../hooks/usePublicStats', () => ({
@@ -55,6 +66,7 @@ const renderWithRouter = (component) => {
 describe('PublicHomepage Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetMockStatsHook();
     
     // Reset mock implementations
     mockAuthContext.signIn.mockReset();
@@ -82,20 +94,6 @@ describe('PublicHomepage Integration Tests', () => {
 
       // Should call signIn
       expect(mockAuthContext.signIn).toHaveBeenCalled();
-    });
-
-    it('should handle login via get started button', async () => {
-      mockAuthContext.signIn.mockResolvedValue();
-
-      renderWithRouter(<PublicHomepage />);
-
-      // Click get started button in hero section
-      const getStartedButton = screen.getByRole('button', { name: /เริ่มต้นใช้งาน/i });
-      fireEvent.click(getStartedButton);
-
-      await waitFor(() => {
-        expect(mockAuthContext.signIn).toHaveBeenCalled();
-      });
     });
 
     it('should handle popup blocked error with helpful message', async () => {
@@ -216,7 +214,7 @@ describe('PublicHomepage Integration Tests', () => {
 
       expect(screen.getByText(/ไม่มีการเชื่อมต่ออินเทอร์เน็ต/)).toBeInTheDocument();
 
-      const retryButton = screen.getByText('Retry');
+      const retryButton = screen.getByText('ลองเชื่อมต่อใหม่');
       fireEvent.click(retryButton);
 
       expect(mockStatsHook.retryWhenOnline).toHaveBeenCalledWith(mockStatsHook.refreshStats);
@@ -259,8 +257,12 @@ describe('PublicHomepage Integration Tests', () => {
 
       // Should render all main components
       expect(screen.getByRole('banner')).toBeInTheDocument(); // Header
-      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument(); // Hero
-      expect(screen.getByText('สถิติอุปกรณ์')).toBeInTheDocument(); // Stats section
+      expect(
+        screen.getByRole('heading', { level: 1, name: /ระบบยืม-คืนอุปกรณ์/ })
+      ).toBeInTheDocument(); // Hero
+      expect(
+        screen.getByRole('heading', { level: 2, name: /สถิติอุปกรณ์/ })
+      ).toBeInTheDocument(); // Stats section
       expect(screen.getByRole('contentinfo')).toBeInTheDocument(); // Footer
     });
 
@@ -276,8 +278,12 @@ describe('PublicHomepage Integration Tests', () => {
 
       // Should render all main components
       expect(screen.getByRole('banner')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
-      expect(screen.getByText('สถิติอุปกรณ์')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { level: 1, name: /ระบบยืม-คืนอุปกรณ์/ })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { level: 2, name: /สถิติอุปกรณ์/ })
+      ).toBeInTheDocument();
       expect(screen.getByRole('contentinfo')).toBeInTheDocument();
     });
   });
@@ -336,14 +342,9 @@ describe('PublicHomepage Integration Tests', () => {
       renderWithRouter(<PublicHomepage />);
 
       const loginButton = screen.getByRole('button', { name: /เข้าสู่ระบบ/i });
-      const getStartedButton = screen.getByRole('button', { name: /เริ่มต้นใช้งาน/i });
 
-      // Should be focusable
       loginButton.focus();
       expect(loginButton).toHaveFocus();
-
-      getStartedButton.focus();
-      expect(getStartedButton).toHaveFocus();
     });
   });
 

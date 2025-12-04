@@ -41,7 +41,17 @@ export const useEnhancedErrorHandling = (options = {}) => {
   /**
    * Execute operation with error handling and retry logic
    */
-  const executeWithErrorHandling = useCallback(async (asyncOperation, context = {}) => {
+  const executeWithErrorHandling = useCallback(async (asyncOperation, context = {}, handlerOverrides = {}) => {
+    const {
+      onSuccess: overrideOnSuccess,
+      onError: overrideOnError,
+      onRetry: overrideOnRetry
+    } = handlerOverrides;
+
+    const successHandler = overrideOnSuccess || onSuccess;
+    const errorHandler = overrideOnError || onError;
+    const retryHandlerCallback = overrideOnRetry || onRetry;
+
     // Cancel any ongoing operation
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -69,7 +79,7 @@ export const useEnhancedErrorHandling = (options = {}) => {
           if (signal.aborted) {
             throw new Error('Operation was aborted');
           }
-          
+
           return await asyncOperation(signal);
         },
         operationContext,
@@ -78,9 +88,9 @@ export const useEnhancedErrorHandling = (options = {}) => {
           onRetryAttempt: (attempt) => {
             setRetryCount(attempt);
             setIsRetrying(true);
-            
-            if (onRetry) {
-              onRetry(attempt, 'auto');
+
+            if (retryHandlerCallback) {
+              retryHandlerCallback(attempt, 'auto');
             }
           }
         }
@@ -89,9 +99,9 @@ export const useEnhancedErrorHandling = (options = {}) => {
       // Success
       setRetryCount(0);
       setIsRetrying(false);
-      
-      if (onSuccess) {
-        onSuccess(result);
+
+      if (successHandler) {
+        successHandler(result);
       }
 
       return result;
@@ -102,7 +112,7 @@ export const useEnhancedErrorHandling = (options = {}) => {
       }
 
       const classification = ErrorClassifier.classify(err, operationContext);
-      
+
       setError({
         ...err,
         classification,
@@ -110,7 +120,7 @@ export const useEnhancedErrorHandling = (options = {}) => {
         retryCount,
         canRetry: classification.retryable && retryCount < maxRetries
       });
-      
+
       setIsRetrying(false);
 
       // Log error
@@ -125,8 +135,8 @@ export const useEnhancedErrorHandling = (options = {}) => {
         severity: classification.severity
       });
 
-      if (onError) {
-        onError(err, classification);
+      if (errorHandler) {
+        errorHandler(err, classification);
       }
 
       throw err;
@@ -136,7 +146,15 @@ export const useEnhancedErrorHandling = (options = {}) => {
   /**
    * Execute operation with manual retry capability
    */
-  const executeWithManualRetry = useCallback(async (asyncOperation, context = {}) => {
+  const executeWithManualRetry = useCallback(async (asyncOperation, context = {}, handlerOverrides = {}) => {
+    const {
+      onSuccess: overrideOnSuccess,
+      onError: overrideOnError
+    } = handlerOverrides;
+
+    const successHandler = overrideOnSuccess || onSuccess;
+    const errorHandler = overrideOnError || onError;
+
     const operationContext = {
       component,
       operation,
@@ -149,8 +167,8 @@ export const useEnhancedErrorHandling = (options = {}) => {
 
       const result = await asyncOperation();
       
-      if (onSuccess) {
-        onSuccess(result);
+      if (successHandler) {
+        successHandler(result);
       }
 
       return result;
@@ -162,6 +180,7 @@ export const useEnhancedErrorHandling = (options = {}) => {
         classification,
         errorMessage: ErrorClassifier.getErrorMessage(classification),
         canRetry: classification.retryable,
+        manualRetryAvailable: classification.retryable,
         retryOperation: asyncOperation,
         retryContext: operationContext
       };
@@ -180,8 +199,8 @@ export const useEnhancedErrorHandling = (options = {}) => {
         severity: classification.severity
       });
 
-      if (onError) {
-        onError(err, classification);
+      if (errorHandler) {
+        errorHandler(err, classification);
       }
 
       throw enhancedError;

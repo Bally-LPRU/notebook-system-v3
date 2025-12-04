@@ -11,7 +11,6 @@ export const LazyBorrowedEquipmentList = lazy(() => import('../admin/BorrowedEqu
 export const LazyUserApprovalList = lazy(() => import('../admin/UserApprovalList'));
 export const LazyReservationPage = lazy(() => import('../reservations/ReservationPage'));
 export const LazyReservationManagement = lazy(() => import('../reservations/ReservationManagement'));
-export const LazyReportsPage = lazy(() => import('../reports/ReportsPage'));
 export const LazyMyRequests = lazy(() => import('../requests/MyRequests'));
 export const LazyAdminDashboard = lazy(() => import('../admin/AdminDashboard'));
 
@@ -103,12 +102,6 @@ export const LazyReservationManagementWithSkeleton = () => (
   </LazyWrapper>
 );
 
-export const LazyReportsPageWithSkeleton = () => (
-  <LazyWrapper skeletonType="stats">
-    <LazyReportsPage />
-  </LazyWrapper>
-);
-
 export const LazyMyRequestsWithSkeleton = () => (
   <LazyWrapper skeletonType="list">
     <LazyMyRequests />
@@ -163,9 +156,6 @@ export const usePreloadComponents = () => {
         break;
       case 'reservation-management':
         LazyReservationManagement();
-        break;
-      case 'reports':
-        LazyReportsPage();
         break;
       case 'my-requests':
         LazyMyRequests();

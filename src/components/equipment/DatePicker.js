@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { useClosedDates } from '../../hooks/useClosedDates';
 
 const DatePicker = ({
@@ -22,6 +22,8 @@ const DatePicker = ({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [hoveredDate, setHoveredDate] = useState(null);
+  const generatedId = useId();
+  const inputId = id || name || `date-picker-${generatedId}`;
   
   const inputRef = useRef(null);
   const calendarRef = useRef(null);
@@ -200,7 +202,7 @@ const DatePicker = ({
   return (
     <div className={`relative ${className}`}>
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1">
           {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
@@ -209,7 +211,7 @@ const DatePicker = ({
         <input
           ref={inputRef}
           type={showTime ? 'datetime-local' : 'date'}
-          id={id}
+          id={inputId}
           name={name}
           value={value}
           onChange={handleInputChange}

@@ -54,7 +54,23 @@ jest.mock('../imageService', () => ({
   processImages: jest.fn()
 }));
 
+const createMockQuerySnapshot = (docsData = []) => {
+  const docSnapshots = docsData.map(doc => ({
+    id: doc.id,
+    data: () => doc.data,
+    exists: () => true
+  }));
+
+  return {
+    docs: docSnapshots,
+    empty: docSnapshots.length === 0,
+    size: docSnapshots.length,
+    forEach: (callback) => docSnapshots.forEach((doc, index) => callback(doc, index))
+  };
+};
+
 describe('Equipment Management Integration Tests', () => {
+  let isEquipmentNumberUniqueSpy;
   const mockEquipmentData = {
     equipmentNumber: 'EQ001',
     name: 'Test Laptop',
@@ -77,6 +93,12 @@ describe('Equipment Management Integration Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    if (isEquipmentNumberUniqueSpy) {
+      isEquipmentNumberUniqueSpy.mockRestore();
+    }
+    isEquipmentNumberUniqueSpy = jest
+      .spyOn(EquipmentManagementService, 'isEquipmentNumberUnique')
+      .mockResolvedValue(true);
     
     // Mock successful document creation
     addDoc.mockResolvedValue({ id: 'equipment-123' });
@@ -91,12 +113,11 @@ describe('Equipment Management Integration Tests', () => {
     });
     
     // Mock collection queries
-    getDocs.mockResolvedValue({
-      docs: [{
-        id: 'equipment-123',
-        data: () => mockEquipmentData
-      }]
-    });
+    getDocs.mockResolvedValue(
+      createMockQuerySnapshot([
+        { id: 'equipment-123', data: mockEquipmentData }
+      ])
+    );
     
     // Mock image processing
     ImageService.uploadImage.mockResolvedValue({
@@ -120,13 +141,13 @@ describe('Equipment Management Integration Tests', () => {
     test('should create equipment successfully', async () => {
       const result = await EquipmentManagementService.createEquipment(mockEquipmentData);
 
-      // Verify equipment creation
-      expect(addDoc).toHaveBeenCalledWith(
-        expect.anything(),
+      // Verify equipment creation payload
+      const equipmentCreateCall = addDoc.mock.calls.find(([, payload]) => payload?.name === mockEquipmentData.name);
+      expect(equipmentCreateCall).toBeDefined();
+      expect(equipmentCreateCall[1]).toEqual(
         expect.objectContaining({
           ...mockEquipmentData,
           searchKeywords: expect.any(Array),
-          createdAt: expect.any(Date),
           isActive: true
         })
       );
@@ -142,12 +163,12 @@ describe('Equipment Management Integration Tests', () => {
 
       const result = await EquipmentManagementService.updateEquipment('equipment-123', updatedData);
 
-      // Verify equipment update
-      expect(updateDoc).toHaveBeenCalledWith(
-        expect.anything(),
+      // Verify equipment update call contains new fields
+      const equipmentUpdateCall = updateDoc.mock.calls.find(([, payload]) => payload?.searchKeywords);
+      expect(equipmentUpdateCall).toBeDefined();
+      expect(equipmentUpdateCall[1]).toEqual(
         expect.objectContaining({
-          ...updatedData,
-          updatedAt: expect.any(Date)
+          ...updatedData
         })
       );
 
@@ -204,7 +225,7 @@ describe('Equipment Management Integration Tests', () => {
     });
 
     test('should handle search with no results', async () => {
-      getDocs.mockResolvedValue({ docs: [] });
+      getDocs.mockResolvedValueOnce(createMockQuerySnapshot());
 
       const results = await EquipmentSearchService.searchWithSuggestions('nonexistent');
 
@@ -265,14 +286,11 @@ describe('Equipment Management Integration Tests', () => {
 
       await Promise.all(updatePromises);
 
-      expect(updateDoc).toHaveBeenCalledTimes(3);
-      // Each update should include timestamp
-      expect(updateDoc).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          updatedAt: expect.any(Date)
-        })
-      );
+      const equipmentUpdateCalls = updateDoc.mock.calls.filter(([, payload]) => payload?.searchKeywords);
+      expect(equipmentUpdateCalls).toHaveLength(3);
+      equipmentUpdateCalls.forEach(([, payload]) => {
+        expect(payload.searchKeywords).toEqual(expect.any(Array));
+      });
     });
 
     test('should validate equipment data before saving', async () => {

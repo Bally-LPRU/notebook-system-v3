@@ -97,8 +97,8 @@ describe('EquipmentCard', () => {
         />
       );
 
-      // Should render SVG placeholder
-      expect(screen.getByRole('img', { hidden: true })).toBeInTheDocument();
+      // Should render SVG placeholder with accessible label
+      expect(screen.getByRole('img', { name: 'ไม่มีภาพอุปกรณ์' })).toBeInTheDocument();
     });
 
     it('should render status badge', () => {
@@ -109,9 +109,7 @@ describe('EquipmentCard', () => {
         />
       );
 
-      // Status badge should be rendered (mocked to return green styling)
-      const statusElements = screen.getAllByText(/available|ว่าง/i);
-      expect(statusElements.length).toBeGreaterThan(0);
+      expect(screen.getByText(/พร้อมใช้งาน/)).toBeInTheDocument();
     });
   });
 
@@ -370,7 +368,7 @@ describe('EquipmentCard', () => {
       );
 
       // Initially should show loading spinner
-      expect(screen.getByRole('status', { hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: 'กำลังโหลดภาพอุปกรณ์' })).toBeInTheDocument();
     });
 
     it('should handle image load error gracefully', async () => {
@@ -388,7 +386,7 @@ describe('EquipmentCard', () => {
 
       await waitFor(() => {
         // Should show placeholder instead of broken image
-        expect(screen.getByRole('img', { hidden: true })).toBeInTheDocument();
+        expect(screen.getByRole('img', { name: 'ไม่มีภาพอุปกรณ์' })).toBeInTheDocument();
       });
     });
   });

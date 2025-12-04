@@ -18,12 +18,13 @@ class DuplicateDetectionService {
         throw new Error('Email is required for duplicate detection');
       }
 
-      console.log('🔍 Checking for existing profile with email:', email);
+      const normalizedEmail = email.toLowerCase().trim();
+      console.log('🔍 Checking for existing profile with email:', normalizedEmail);
 
       const usersRef = collection(db, 'users');
       const q = query(
-        usersRef, 
-        where('email', '==', email.toLowerCase().trim()),
+        usersRef,
+        where('email', '==', normalizedEmail),
         limit(1)
       );
       
@@ -47,18 +48,9 @@ class DuplicateDetectionService {
       return null;
     } catch (error) {
       console.error('🚨 Error checking profile by email:', error);
-      
-      // Check if it's a permission error
-      if (error.code === 'permission-denied') {
-        console.warn('⚠️ Permission denied for duplicate check - user may not have access yet');
-        // Return null instead of throwing to allow profile creation to continue
-        return null;
-      }
-      
+
       logFirebaseError(error, 'firestore', 'checkProfileByEmail', { email });
-      // Don't throw error - allow profile creation to continue
-      console.warn('⚠️ Duplicate check failed, continuing with profile creation');
-      return null;
+      throw error;
     }
   }
 
@@ -78,7 +70,7 @@ class DuplicateDetectionService {
 
       const usersRef = collection(db, 'users');
       const q = query(
-        usersRef, 
+        usersRef,
         where('phoneNumber', '==', cleanPhone),
         limit(1)
       );
@@ -102,8 +94,7 @@ class DuplicateDetectionService {
     } catch (error) {
       console.error('🚨 Error checking profile by phone:', error);
       logFirebaseError(error, 'firestore', 'checkProfileByPhone', { phoneNumber });
-      // Don't throw error for phone check as it's secondary validation
-      return null;
+      throw error;
     }
   }
 
@@ -324,6 +315,66 @@ class DuplicateDetectionService {
           color: 'gray',
           icon: 'question-mark-circle',
           nextSteps: ['กรุณาติดต่อผู้ดูแลระบบ']
+        };
+    }
+  }
+
+  /**
+   * Get simplified profile status summary for duplicate detection workflows
+   * @param {Object} profile
+   * @returns {{status: string, isComplete: boolean, canEdit: boolean, nextSteps: string[]}}
+   */
+  static getProfileStatus(profile) {
+    if (!profile) {
+      return {
+        status: 'unknown',
+        isComplete: false,
+        canEdit: false,
+        nextSteps: ['กรุณากรอกข้อมูลโปรไฟล์ให้ครบถ้วน']
+      };
+    }
+
+    const status = profile.status || 'unknown';
+    const isComplete = this.hasCompleteProfile(profile);
+
+    switch (status) {
+      case 'approved':
+        return {
+          status,
+          isComplete,
+          canEdit: true,
+          nextSteps: []
+        };
+      case 'pending':
+        return {
+          status,
+          isComplete,
+          canEdit: false,
+          nextSteps: ['รอการอนุมัติจากผู้ดูแลระบบ']
+        };
+      case 'incomplete':
+        return {
+          status,
+          isComplete,
+          canEdit: true,
+          nextSteps: ['กรอกข้อมูลให้ครบถ้วน']
+        };
+      case 'rejected':
+        return {
+          status,
+          isComplete,
+          canEdit: true,
+          nextSteps: [
+            `แก้ไขข้อมูลตามที่แจ้ง: ${profile.rejectionReason || 'กรุณาตรวจสอบรายละเอียด'}`,
+            'ส่งคำขออนุมัติใหม่'
+          ]
+        };
+      default:
+        return {
+          status,
+          isComplete,
+          canEdit: true,
+          nextSteps: ['ติดต่อผู้ดูแลระบบ']
         };
     }
   }

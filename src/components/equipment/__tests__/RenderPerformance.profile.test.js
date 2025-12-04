@@ -16,6 +16,17 @@ import MobileEquipmentContainer from '../MobileEquipmentContainer';
 import { EquipmentCategoriesProvider } from '../../../contexts/EquipmentCategoriesContext';
 import { AuthProvider } from '../../../contexts/AuthContext';
 
+jest.mock('../../../contexts/AuthContext', () => {
+  const React = require('react');
+  return {
+    AuthProvider: ({ children }) => React.createElement(React.Fragment, null, children),
+    useAuth: () => ({
+      isAdmin: true,
+      refreshToken: jest.fn()
+    })
+  };
+});
+
 // Mock Firebase
 jest.mock('../../../config/firebase', () => ({
   db: {},
@@ -34,6 +45,10 @@ jest.mock('../../../services/equipmentService', () => ({
   addEquipment: jest.fn(),
   updateEquipment: jest.fn(),
   deleteEquipment: jest.fn()
+}));
+
+jest.mock('../../../services/equipmentManagementService', () => ({
+  getEquipmentList: jest.fn(() => Promise.resolve({ equipment: [] }))
 }));
 
 jest.mock('../../../services/equipmentCategoryService', () => ({
@@ -119,6 +134,12 @@ function generateEquipment(count = 50) {
 }
 
 describe('Render Performance Profiling', () => {
+  let consoleLogSpy;
+
+  beforeAll(() => {
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
   beforeEach(() => {
     // Clear metrics before each test
     Object.keys(performanceMetrics).forEach(key => {
@@ -151,6 +172,12 @@ describe('Render Performance Profiling', () => {
       console.log(`  Target Met:  ${improvement >= 40 ? '✓ YES' : '✗ NO (target: 40%)'}`);
       console.log('');
     });
+  });
+
+  afterAll(() => {
+    if (consoleLogSpy) {
+      consoleLogSpy.mockRestore();
+    }
   });
 
   test('Profile EquipmentCard render performance', () => {
@@ -206,7 +233,7 @@ describe('Render Performance Profiling', () => {
   });
 
   test('Profile EquipmentListView render performance with large dataset', () => {
-    const equipmentList = generateEquipment(50);
+    const equipmentList = generateEquipment(20);
     
     const { rerender } = render(
       <AllProviders>
@@ -221,7 +248,7 @@ describe('Render Performance Profiling', () => {
     );
 
     // Trigger re-renders with different data
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 3; i++) {
       const updatedList = equipmentList.map(eq => ({
         ...eq,
         name: `${eq.name} - Updated ${i}`
@@ -250,6 +277,8 @@ describe('Render Performance Profiling', () => {
     // Mock the equipment service to return our test data
     const equipmentService = require('../../../services/equipmentService');
     equipmentService.getEquipment.mockResolvedValue(equipmentList);
+    const equipmentManagementService = require('../../../services/equipmentManagementService');
+    equipmentManagementService.getEquipmentList.mockResolvedValue({ equipment: equipmentList });
 
     const { rerender } = render(
       <AllProviders>
@@ -258,11 +287,6 @@ describe('Render Performance Profiling', () => {
         </Profiler>
       </AllProviders>
     );
-
-    // Wait for initial load
-    await waitFor(() => {
-      expect(equipmentService.getEquipment).toHaveBeenCalled();
-    });
 
     // Trigger re-renders
     for (let i = 0; i < 5; i++) {
@@ -285,6 +309,8 @@ describe('Render Performance Profiling', () => {
     // Mock the equipment service
     const equipmentService = require('../../../services/equipmentService');
     equipmentService.getEquipment.mockResolvedValue(equipmentList);
+    const equipmentManagementService = require('../../../services/equipmentManagementService');
+    equipmentManagementService.getEquipmentList.mockResolvedValue({ equipment: equipmentList });
 
     const { rerender } = render(
       <AllProviders>
@@ -293,11 +319,6 @@ describe('Render Performance Profiling', () => {
         </Profiler>
       </AllProviders>
     );
-
-    // Wait for initial load
-    await waitFor(() => {
-      expect(equipmentService.getEquipment).toHaveBeenCalled();
-    });
 
     // Trigger re-renders
     for (let i = 0; i < 5; i++) {

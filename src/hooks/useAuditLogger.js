@@ -121,19 +121,6 @@ export const useAuditLogger = () => {
     );
   }, [logEquipmentActivity]);
 
-  const logEquipmentExported = useCallback(async (equipmentIds, format, filters = {}) => {
-    return await logEquipmentActivity(
-      ActivityLoggerService.ACTIVITY_TYPES.EQUIPMENT_EXPORTED,
-      {
-        equipmentIds,
-        exportFormat: format,
-        filters,
-        itemCount: equipmentIds.length,
-        reason: `ส่งออกข้อมูลอุปกรณ์ ${equipmentIds.length} รายการ เป็นรูปแบบ ${format}`
-      }
-    );
-  }, [logEquipmentActivity]);
-
   const logBulkUpdate = useCallback(async (equipmentIds, changes) => {
     return await logEquipmentActivity(
       ActivityLoggerService.ACTIVITY_TYPES.BULK_UPDATE,
@@ -211,7 +198,6 @@ export const useAuditLogger = () => {
     logEquipmentUpdated,
     logEquipmentDeleted,
     logEquipmentViewed,
-    logEquipmentExported,
     logBulkUpdate,
     logBulkDelete,
     logImageUploaded,

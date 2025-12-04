@@ -237,7 +237,9 @@ const BulkQRCodeGenerator = ({
           {/* Equipment Count */}
           <div className="mb-6">
             <div className="text-sm text-gray-600 mb-2">
-              อุปกรณ์ที่เลือก: <span className="font-semibold">{selectedEquipment.length}</span> รายการ
+              <span>อุปกรณ์ที่เลือก:</span>{' '}
+              <span className="font-semibold">{selectedEquipment.length}</span>{' '}
+              <span>รายการ</span>
             </div>
             
             {selectedEquipment.length > 0 && (

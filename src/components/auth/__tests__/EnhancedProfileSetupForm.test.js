@@ -1,395 +1,265 @@
-import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+﻿import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+
 import EnhancedProfileSetupForm from '../EnhancedProfileSetupForm';
+import { useAuth } from '../../../contexts/AuthContext';
+import useFormValidation from '../../../hooks/useFormValidation';
+import useAutoSave from '../../../hooks/useAutoSave';
+import useDuplicateDetection from '../../../hooks/useDuplicateDetection';
 
-// Mock hooks and utilities
+const mockNavigate = jest.fn();
+
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useNavigate: () => mockNavigate
+}));
+
+jest.mock('../../../contexts/AuthContext');
 jest.mock('../../../hooks/useFormValidation');
-jest.mock('../../../hooks/useEnhancedErrorHandling');
 jest.mock('../../../hooks/useAutoSave');
-jest.mock('../../../utils/formDataPreservation');
+jest.mock('../../../hooks/useDuplicateDetection');
 
-// Mock components
+jest.mock('../../common/FormField', () => {
+  return ({ id, name, label, value, onChange, onBlur, placeholder, type = 'text' }) => (
+    <label htmlFor={id} data-testid={`form-field-${name}`}>
+      <span>{label}</span>
+      <input
+        id={id}
+        name={name}
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={(event) => onChange({ target: { name, value: event.target.value } })}
+        onBlur={onBlur}
+      />
+    </label>
+  );
+});
+
 jest.mock('../../common/DepartmentSelector', () => {
-  return function MockDepartmentSelector({ value, onChange, error, disabled }) {
-    return (
-      <div data-testid="department-selector">
-        <select
-          value={value?.value || ''}
-          onChange={(e) => onChange({
-            target: {
-              name: 'department',
-              value: e.target.value ? { value: e.target.value, label: `Department ${e.target.value}` } : null
-            }
-          })}
-          disabled={disabled}
-        >
-          <option value="">เลือกสังกัด</option>
-          <option value="accounting">สาขาวิชาการบัญชี</option>
-          <option value="computer-business">สาขาวิชาคอมพิวเตอร์ธุรกิจ</option>
-        </select>
-        {error && <div data-testid="department-error">{error}</div>}
-      </div>
-    );
-  };
+  return ({ value, onChange }) => (
+    <select
+      data-testid="department-selector"
+      value={value}
+      onChange={(event) => onChange({ target: { value: event.target.value } })}
+    >
+      <option value="">เลือก</option>
+      <option value="accounting">บัญชี</option>
+      <option value="digital-business">ธุรกิจดิจิทัล</option>
+    </select>
+  );
 });
 
-jest.mock('../../common/ProgressIndicator', () => {
-  return function MockProgressIndicator({ progress, steps }) {
-    return (
-      <div data-testid="progress-indicator">
-        Progress: {progress}% ({steps?.completed || 0}/{steps?.total || 0})
-      </div>
-    );
-  };
-});
+jest.mock('../../common/ProgressIndicator', () => (props) => (
+  <div data-testid="progress-indicator">progress-{props.requiredFields?.length || 0}</div>
+));
 
-jest.mock('../../common/LoadingState', () => {
-  return function MockLoadingState({ message }) {
-    return <div data-testid="loading-state">{message}</div>;
-  };
-});
+jest.mock('../../common/DraftManager', () => ({ onLoadDraft, onClearDraft }) => (
+  <div data-testid="draft-manager">
+    <button type="button" onClick={() => onLoadDraft?.({ firstName: 'Drafty' })}>
+      โหลดร่าง
+    </button>
+    <button type="button" onClick={() => onClearDraft?.()}>
+      ลบร่าง
+    </button>
+  </div>
+));
+
+jest.mock('../../common/LoadingState', () => ({
+  AutoSaveIndicator: ({ status = 'idle', lastSaved }) => (
+    <div data-testid="auto-save-indicator">
+      {status}
+      {lastSaved ? `-${lastSaved}` : ''}
+    </div>
+  ),
+  ButtonLoadingState: ({ message }) => (
+    <span data-testid="button-loading-state">{message}</span>
+  ),
+  FormLoadingState: ({ message }) => (
+    <div data-testid="form-loading-state">{message}</div>
+  )
+}));
+
+jest.mock('../ProfileStatusDisplay', () => ({ profile, onRetry }) => (
+  <div data-testid="profile-status-display">
+    <p>status-{profile?.status}</p>
+    <button type="button" onClick={onRetry}>retry</button>
+  </div>
+));
+
+const renderForm = (props = {}, additionalProps = {}) =>
+  render(<EnhancedProfileSetupForm {...props} {...additionalProps} />);
+
+const setupUserEvent = () => (typeof userEvent.setup === 'function' ? userEvent.setup() : userEvent);
+
+const baseFormData = {
+  firstName: 'โทนี่',
+  lastName: 'สตาร์ค',
+  phoneNumber: '0812345678',
+  department: 'accounting',
+  userType: 'student'
+};
 
 describe('EnhancedProfileSetupForm', () => {
-  const mockProps = {
-    onSubmit: jest.fn(),
-    onSaveDraft: jest.fn(),
-    initialData: {
-      firstName: '',
-      lastName: '',
-      phoneNumber: '',
-      department: null,
-      userType: 'student'
-    },
-    isEditing: false
-  };
-
-  const mockFormValidation = {
-    formData: mockProps.initialData,
-    errors: {},
-    touchedFields: {},
-    isValidating: false,
-    isFormValid: false,
-    completedFields: [],
-    requiredFields: [
-      { name: 'firstName', label: 'ชื่อ' },
-      { name: 'lastName', label: 'นามสกุล' },
-      { name: 'phoneNumber', label: 'เบอร์โทรศัพท์' },
-      { name: 'department', label: 'สังกัด' }
-    ],
-    handleFieldChange: jest.fn(),
-    handleFieldBlur: jest.fn(),
-    validateForm: jest.fn(),
-    getFieldState: jest.fn(),
-    resetForm: jest.fn()
-  };
-
-  const mockErrorHandling = {
-    error: null,
-    isRetrying: false,
-    hasError: false,
-    canRetry: false,
-    submitForm: jest.fn(),
-    retry: jest.fn(),
-    clearError: jest.fn()
-  };
-
-  const mockAutoSave = {
-    isDraftSaved: false,
-    lastSavedAt: null,
-    saveDraft: jest.fn(),
-    clearDraft: jest.fn()
-  };
+  let mockProps;
+  let mockValidation;
+  let mockAutoSave;
+  let mockDuplicate;
+  let mockUpdateProfile;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    // Setup mock implementations
-    require('../../../hooks/useFormValidation').default.mockReturnValue(mockFormValidation);
-    require('../../../hooks/useEnhancedErrorHandling').useFormErrorHandling.mockReturnValue(mockErrorHandling);
-    require('../../../hooks/useAutoSave').default.mockReturnValue(mockAutoSave);
-    require('../../../utils/formDataPreservation').preserveFormData.mockImplementation(() => {});
-    require('../../../utils/formDataPreservation').restoreFormData.mockReturnValue({});
+
+    mockProps = {
+      initialFormData: null,
+      onFormDataChange: jest.fn(),
+      profileError: null,
+      isRetrying: false,
+      canRetry: false,
+      onRetry: jest.fn(),
+      onClearError: jest.fn(),
+      errorMessage: null,
+      errorClassification: null
+    };
+
+    mockValidation = {
+      formData: { ...baseFormData },
+      errors: {},
+      isFormValid: true,
+      completedFields: ['firstName', 'lastName'],
+      requiredFields: [
+        { name: 'firstName' },
+        { name: 'lastName' },
+        { name: 'phoneNumber' },
+        { name: 'department' },
+        { name: 'userType' }
+      ],
+      handleFieldChange: jest.fn(),
+      handleFieldBlur: jest.fn(),
+      validateForm: jest.fn().mockReturnValue({ isValid: true }),
+      setFormData: jest.fn(),
+      clearFieldError: jest.fn()
+    };
+
+    mockAutoSave = {
+      saveStatus: 'idle',
+      lastSaved: null
+    };
+
+    mockDuplicate = {
+      isChecking: false,
+      duplicateResult: null,
+      error: null,
+      checkDuplicates: jest.fn().mockResolvedValue({ hasDuplicate: false }),
+      clearState: jest.fn(),
+      hasDuplicate: false,
+      existingProfile: null
+    };
+
+    mockUpdateProfile = jest.fn().mockResolvedValue(undefined);
+
+    useFormValidation.mockReturnValue(mockValidation);
+    useAutoSave.mockReturnValue(mockAutoSave);
+    useDuplicateDetection.mockReturnValue(mockDuplicate);
+    useAuth.mockReturnValue({
+      user: {
+        uid: 'user-123',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        photoURL: '/avatar.png'
+      },
+      updateProfile: mockUpdateProfile,
+      loading: false,
+      error: null
+    });
   });
 
-  test('renders form with all required fields', () => {
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    expect(screen.getByLabelText(/ชื่อ/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/นามสกุล/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/เบอร์โทรศัพท์/)).toBeInTheDocument();
-    expect(screen.getByTestId('department-selector')).toBeInTheDocument();
-    expect(screen.getByLabelText(/ประเภทผู้ใช้/)).toBeInTheDocument();
-  });
-
-  test('displays progress indicator', () => {
-    mockFormValidation.completedFields = ['firstName', 'lastName'];
-    mockFormValidation.requiredFields = [
-      { name: 'firstName', label: 'ชื่อ' },
-      { name: 'lastName', label: 'นามสกุล' },
-      { name: 'phoneNumber', label: 'เบอร์โทรศัพท์' },
-      { name: 'department', label: 'สังกัด' }
-    ];
-
-    render(<EnhancedProfileSetupForm {...mockProps} />);
+  it('renders key form sections and helper widgets', () => {
+    renderForm(mockProps);
 
     expect(screen.getByTestId('progress-indicator')).toBeInTheDocument();
-    expect(screen.getByText(/Progress: 50%/)).toBeInTheDocument();
+    expect(screen.getByTestId('draft-manager')).toBeInTheDocument();
+    expect(screen.getByTestId('auto-save-indicator')).toHaveTextContent('idle');
+    expect(screen.getByLabelText(/^ชื่อ$/)).toBeInTheDocument();
+    expect(screen.getByLabelText('นามสกุล')).toBeInTheDocument();
+    expect(screen.getByLabelText('เบอร์โทรศัพท์')).toBeInTheDocument();
+    expect(screen.getByTestId('department-selector')).toBeInTheDocument();
   });
 
-  test('handles field changes correctly', async () => {
-    const user = userEvent.setup();
-    render(<EnhancedProfileSetupForm {...mockProps} />);
+  it('propagates input changes to validation hook and parent callback', async () => {
+    const user = setupUserEvent();
+    renderForm(mockProps);
 
-    const firstNameInput = screen.getByLabelText(/ชื่อ/);
-    await user.type(firstNameInput, 'สมชาย');
+    const firstNameInput = screen.getByLabelText(/^ชื่อ$/);
+    await user.clear(firstNameInput);
+    await user.type(firstNameInput, 'นาย');
 
-    expect(mockFormValidation.handleFieldChange).toHaveBeenCalledWith('firstName', 'สมชาย');
+    expect(mockValidation.handleFieldChange).toHaveBeenCalledWith('firstName', expect.any(String));
+    expect(mockProps.onFormDataChange).toHaveBeenCalled();
+    const lastCallIndex = mockProps.onFormDataChange.mock.calls.length - 1;
+    const lastFormUpdate = mockProps.onFormDataChange.mock.calls[lastCallIndex][0];
+    expect(lastFormUpdate).toMatchObject({ firstName: expect.any(String) });
+
+    fireEvent.blur(firstNameInput);
+    expect(mockValidation.handleFieldBlur).toHaveBeenCalledWith('firstName');
   });
 
-  test('handles field blur events', async () => {
-    const user = userEvent.setup();
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    const firstNameInput = screen.getByLabelText(/ชื่อ/);
-    await user.click(firstNameInput);
-    await user.tab();
-
-    expect(mockFormValidation.handleFieldBlur).toHaveBeenCalledWith('firstName');
-  });
-
-  test('displays field validation errors', () => {
-    mockFormValidation.errors = {
-      firstName: 'กรุณากรอกชื่อ',
-      phoneNumber: 'เบอร์โทรศัพท์ไม่ถูกต้อง'
-    };
-
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    expect(screen.getByText('กรุณากรอกชื่อ')).toBeInTheDocument();
-    expect(screen.getByText('เบอร์โทรศัพท์ไม่ถูกต้อง')).toBeInTheDocument();
-  });
-
-  test('handles department selection', async () => {
-    const user = userEvent.setup();
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    const departmentSelect = screen.getByRole('combobox');
-    await user.selectOptions(departmentSelect, 'accounting');
-
-    expect(mockFormValidation.handleFieldChange).toHaveBeenCalledWith(
-      'department',
-      { value: 'accounting', label: 'Department accounting' }
-    );
-  });
-
-  test('handles user type selection', async () => {
-    const user = userEvent.setup();
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    const teacherRadio = screen.getByLabelText(/อาจารย์/);
-    await user.click(teacherRadio);
-
-    expect(mockFormValidation.handleFieldChange).toHaveBeenCalledWith('userType', 'teacher');
-  });
-
-  test('submits form when valid', async () => {
-    const user = userEvent.setup();
-    mockFormValidation.isFormValid = true;
-    mockFormValidation.validateForm.mockReturnValue({ isValid: true, errors: {} });
-    mockErrorHandling.submitForm.mockResolvedValue('success');
-
-    render(<EnhancedProfileSetupForm {...mockProps} />);
+  it('submits profile data after validation succeeds', async () => {
+    const user = setupUserEvent();
+    renderForm(mockProps);
 
     const submitButton = screen.getByRole('button', { name: /บันทึกข้อมูล/ });
     await user.click(submitButton);
 
-    expect(mockFormValidation.validateForm).toHaveBeenCalled();
-    expect(mockErrorHandling.submitForm).toHaveBeenCalled();
+    await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalledTimes(1));
+    expect(mockDuplicate.checkDuplicates).toHaveBeenNthCalledWith(1, 'test@example.com');
+    expect(mockDuplicate.checkDuplicates).toHaveBeenNthCalledWith(2, 'test@example.com', '0812345678');
   });
 
-  test('prevents submission when form is invalid', async () => {
-    const user = userEvent.setup();
-    mockFormValidation.isFormValid = false;
-    mockFormValidation.validateForm.mockReturnValue({ 
-      isValid: false, 
-      errors: { firstName: 'กรุณากรอกชื่อ' } 
-    });
-
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    const submitButton = screen.getByRole('button', { name: /บันทึกข้อมูล/ });
-    await user.click(submitButton);
-
-    expect(mockErrorHandling.submitForm).not.toHaveBeenCalled();
-  });
-
-  test('displays loading state during submission', () => {
-    mockErrorHandling.isRetrying = true;
-
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    expect(screen.getByTestId('loading-state')).toBeInTheDocument();
-    expect(screen.getByText(/กำลังบันทึกข้อมูล/)).toBeInTheDocument();
-  });
-
-  test('displays error message when submission fails', () => {
-    mockErrorHandling.hasError = true;
-    mockErrorHandling.error = {
-      errorMessage: {
-        title: 'เกิดข้อผิดพลาด',
-        message: 'ไม่สามารถบันทึกข้อมูลได้',
-        suggestion: 'กรุณาลองใหม่อีกครั้ง'
-      },
+  it('shows retry controls when error props present', async () => {
+    const user = setupUserEvent();
+    renderForm({
+      ...mockProps,
+      errorMessage: 'เกิดข้อผิดพลาด',
+      profileError: { message: 'เกิดข้อผิดพลาด' },
       canRetry: true
-    };
-
-    render(<EnhancedProfileSetupForm {...mockProps} />);
+    });
 
     expect(screen.getByText('เกิดข้อผิดพลาด')).toBeInTheDocument();
-    expect(screen.getByText('ไม่สามารถบันทึกข้อมูลได้')).toBeInTheDocument();
-    expect(screen.getByText('กรุณาลองใหม่อีกครั้ง')).toBeInTheDocument();
-  });
-
-  test('shows retry button when error is retryable', async () => {
-    const user = userEvent.setup();
-    mockErrorHandling.hasError = true;
-    mockErrorHandling.canRetry = true;
-    mockErrorHandling.error = {
-      errorMessage: {
-        title: 'เกิดข้อผิดพลาด',
-        message: 'ไม่สามารถบันทึกข้อมูลได้'
-      }
-    };
-
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    const retryButton = screen.getByRole('button', { name: /ลองใหม่/ });
-    expect(retryButton).toBeInTheDocument();
-
+    const retryButton = screen.getByRole('button', { name: 'ลองใหม่' });
     await user.click(retryButton);
-    expect(mockErrorHandling.retry).toHaveBeenCalled();
+    expect(mockProps.onRetry).toHaveBeenCalledTimes(1);
   });
 
-  test('auto-saves draft data', async () => {
-    const user = userEvent.setup();
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    const firstNameInput = screen.getByLabelText(/ชื่อ/);
-    await user.type(firstNameInput, 'สมชาย');
-
-    // Wait for auto-save to trigger
-    await waitFor(() => {
-      expect(mockAutoSave.saveDraft).toHaveBeenCalled();
-    }, { timeout: 3000 });
+  it('shows loading indicator inside submit button when retrying', () => {
+    renderForm({ ...mockProps, isRetrying: true });
+    expect(screen.getByTestId('button-loading-state')).toHaveTextContent('กำลังลองใหม่...');
   });
 
-  test('displays draft saved indicator', () => {
-    mockAutoSave.isDraftSaved = true;
-    mockAutoSave.lastSavedAt = new Date();
-
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    expect(screen.getByText(/บันทึกแบบร่างแล้ว/)).toBeInTheDocument();
-  });
-
-  test('handles editing mode correctly', () => {
-    const editingProps = {
-      ...mockProps,
-      isEditing: true,
-      initialData: {
-        firstName: 'สมชาย',
-        lastName: 'ใจดี',
-        phoneNumber: '0812345678',
-        department: { value: 'accounting', label: 'สาขาวิชาการบัญชี' },
-        userType: 'student'
-      }
+  it('renders profile status display when duplicate detected', async () => {
+    mockDuplicate.duplicateResult = {
+      hasDuplicate: true,
+      existingProfile: { status: 'active' }
     };
+    mockDuplicate.existingProfile = { status: 'active' };
+    useDuplicateDetection.mockReturnValueOnce(mockDuplicate);
 
-    render(<EnhancedProfileSetupForm {...editingProps} />);
+    renderForm(mockProps);
 
-    expect(screen.getByRole('button', { name: /อัปเดตข้อมูล/ })).toBeInTheDocument();
+    expect(await screen.findByTestId('profile-status-display')).toBeInTheDocument();
   });
 
-  test('provides field guidance and help text', () => {
-    render(<EnhancedProfileSetupForm {...mockProps} />);
+  it('loads preserved draft data via DraftManager helper', async () => {
+    const user = setupUserEvent();
+    renderForm(mockProps);
 
-    // Check for help text
-    expect(screen.getByText(/กรอกชื่อจริงของคุณ/)).toBeInTheDocument();
-    expect(screen.getByText(/กรอกนามสกุลของคุณ/)).toBeInTheDocument();
-    expect(screen.getByText(/กรอกเบอร์โทรศัพท์ที่สามารถติดต่อได้/)).toBeInTheDocument();
+    await user.click(screen.getByText('โหลดร่าง'));
+    expect(mockValidation.setFormData).toHaveBeenCalledWith({ firstName: 'Drafty' });
   });
 
-  test('shows field completion indicators', () => {
-    mockFormValidation.getFieldState.mockImplementation((fieldName) => {
-      if (fieldName === 'firstName') {
-        return { hasValue: true, isValid: true, error: null };
-      }
-      return { hasValue: false, isValid: null, error: null };
-    });
-
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    // Check for completion indicators (checkmarks, etc.)
-    const firstNameField = screen.getByLabelText(/ชื่อ/).closest('.form-field');
-    expect(firstNameField).toHaveClass('completed');
-  });
-
-  test('handles phone number formatting', async () => {
-    const user = userEvent.setup();
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    const phoneInput = screen.getByLabelText(/เบอร์โทรศัพท์/);
-    await user.type(phoneInput, '0812345678');
-
-    expect(mockFormValidation.handleFieldChange).toHaveBeenCalledWith('phoneNumber', '0812345678');
-  });
-
-  test('validates required fields on blur', async () => {
-    const user = userEvent.setup();
-    mockFormValidation.getFieldState.mockReturnValue({
-      hasValue: false,
-      isValid: false,
-      error: 'กรุณากรอกชื่อ'
-    });
-
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    const firstNameInput = screen.getByLabelText(/ชื่อ/);
-    await user.click(firstNameInput);
-    await user.tab();
-
-    expect(mockFormValidation.handleFieldBlur).toHaveBeenCalledWith('firstName');
-  });
-
-  test('clears errors when user starts typing', async () => {
-    const user = userEvent.setup();
-    mockErrorHandling.hasError = true;
-
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    const firstNameInput = screen.getByLabelText(/ชื่อ/);
-    await user.type(firstNameInput, 'ส');
-
-    expect(mockErrorHandling.clearError).toHaveBeenCalled();
-  });
-
-  test('preserves form data on unmount', () => {
-    const { unmount } = render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    unmount();
-
-    expect(require('../../../utils/formDataPreservation').preserveFormData).toHaveBeenCalled();
-  });
-
-  test('restores form data on mount', () => {
-    require('../../../utils/formDataPreservation').restoreFormData.mockReturnValue({
-      firstName: 'สมชาย',
-      lastName: 'ใจดี'
-    });
-
-    render(<EnhancedProfileSetupForm {...mockProps} />);
-
-    expect(require('../../../utils/formDataPreservation').restoreFormData).toHaveBeenCalled();
+  it('triggers duplicate check on mount', async () => {
+    renderForm(mockProps);
+    await waitFor(() => expect(mockDuplicate.checkDuplicates).toHaveBeenCalledWith('test@example.com'));
   });
 });

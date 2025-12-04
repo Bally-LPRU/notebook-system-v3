@@ -21,27 +21,6 @@ describe('Header', () => {
       expect(screen.getByText('ELS')).toBeInTheDocument();
     });
 
-    it('should render navigation links on desktop', () => {
-      render(<Header {...defaultProps} />);
-
-      // Desktop navigation (hidden on mobile)
-      const desktopNav = screen.getAllByRole('navigation')[0];
-      expect(desktopNav).toBeInTheDocument();
-      
-      // Check for navigation links
-      expect(screen.getAllByText('สถิติ')).toHaveLength(2); // Desktop and mobile
-      expect(screen.getAllByText('เกี่ยวกับ')).toHaveLength(2);
-      expect(screen.getAllByText('ติดต่อ')).toHaveLength(2);
-    });
-
-    it('should render mobile navigation menu', () => {
-      render(<Header {...defaultProps} />);
-
-      // Mobile navigation should be present
-      const mobileNav = screen.getAllByRole('navigation')[1];
-      expect(mobileNav).toBeInTheDocument();
-    });
-
     it('should render login button', () => {
       render(<Header {...defaultProps} />);
 
@@ -89,42 +68,6 @@ describe('Header', () => {
       expect(mockOnLoginClick).not.toHaveBeenCalled();
     });
   });
-
-  describe('Navigation Links', () => {
-    it('should have correct href attributes for navigation links', () => {
-      render(<Header {...defaultProps} />);
-
-      const statsLinks = screen.getAllByRole('link', { name: /สถิติ/i });
-      const aboutLinks = screen.getAllByRole('link', { name: /เกี่ยวกับ/i });
-      const contactLinks = screen.getAllByRole('link', { name: /ติดต่อ/i });
-
-      statsLinks.forEach(link => {
-        expect(link).toHaveAttribute('href', '#stats');
-      });
-
-      aboutLinks.forEach(link => {
-        expect(link).toHaveAttribute('href', '#about');
-      });
-
-      contactLinks.forEach(link => {
-        expect(link).toHaveAttribute('href', '#contact');
-      });
-    });
-
-    it('should have proper focus management for navigation links', () => {
-      render(<Header {...defaultProps} />);
-
-      const firstStatsLink = screen.getAllByRole('link', { name: /สถิติ/i })[0];
-      
-      // Focus the link
-      firstStatsLink.focus();
-      expect(firstStatsLink).toHaveFocus();
-
-      // Check for focus styles (focus:ring classes should be present)
-      expect(firstStatsLink).toHaveClass('focus:outline-none', 'focus:ring-2');
-    });
-  });
-
   describe('Responsive Design', () => {
     it('should show full system name on larger screens', () => {
       render(<Header {...defaultProps} />);
@@ -154,20 +97,6 @@ describe('Header', () => {
 
       const banner = screen.getByRole('banner');
       expect(banner).toHaveAttribute('aria-label', 'หัวเรื่องหลักและการนำทาง');
-
-      const desktopNav = screen.getAllByRole('navigation')[0];
-      expect(desktopNav).toHaveAttribute('aria-label', 'การนำทางหลัก');
-
-      const mobileNav = screen.getAllByRole('navigation')[1];
-      expect(mobileNav).toHaveAttribute('aria-label', 'การนำทางสำหรับมือถือ');
-    });
-
-    it('should have screen reader descriptions for navigation links', () => {
-      render(<Header {...defaultProps} />);
-
-      expect(screen.getByText('ดูสถิติการใช้งานอุปกรณ์')).toHaveClass('sr-only');
-      expect(screen.getByText('เรียนรู้เกี่ยวกับระบบ')).toHaveClass('sr-only');
-      expect(screen.getByText('ข้อมูลการติดต่อ')).toHaveClass('sr-only');
     });
 
     it('should have proper button descriptions', () => {

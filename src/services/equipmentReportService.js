@@ -11,8 +11,42 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import EquipmentManagementService from './equipmentManagementService';
-import EquipmentExportService from './equipmentExportService';
 import { EQUIPMENT_MANAGEMENT_STATUS } from '../types/equipmentManagement';
+
+const FIELD_LABELS = {
+  'equipmentNumber': 'หมายเลขครุภัณฑ์',
+  'name': 'ชื่ออุปกรณ์',
+  'category.name': 'ประเภท',
+  'brand': 'ยี่ห้อ',
+  'model': 'รุ่น',
+  'status': 'สถานะ',
+  'location.building': 'อาคาร',
+  'location.floor': 'ชั้น',
+  'location.room': 'ห้อง',
+  'location.description': 'รายละเอียดสถานที่',
+  'purchaseDate': 'วันที่ซื้อ',
+  'purchasePrice': 'ราคาซื้อ',
+  'vendor': 'ผู้จำหน่าย',
+  'warrantyExpiry': 'วันหมดประกัน',
+  'responsiblePerson.name': 'ผู้รับผิดชอบ',
+  'responsiblePerson.email': 'อีเมลผู้รับผิดชอบ',
+  'responsiblePerson.department': 'สังกัดผู้รับผิดชอบ',
+  'description': 'รายละเอียด',
+  'notes': 'หมายเหตุ',
+  'createdAt': 'วันที่สร้าง',
+  'updatedAt': 'วันที่แก้ไขล่าสุด',
+  'viewCount': 'จำนวนครั้งที่ดู'
+};
+
+const getFieldLabel = (fieldKey) => FIELD_LABELS[fieldKey] || fieldKey;
+
+const getFieldValue = (item, fieldKey) => {
+  try {
+    return fieldKey.split('.').reduce((obj, key) => obj?.[key], item) || '';
+  } catch (error) {
+    return '';
+  }
+};
 
 class EquipmentReportService {
   static REPORT_TEMPLATES_COLLECTION = 'equipmentReportTemplates';
@@ -622,8 +656,8 @@ class EquipmentReportService {
     const extracted = {};
     
     fields.forEach(fieldKey => {
-      const value = EquipmentExportService.getFieldValue(item, fieldKey);
-      const label = EquipmentExportService.getFieldLabel(fieldKey);
+      const value = getFieldValue(item, fieldKey);
+      const label = getFieldLabel(fieldKey);
       extracted[label] = value;
     });
     

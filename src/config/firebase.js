@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 // Production Firebase configuration - hardcoded for reliability
 const firebaseConfig = {
@@ -58,6 +58,53 @@ try {
 } catch (error) {
   console.error('🚨 Storage initialization failed:', error);
   throw error;
+}
+
+const shouldUseEmulators =
+  process.env.REACT_APP_USE_FIREBASE_EMULATORS === 'true' ||
+  process.env.REACT_APP_USE_EMULATOR === 'true';
+
+const parseHostAndPort = (value, defaultHost, defaultPort) => {
+  if (!value) {
+    return { host: defaultHost, port: defaultPort };
+  }
+
+  const cleanedValue = value.replace(/^https?:\/\//, '');
+  const [host, portString] = cleanedValue.split(':');
+  const port = Number(portString);
+  return {
+    host: host || defaultHost,
+    port: Number.isFinite(port) ? port : defaultPort
+  };
+};
+
+if (shouldUseEmulators) {
+  try {
+    const authHost = process.env.REACT_APP_FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099';
+    const firestoreTarget = parseHostAndPort(
+      process.env.REACT_APP_FIRESTORE_EMULATOR_HOST,
+      '127.0.0.1',
+      8080
+    );
+    const storageTarget = parseHostAndPort(
+      process.env.REACT_APP_FIREBASE_STORAGE_EMULATOR_HOST,
+      '127.0.0.1',
+      9199
+    );
+
+    connectAuthEmulator(auth, `http://${authHost}`, { disableWarnings: true });
+    connectFirestoreEmulator(db, firestoreTarget.host, firestoreTarget.port);
+    connectStorageEmulator(storage, storageTarget.host, storageTarget.port);
+
+    console.log('🧪 Connected to Firebase emulators', {
+      auth: authHost,
+      firestore: `${firestoreTarget.host}:${firestoreTarget.port}`,
+      storage: `${storageTarget.host}:${storageTarget.port}`
+    });
+  } catch (error) {
+    console.error('🚨 Failed to connect to Firebase emulators:', error);
+    throw error;
+  }
 }
 
 // Initialize Google Auth Provider

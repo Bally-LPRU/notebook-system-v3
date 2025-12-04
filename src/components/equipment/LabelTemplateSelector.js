@@ -2,13 +2,48 @@ import React, { useState } from 'react';
 import { CheckIcon } from 'lucide-react';
 import LabelPrintingService from '../../services/labelPrintingService';
 
+const DEFAULT_TEMPLATES = [
+  {
+    id: 'standard',
+    name: 'ป้ายมาตรฐาน',
+    width: 89,
+    height: 36,
+    preview: '<div class="w-16 h-8 border border-dashed border-gray-300 flex items-center justify-center text-[10px] text-gray-500">QR + Info</div>'
+  },
+  {
+    id: 'compact',
+    name: 'ป้ายขนาดเล็ก',
+    width: 50,
+    height: 25,
+    preview: '<div class="w-12 h-6 border border-dashed border-gray-300 flex items-center justify-center text-[10px] text-gray-500">Compact</div>'
+  }
+];
+
+const DEFAULT_TEMPLATE_MAP = DEFAULT_TEMPLATES.reduce((acc, template) => {
+  acc[template.id] = template;
+  return acc;
+}, {});
+
 const LabelTemplateSelector = ({ 
   selectedTemplate = 'standard', 
   onTemplateChange, 
   showPreview = true,
   className = '' 
 }) => {
-  const [templates] = useState(LabelPrintingService.getAvailableTemplates());
+  const loadTemplates = () => {
+    try {
+      const availableTemplates = LabelPrintingService.getAvailableTemplates();
+      return Array.isArray(availableTemplates) ? availableTemplates : [];
+    } catch (error) {
+      console.error('ไม่สามารถโหลดเทมเพลตป้ายได้:', error);
+      return [];
+    }
+  };
+
+  const [templates] = useState(() => {
+    const availableTemplates = loadTemplates();
+    return availableTemplates.length ? availableTemplates : DEFAULT_TEMPLATES;
+  });
 
   const handleTemplateSelect = (templateId) => {
     if (onTemplateChange) {
@@ -72,23 +107,36 @@ const LabelTemplateSelector = ({
         <div className="bg-gray-50 rounded-lg p-4">
           <h4 className="font-medium text-gray-900 mb-2">รายละเอียดเทมเพลต</h4>
           {(() => {
-            const template = LabelPrintingService.LABEL_TEMPLATES[selectedTemplate];
-            if (!template) return null;
+            const template = LabelPrintingService.LABEL_TEMPLATES?.[selectedTemplate] ||
+              templates.find(t => t.id === selectedTemplate) ||
+              DEFAULT_TEMPLATE_MAP[selectedTemplate];
+
+            if (!template) {
+              return (
+                <p className="text-sm text-gray-500">
+                  ไม่พบรายละเอียดเทมเพลตที่เลือก กรุณาเลือกเทมเพลตอื่น
+                </p>
+              );
+            }
+
+            const elements = Array.isArray(template.elements) ? template.elements : [];
+            const templateWidth = template.width || '-';
+            const templateHeight = template.height || '-';
 
             return (
               <div className="space-y-2 text-sm text-gray-600">
                 <div className="flex justify-between">
                   <span>ขนาด:</span>
-                  <span>{template.width} × {template.height} mm</span>
+                  <span>{templateWidth} × {templateHeight} mm</span>
                 </div>
                 <div className="flex justify-between">
                   <span>องค์ประกอบ:</span>
-                  <span>{template.elements.length} รายการ</span>
+                  <span>{elements.length} รายการ</span>
                 </div>
                 <div>
                   <span>ข้อมูลที่แสดง:</span>
                   <div className="mt-1 flex flex-wrap gap-1">
-                    {template.elements
+                    {elements
                       .filter(el => el.type === 'text')
                       .map((el, index) => (
                         <span
@@ -103,7 +151,7 @@ const LabelTemplateSelector = ({
                           {el.field === 'category' && 'ประเภท'}
                         </span>
                       ))}
-                    {template.elements.some(el => el.type === 'qr') && (
+                    {elements.some(el => el.type === 'qr') && (
                       <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200">
                         QR Code
                       </span>

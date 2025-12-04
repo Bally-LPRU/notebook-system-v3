@@ -28,12 +28,10 @@ class ActivityLoggerService {
     EQUIPMENT_UPDATED: 'equipment_updated',
     EQUIPMENT_DELETED: 'equipment_deleted',
     EQUIPMENT_VIEWED: 'equipment_viewed',
-    EQUIPMENT_EXPORTED: 'equipment_exported',
     
     // Bulk operations
     BULK_UPDATE: 'bulk_update',
     BULK_DELETE: 'bulk_delete',
-    BULK_EXPORT: 'bulk_export',
     
     // Image operations
     IMAGE_UPLOADED: 'image_uploaded',
@@ -46,7 +44,6 @@ class ActivityLoggerService {
     
     // Report operations
     REPORT_GENERATED: 'report_generated',
-    REPORT_EXPORTED: 'report_exported',
     
     // System activities
     USER_LOGIN: 'user_login',

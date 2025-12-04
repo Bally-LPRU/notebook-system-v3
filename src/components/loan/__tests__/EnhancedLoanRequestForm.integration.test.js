@@ -10,20 +10,24 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import EnhancedLoanRequestForm from '../EnhancedLoanRequestForm';
-import { SettingsProvider } from '../../../contexts/SettingsContext';
+import { useSettings } from '../../../contexts/SettingsContext';
 import { useClosedDates } from '../../../hooks/useClosedDates';
 import { useCategoryLimits } from '../../../hooks/useCategoryLimits';
-import { useSettings } from '../../../hooks/useSettings';
+import useLoanRequestValidation from '../../../hooks/useLoanRequestValidation';
 
 // Mock hooks
+jest.mock('../../../contexts/SettingsContext', () => ({
+  useSettings: jest.fn()
+}));
 jest.mock('../../../hooks/useClosedDates');
 jest.mock('../../../hooks/useCategoryLimits');
-jest.mock('../../../hooks/useSettings');
-jest.mock('../../../hooks/useLoanRequestValidation', () => {
-  return jest.fn(() => ({
+jest.mock('../../../hooks/useLoanRequestValidation');
+
+const createValidationMock = (overrides = {}) => {
+  const defaultReturn = {
     formData: {
       equipmentId: 'test-equipment',
       borrowDate: '',
@@ -38,8 +42,17 @@ jest.mock('../../../hooks/useLoanRequestValidation', () => {
     getFieldStatus: jest.fn(() => 'default'),
     isValid: true,
     isValidating: false
-  }));
-});
+  };
+
+  return {
+    ...defaultReturn,
+    ...overrides,
+    formData: {
+      ...defaultReturn.formData,
+      ...(overrides.formData || {})
+    }
+  };
+};
 
 describe('EnhancedLoanRequestForm Integration Tests', () => {
   const mockEquipment = {
@@ -70,6 +83,8 @@ describe('EnhancedLoanRequestForm Integration Tests', () => {
   ];
 
   beforeEach(() => {
+    useLoanRequestValidation.mockReturnValue(createValidationMock());
+
     // Mock useSettings
     useSettings.mockReturnValue({
       settings: mockSettings,
@@ -132,8 +147,16 @@ describe('EnhancedLoanRequestForm Integration Tests', () => {
     expect(screen.getByText(/สามารถยืมอุปกรณ์ในหมวดหมู่นี้ได้สูงสุด 2 ชิ้นพร้อมกัน/)).toBeInTheDocument();
   });
 
-  test('shows closed date warning when closed date is selected', async () => {
-    const { container } = render(
+  test('shows closed date warning when closed date is selected', () => {
+    useLoanRequestValidation.mockReturnValue(
+      createValidationMock({
+        formData: {
+          borrowDate: '2024-12-25'
+        }
+      })
+    );
+
+    render(
       <EnhancedLoanRequestForm
         equipment={mockEquipment}
         equipmentId={mockEquipment.id}
@@ -142,16 +165,7 @@ describe('EnhancedLoanRequestForm Integration Tests', () => {
       />
     );
 
-    // Find borrow date input
-    const borrowDateInput = container.querySelector('input[name="borrowDate"]');
-    
-    // Set to a closed date
-    fireEvent.change(borrowDateInput, { target: { value: '2024-12-25' } });
-
-    await waitFor(() => {
-      // Should show closed date warning
-      expect(screen.getByText(/วันที่เลือกเป็นวันปิดทำการ/)).toBeInTheDocument();
-    });
+    expect(screen.getByText(/วันที่เลือกเป็นวันปิดทำการ/)).toBeInTheDocument();
   });
 
   test('mentions closed dates in help text', () => {
@@ -164,8 +178,8 @@ describe('EnhancedLoanRequestForm Integration Tests', () => {
       />
     );
 
-    // Check that help text mentions closed dates
-    expect(screen.getByText(/ไม่รวมวันปิดทำการ/)).toBeInTheDocument();
+    // Check that help text mentions closed dates at least once
+    expect(screen.getAllByText(/ไม่รวมวันปิดทำการ/).length).toBeGreaterThan(0);
   });
 
   test('uses default values when settings are not loaded', () => {

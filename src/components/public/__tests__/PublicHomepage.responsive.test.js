@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import PublicHomepage from '../PublicHomepage';
 
@@ -43,6 +43,23 @@ const setViewportSize = (width, height = 800) => {
   window.dispatchEvent(new Event('resize'));
 };
 
+const renderAtWidth = (width) => {
+  setViewportSize(width);
+  return renderWithRouter(<PublicHomepage />);
+};
+
+const getStatsGridElement = (container) => {
+  const statsSection = container.querySelector('#stats');
+  return statsSection?.querySelector('.grid') || null;
+};
+
+const expectStatsGridHasClass = (container, className) => {
+  const grid = getStatsGridElement(container);
+  expect(grid).not.toBeNull();
+  expect(grid.className).toContain(className);
+  return grid;
+};
+
 describe('PublicHomepage Responsive Design Tests', () => {
   const mockUseAuth = require('../../../contexts/AuthContext').useAuth;
   const mockUsePublicStats = require('../../../hooks/usePublicStats').default;
@@ -83,27 +100,29 @@ describe('PublicHomepage Responsive Design Tests', () => {
     it('should display mobile-optimized header', () => {
       renderWithRouter(<PublicHomepage />);
 
-      // Should show abbreviated system name
-      expect(screen.getByText('ELS')).toBeInTheDocument();
-      expect(screen.queryByText('Equipment Lending System')).toBeInTheDocument(); // Hidden but present
+      const banner = screen.getByRole('banner');
+      const header = within(banner);
 
-      // Should show mobile navigation
-      const mobileNav = screen.getAllByRole('navigation')[1];
-      expect(mobileNav).toBeInTheDocument();
+      // Should show abbreviated system name while desktop label remains hidden via utility classes
+      const mobileLabel = header.getByText('ELS');
+      const desktopLabel = header.getByText('Equipment Lending System');
+      expect(mobileLabel).toHaveClass('sm:hidden');
+      expect(desktopLabel).toHaveClass('hidden', 'sm:inline');
+
+      // Login button remains accessible without extra navigation
+      expect(header.getByRole('button', { name: /เข้าสู่ระบบ/i })).toBeInTheDocument();
     });
 
     it('should stack statistics cards vertically', () => {
       const { container } = renderWithRouter(<PublicHomepage />);
 
-      // Check for single column grid on mobile
-      const statsGrid = container.querySelector('.grid-cols-1');
-      expect(statsGrid).toBeInTheDocument();
+      expectStatsGridHasClass(container, 'grid-cols-1');
     });
 
     it('should have appropriate text sizes for mobile', () => {
       renderWithRouter(<PublicHomepage />);
 
-      const mainHeading = screen.getByRole('heading', { level: 1 });
+      const mainHeading = screen.getByRole('heading', { level: 1, name: /ระบบยืม-คืนอุปกรณ์/ });
       expect(mainHeading).toHaveClass('text-4xl'); // Mobile size
     });
 
@@ -123,9 +142,10 @@ describe('PublicHomepage Responsive Design Tests', () => {
       expect(loginButton).toBeInTheDocument();
       expect(loginButton).not.toBeDisabled();
 
-      // Get started button should be accessible
-      const getStartedButton = screen.getByRole('button', { name: /เริ่มใช้งาน/i });
-      expect(getStartedButton).toBeInTheDocument();
+      // Hero title remains visible without extra CTAs
+      expect(
+        screen.getByRole('heading', { level: 1, name: /ระบบยืม-คืนอุปกรณ์/ })
+      ).toBeInTheDocument();
     });
   });
 
@@ -137,31 +157,26 @@ describe('PublicHomepage Responsive Design Tests', () => {
     it('should display tablet-optimized layout', () => {
       const { container } = renderWithRouter(<PublicHomepage />);
 
-      // Should show 2-column grid for stats on tablet
-      const statsGrid = container.querySelector('.sm\\:grid-cols-2');
-      expect(statsGrid).toBeInTheDocument();
+      expectStatsGridHasClass(container, 'sm:grid-cols-2');
     });
 
     it('should show full system name on tablet', () => {
       renderWithRouter(<PublicHomepage />);
 
-      expect(screen.getByText('Equipment Lending System')).toBeInTheDocument();
+      const header = within(screen.getByRole('banner'));
+      const desktopLabel = header.getByText('Equipment Lending System');
+      const mobileLabel = header.getByText('ELS');
+      expect(desktopLabel).toHaveClass('hidden', 'sm:inline');
+      expect(mobileLabel).toHaveClass('sm:hidden');
     });
 
     it('should have appropriate text sizes for tablet', () => {
       renderWithRouter(<PublicHomepage />);
 
-      const mainHeading = screen.getByRole('heading', { level: 1 });
+      const mainHeading = screen.getByRole('heading', { level: 1, name: /ระบบยืม-คืนอุปกรณ์/ });
       expect(mainHeading).toHaveClass('sm:text-5xl'); // Tablet size
     });
 
-    it('should maintain mobile navigation on tablet', () => {
-      renderWithRouter(<PublicHomepage />);
-
-      // Mobile navigation should still be visible on tablet
-      const mobileNav = screen.getAllByRole('navigation')[1];
-      expect(mobileNav).toBeInTheDocument();
-    });
   });
 
   describe('Desktop Layout (1024px+)', () => {
@@ -172,45 +187,29 @@ describe('PublicHomepage Responsive Design Tests', () => {
     it('should display desktop-optimized header', () => {
       renderWithRouter(<PublicHomepage />);
 
-      // Should show full system name
-      expect(screen.getByText('Equipment Lending System')).toBeInTheDocument();
+      const header = within(screen.getByRole('banner'));
 
-      // Should show desktop navigation
-      const desktopNav = screen.getAllByRole('navigation')[0];
-      expect(desktopNav).toBeInTheDocument();
+      // Should show full system name
+      expect(header.getByText('Equipment Lending System')).toBeInTheDocument();
+
+      // Login button should adopt larger spacing on desktop
+      const loginButton = header.getByRole('button', { name: /เข้าสู่ระบบ/i });
+      expect(loginButton).toHaveClass('sm:px-4', 'sm:py-2');
     });
 
     it('should display 4-column statistics grid', () => {
       const { container } = renderWithRouter(<PublicHomepage />);
 
-      // Should show 4-column grid on desktop
-      const statsGrid = container.querySelector('.lg\\:grid-cols-4');
-      expect(statsGrid).toBeInTheDocument();
+      expectStatsGridHasClass(container, 'lg:grid-cols-4');
     });
 
     it('should have largest text sizes for desktop', () => {
       renderWithRouter(<PublicHomepage />);
 
-      const mainHeading = screen.getByRole('heading', { level: 1 });
+      const mainHeading = screen.getByRole('heading', { level: 1, name: /ระบบยืม-คืนอุปกรณ์/ });
       expect(mainHeading).toHaveClass('md:text-6xl'); // Desktop size
     });
 
-    it('should hide mobile navigation on desktop', () => {
-      const { container } = renderWithRouter(<PublicHomepage />);
-
-      // Mobile navigation should be hidden on desktop
-      const mobileNavContainer = container.querySelector('.lg\\:hidden');
-      expect(mobileNavContainer).toBeInTheDocument();
-    });
-
-    it('should show desktop navigation links', () => {
-      renderWithRouter(<PublicHomepage />);
-
-      // Desktop navigation should be visible
-      const desktopNav = screen.getAllByRole('navigation')[0];
-      const navLinks = within(desktopNav).getAllByRole('link');
-      expect(navLinks.length).toBe(3); // Stats, About, Contact
-    });
   });
 
   describe('Ultra-wide Desktop (1440px+)', () => {
@@ -250,7 +249,6 @@ describe('PublicHomepage Responsive Design Tests', () => {
 
       // Buttons should be accessible
       expect(screen.getByRole('button', { name: /เข้าสู่ระบบ/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /เริ่มใช้งาน/i })).toBeInTheDocument();
     });
 
     it('should not have horizontal overflow', () => {
@@ -265,43 +263,30 @@ describe('PublicHomepage Responsive Design Tests', () => {
       renderWithRouter(<PublicHomepage />);
 
       // Text should not be too small
-      const mainHeading = screen.getByRole('heading', { level: 1 });
+      const mainHeading = screen.getByRole('heading', { level: 1, name: /ระบบยืม-คืนอุปกรณ์/ });
       expect(mainHeading).toHaveClass('text-4xl'); // Minimum readable size
     });
   });
 
   describe('Breakpoint Transitions', () => {
     it('should handle mobile to tablet transition smoothly', () => {
-      const { container, rerender } = renderWithRouter(<PublicHomepage />);
+      const mobileRender = renderAtWidth(767);
+      expectStatsGridHasClass(mobileRender.container, 'grid-cols-1');
+      mobileRender.unmount();
 
-      // Start at mobile
-      setViewportSize(767);
-      rerender(<PublicHomepage />);
-
-      // Should show mobile layout
-      expect(container.querySelector('.grid-cols-1')).toBeInTheDocument();
-
-      // Transition to tablet
-      setViewportSize(768);
-      rerender(<PublicHomepage />);
-
-      // Should show tablet layout
-      expect(container.querySelector('.sm\\:grid-cols-2')).toBeInTheDocument();
+      const tabletRender = renderAtWidth(768);
+      expectStatsGridHasClass(tabletRender.container, 'sm:grid-cols-2');
+      tabletRender.unmount();
     });
 
     it('should handle tablet to desktop transition smoothly', () => {
-      const { container, rerender } = renderWithRouter(<PublicHomepage />);
+      const tabletRender = renderAtWidth(1023);
+      expectStatsGridHasClass(tabletRender.container, 'sm:grid-cols-2');
+      tabletRender.unmount();
 
-      // Start at tablet
-      setViewportSize(1023);
-      rerender(<PublicHomepage />);
-
-      // Transition to desktop
-      setViewportSize(1024);
-      rerender(<PublicHomepage />);
-
-      // Should show desktop layout
-      expect(container.querySelector('.lg\\:grid-cols-4')).toBeInTheDocument();
+      const desktopRender = renderAtWidth(1024);
+      expectStatsGridHasClass(desktopRender.container, 'lg:grid-cols-4');
+      desktopRender.unmount();
     });
   });
 
@@ -314,11 +299,10 @@ describe('PublicHomepage Responsive Design Tests', () => {
       renderWithRouter(<PublicHomepage />);
 
       const loginButton = screen.getByRole('button', { name: /เข้าสู่ระบบ/i });
-      const getStartedButton = screen.getByRole('button', { name: /เริ่มใช้งาน/i });
 
       // Buttons should have adequate padding for touch
       expect(loginButton).toHaveClass('px-3', 'py-2');
-      expect(getStartedButton).toHaveClass('px-8', 'py-4');
+      expect(loginButton.className).toContain('focus:ring-2');
     });
 
     it('should have accessible link targets on mobile', () => {
@@ -328,35 +312,30 @@ describe('PublicHomepage Responsive Design Tests', () => {
       
       // Links should be easily tappable
       navLinks.forEach(link => {
-        expect(link).toHaveClass('text-sm'); // Readable size
+        expect(link.className).toContain('focus:ring-2');
       });
     });
   });
 
   describe('Content Reflow', () => {
     it('should reflow statistics cards appropriately across breakpoints', () => {
-      const { container, rerender } = renderWithRouter(<PublicHomepage />);
+      const mobileRender = renderAtWidth(375);
+      expectStatsGridHasClass(mobileRender.container, 'grid-cols-1');
+      mobileRender.unmount();
 
-      // Mobile: 1 column
-      setViewportSize(375);
-      rerender(<PublicHomepage />);
-      expect(container.querySelector('.grid-cols-1')).toBeInTheDocument();
+      const tabletRender = renderAtWidth(768);
+      expectStatsGridHasClass(tabletRender.container, 'sm:grid-cols-2');
+      tabletRender.unmount();
 
-      // Tablet: 2 columns
-      setViewportSize(768);
-      rerender(<PublicHomepage />);
-      expect(container.querySelector('.sm\\:grid-cols-2')).toBeInTheDocument();
-
-      // Desktop: 4 columns
-      setViewportSize(1024);
-      rerender(<PublicHomepage />);
-      expect(container.querySelector('.lg\\:grid-cols-4')).toBeInTheDocument();
+      const desktopRender = renderAtWidth(1024);
+      expectStatsGridHasClass(desktopRender.container, 'lg:grid-cols-4');
+      desktopRender.unmount();
     });
 
     it('should adjust text sizes appropriately across breakpoints', () => {
       renderWithRouter(<PublicHomepage />);
 
-      const mainHeading = screen.getByRole('heading', { level: 1 });
+      const mainHeading = screen.getByRole('heading', { level: 1, name: /ระบบยืม-คืนอุปกรณ์/ });
       
       // Should have responsive text classes
       expect(mainHeading).toHaveClass('text-4xl', 'sm:text-5xl', 'md:text-6xl');
@@ -382,7 +361,10 @@ describe('PublicHomepage Responsive Design Tests', () => {
       // Icons should have responsive sizing
       const icons = container.querySelectorAll('svg');
       icons.forEach(icon => {
-        const classes = icon.className;
+        const classes =
+          typeof icon.className === 'string'
+            ? icon.className
+            : icon.getAttribute('class') || '';
         // Should have responsive size classes
         expect(classes).toMatch(/w-\d+|h-\d+|sm:w-\d+|sm:h-\d+/);
       });

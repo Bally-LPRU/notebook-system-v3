@@ -20,6 +20,7 @@ const EquipmentManagementContainer = ({
   const [isPermissionError, setIsPermissionError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [categories, setCategories] = useState([]);
+  const categoryOptions = Array.isArray(categories) ? categories : [];
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -314,7 +315,7 @@ const EquipmentManagementContainer = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">ทั้งหมด</option>
-                {categories.map((category) => (
+                {categoryOptions.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
                   </option>

@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import EquipmentService from '../equipmentService';
 import { EQUIPMENT_STATUS } from '../../types/equipment';
 
@@ -31,6 +30,26 @@ jest.mock('firebase/storage', () => ({
   deleteObject: jest.fn()
 }));
 
+const firestore = jest.requireMock('firebase/firestore');
+const storage = jest.requireMock('firebase/storage');
+
+const createDocumentSnapshot = (data = {}, overrides = {}) => {
+  const id = overrides.id || data.id || 'doc-id';
+  return {
+    id,
+    data: () => ({ ...data }),
+    exists: () => overrides.exists ?? true,
+    ref: overrides.ref || { id }
+  };
+};
+
+const createQuerySnapshot = (docs = []) => ({
+  docs,
+  forEach: (callback) => docs.forEach(callback),
+  size: docs.length,
+  empty: docs.length === 0
+});
+
 describe('EquipmentService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -59,20 +78,17 @@ describe('EquipmentService', () => {
         }
       ];
 
-      const mockSnapshot = {
-        docs: mockEquipment.map(eq => ({
-          id: eq.id,
-          data: () => ({ ...eq, id: undefined }),
-          exists: () => true
-        })),
-        empty: false
-      };
+      const docs = mockEquipment.map(eq => {
+        const { id, ...data } = eq;
+        return createDocumentSnapshot(data, { id });
+      });
 
-      const { collection, getDocs, query, orderBy } = require('firebase/firestore');
-      collection.mockReturnValue('equipment');
-      query.mockReturnValue('query');
-      orderBy.mockReturnValue('orderBy');
-      getDocs.mockResolvedValue(mockSnapshot);
+      firestore.collection.mockReturnValue('equipment');
+      firestore.query.mockReturnValue('query');
+      firestore.orderBy.mockReturnValue('orderBy');
+      firestore.where.mockReturnValue('where');
+      firestore.limit.mockReturnValue('limit');
+      firestore.getDocs.mockResolvedValue(createQuerySnapshot(docs));
 
       const result = await EquipmentService.getEquipmentList();
 
@@ -82,13 +98,11 @@ describe('EquipmentService', () => {
     });
 
     it('should handle empty equipment list', async () => {
-      const mockSnapshot = {
-        docs: [],
-        empty: true
-      };
-
-      const { getDocs } = require('firebase/firestore');
-      getDocs.mockResolvedValue(mockSnapshot);
+      firestore.collection.mockReturnValue('equipment');
+      firestore.query.mockReturnValue('query');
+      firestore.where.mockReturnValue('where');
+      firestore.limit.mockReturnValue('limit');
+      firestore.getDocs.mockResolvedValue(createQuerySnapshot());
 
       const result = await EquipmentService.getEquipmentList();
 
@@ -102,19 +116,43 @@ describe('EquipmentService', () => {
         status: EQUIPMENT_STATUS.AVAILABLE,
         search: 'Dell'
       };
+      const docs = [
+        createDocumentSnapshot({
+          name: 'Dell XPS',
+          category: 'laptop',
+          status: EQUIPMENT_STATUS.AVAILABLE,
+          brand: 'Dell',
+          model: 'XPS 13',
+          serialNumber: 'DL001'
+        }, { id: 'eq1' }),
+        createDocumentSnapshot({
+          name: 'iPad',
+          category: 'tablet',
+          status: EQUIPMENT_STATUS.BORROWED,
+          brand: 'Apple',
+          model: 'Pro',
+          serialNumber: 'AP001'
+        }, { id: 'eq2' })
+      ];
 
-      const { where } = require('firebase/firestore');
-      where.mockReturnValue('where');
+      firestore.collection.mockReturnValue('equipment');
+      firestore.query.mockReturnValue('query');
+      firestore.where.mockReturnValue('where');
+      firestore.limit.mockReturnValue('limit');
+      firestore.getDocs.mockResolvedValue(createQuerySnapshot(docs));
 
-      await EquipmentService.getEquipmentList(filters);
+      const result = await EquipmentService.getEquipmentList(filters);
 
-      expect(where).toHaveBeenCalledWith('category', '==', 'laptop');
-      expect(where).toHaveBeenCalledWith('status', '==', EQUIPMENT_STATUS.AVAILABLE);
+      expect(result.equipment).toHaveLength(1);
+      expect(result.equipment[0].id).toBe('eq1');
     });
 
     it('should handle service errors', async () => {
-      const { getDocs } = require('firebase/firestore');
-      getDocs.mockRejectedValue(new Error('Database error'));
+      firestore.collection.mockReturnValue('equipment');
+      firestore.query.mockReturnValue('query');
+      firestore.where.mockReturnValue('where');
+      firestore.limit.mockReturnValue('limit');
+      firestore.getDocs.mockRejectedValue(new Error('Database error'));
 
       await expect(EquipmentService.getEquipmentList())
         .rejects.toThrow('Database error');
@@ -130,15 +168,14 @@ describe('EquipmentService', () => {
         status: EQUIPMENT_STATUS.AVAILABLE
       };
 
-      const mockDoc = {
-        exists: () => true,
-        data: () => ({ ...mockEquipment, id: undefined }),
-        id: 'eq1'
-      };
-
-      const { doc, getDoc } = require('firebase/firestore');
-      doc.mockReturnValue({ id: 'eq1' });
-      getDoc.mockResolvedValue(mockDoc);
+      firestore.doc.mockReturnValue({ id: 'eq1' });
+      firestore.getDoc.mockResolvedValue(
+        createDocumentSnapshot({
+          name: mockEquipment.name,
+          category: mockEquipment.category,
+          status: mockEquipment.status
+        }, { id: 'eq1' })
+      );
 
       const result = await EquipmentService.getEquipmentById('eq1');
 
@@ -146,12 +183,7 @@ describe('EquipmentService', () => {
     });
 
     it('should return null for non-existent equipment', async () => {
-      const mockDoc = {
-        exists: () => false
-      };
-
-      const { getDoc } = require('firebase/firestore');
-      getDoc.mockResolvedValue(mockDoc);
+      firestore.getDoc.mockResolvedValue(createDocumentSnapshot({}, { exists: false }));
 
       const result = await EquipmentService.getEquipmentById('non-existent');
 
@@ -159,8 +191,8 @@ describe('EquipmentService', () => {
     });
 
     it('should handle service errors', async () => {
-      const { getDoc } = require('firebase/firestore');
-      getDoc.mockRejectedValue(new Error('Database error'));
+      firestore.doc.mockReturnValue({ id: 'eq1' });
+      firestore.getDoc.mockRejectedValue(new Error('Database error'));
 
       await expect(EquipmentService.getEquipmentById('eq1'))
         .rejects.toThrow('Database error');
@@ -175,25 +207,29 @@ describe('EquipmentService', () => {
         brand: 'HP',
         model: 'EliteBook',
         serialNumber: 'HP001',
-        status: EQUIPMENT_STATUS.AVAILABLE
+        status: EQUIPMENT_STATUS.AVAILABLE,
+        location: 'Lab 1'
       };
 
       const mockDocRef = { id: 'new-eq-id' };
+      const serialSpy = jest.spyOn(EquipmentService, 'isSerialNumberUnique').mockResolvedValue(true);
+      firestore.collection.mockReturnValue('equipment');
+      firestore.addDoc.mockResolvedValue(mockDocRef);
+      firestore.serverTimestamp.mockReturnValue('timestamp');
 
-      const { collection, addDoc, serverTimestamp } = require('firebase/firestore');
-      collection.mockReturnValue('equipment');
-      addDoc.mockResolvedValue(mockDocRef);
-      serverTimestamp.mockReturnValue({ seconds: Date.now() / 1000 });
+      const result = await EquipmentService.createEquipment(equipmentData, null, 'user-id');
 
-      const result = await EquipmentService.createEquipment(equipmentData, 'user-id');
-
-      expect(addDoc).toHaveBeenCalledWith('equipment', {
-        ...equipmentData,
-        createdAt: expect.any(Object),
-        updatedAt: expect.any(Object),
+      expect(firestore.addDoc).toHaveBeenCalledWith('equipment', expect.objectContaining({
+        name: 'New Laptop',
+        createdBy: 'user-id'
+      }));
+      expect(result).toMatchObject({
+        id: 'new-eq-id',
+        name: 'New Laptop',
         createdBy: 'user-id'
       });
-      expect(result).toBe('new-eq-id');
+
+      serialSpy.mockRestore();
     });
 
     it('should validate required fields', async () => {
@@ -202,7 +238,7 @@ describe('EquipmentService', () => {
         // Missing required fields
       };
 
-      await expect(EquipmentService.createEquipment(incompleteData, 'user-id'))
+      await expect(EquipmentService.createEquipment(incompleteData, null, 'user-id'))
         .rejects.toThrow();
     });
 
@@ -210,102 +246,151 @@ describe('EquipmentService', () => {
       const equipmentData = {
         name: 'Laptop',
         category: 'laptop',
-        serialNumber: 'LP001'
+        brand: 'Dell',
+        model: 'XPS',
+        serialNumber: 'LP001',
+        status: EQUIPMENT_STATUS.AVAILABLE,
+        location: 'Lab 2'
       };
+      const serialSpy = jest.spyOn(EquipmentService, 'isSerialNumberUnique').mockResolvedValue(true);
+      firestore.collection.mockReturnValue('equipment');
+      firestore.addDoc.mockRejectedValue(new Error('Creation failed'));
 
-      const { addDoc } = require('firebase/firestore');
-      addDoc.mockRejectedValue(new Error('Creation failed'));
-
-      await expect(EquipmentService.createEquipment(equipmentData, 'user-id'))
+      await expect(EquipmentService.createEquipment(equipmentData, null, 'user-id'))
         .rejects.toThrow('Creation failed');
+
+      serialSpy.mockRestore();
     });
   });
 
   describe('updateEquipment', () => {
+    const baseCurrentEquipment = {
+      id: 'eq1',
+      name: 'Laptop',
+      category: 'laptop',
+      brand: 'Dell',
+      model: 'XPS',
+      serialNumber: 'DL001',
+      description: '',
+      imageURL: null,
+      status: EQUIPMENT_STATUS.AVAILABLE,
+      location: 'Lab 1'
+    };
+
     it('should update equipment successfully', async () => {
       const updateData = {
         name: 'Updated Laptop',
-        status: EQUIPMENT_STATUS.MAINTENANCE
+        category: 'laptop',
+        brand: 'Dell',
+        model: 'XPS 15',
+        serialNumber: 'DL001',
+        description: 'Updated',
+        status: EQUIPMENT_STATUS.MAINTENANCE,
+        location: 'Lab 2'
       };
 
-      const { doc, updateDoc, serverTimestamp } = require('firebase/firestore');
-      doc.mockReturnValue({ id: 'eq1' });
-      updateDoc.mockResolvedValue();
-      serverTimestamp.mockReturnValue({ seconds: Date.now() / 1000 });
+      const equipmentSpy = jest.spyOn(EquipmentService, 'getEquipmentById').mockResolvedValue(baseCurrentEquipment);
+      const serialSpy = jest.spyOn(EquipmentService, 'isSerialNumberUnique').mockResolvedValue(true);
 
-      await EquipmentService.updateEquipment('eq1', updateData);
+      firestore.doc.mockReturnValue({ id: 'eq1' });
+      firestore.updateDoc.mockResolvedValue();
+      firestore.serverTimestamp.mockReturnValue('timestamp');
 
-      expect(updateDoc).toHaveBeenCalledWith(
+      const result = await EquipmentService.updateEquipment('eq1', updateData, null, 'admin-id');
+
+      expect(firestore.updateDoc).toHaveBeenCalledWith(
         { id: 'eq1' },
-        {
-          ...updateData,
-          updatedAt: expect.any(Object)
-        }
+        expect.objectContaining({
+          name: 'Updated Laptop',
+          updatedBy: 'admin-id'
+        })
       );
+      expect(result).toMatchObject({ id: 'eq1', name: 'Updated Laptop' });
+
+      equipmentSpy.mockRestore();
+      serialSpy.mockRestore();
     });
 
     it('should handle update errors', async () => {
-      const { updateDoc } = require('firebase/firestore');
-      updateDoc.mockRejectedValue(new Error('Update failed'));
+      const equipmentSpy = jest.spyOn(EquipmentService, 'getEquipmentById').mockResolvedValue(baseCurrentEquipment);
+      firestore.doc.mockReturnValue({ id: 'eq1' });
+      firestore.updateDoc.mockRejectedValue(new Error('Update failed'));
 
-      await expect(EquipmentService.updateEquipment('eq1', {}))
-        .rejects.toThrow('Update failed');
+      await expect(EquipmentService.updateEquipment('eq1', {
+        name: 'Updated',
+        category: 'laptop',
+        brand: 'Dell',
+        model: 'XPS',
+        serialNumber: 'DL001',
+        description: '',
+        status: EQUIPMENT_STATUS.AVAILABLE,
+        location: 'Lab 1'
+      }, null, 'admin-id')).rejects.toThrow('Update failed');
+
+      equipmentSpy.mockRestore();
     });
   });
 
   describe('deleteEquipment', () => {
     it('should delete equipment successfully', async () => {
-      const { doc, deleteDoc } = require('firebase/firestore');
-      doc.mockReturnValue({ id: 'eq1' });
-      deleteDoc.mockResolvedValue();
+      const equipmentSpy = jest.spyOn(EquipmentService, 'getEquipmentById').mockResolvedValue({
+        id: 'eq1',
+        status: EQUIPMENT_STATUS.AVAILABLE,
+        imageURL: null
+      });
+      const deleteImageSpy = jest.spyOn(EquipmentService, 'deleteEquipmentImage').mockResolvedValue(true);
 
-      await EquipmentService.deleteEquipment('eq1');
+      firestore.doc.mockReturnValue({ id: 'eq1' });
+      firestore.deleteDoc.mockResolvedValue();
 
-      expect(deleteDoc).toHaveBeenCalledWith({ id: 'eq1' });
+      const result = await EquipmentService.deleteEquipment('eq1');
+
+      expect(result).toBe(true);
+      expect(firestore.deleteDoc).toHaveBeenCalledWith({ id: 'eq1' });
+
+      equipmentSpy.mockRestore();
+      deleteImageSpy.mockRestore();
     });
 
     it('should handle deletion errors', async () => {
-      const { deleteDoc } = require('firebase/firestore');
-      deleteDoc.mockRejectedValue(new Error('Deletion failed'));
+      jest.spyOn(EquipmentService, 'getEquipmentById').mockResolvedValue({
+        id: 'eq1',
+        status: EQUIPMENT_STATUS.AVAILABLE,
+        imageURL: null
+      });
+      firestore.doc.mockReturnValue({ id: 'eq1' });
+      firestore.deleteDoc.mockRejectedValue(new Error('Deletion failed'));
 
-      await expect(EquipmentService.deleteEquipment('eq1'))
-        .rejects.toThrow('Deletion failed');
+      await expect(EquipmentService.deleteEquipment('eq1')).rejects.toThrow('Deletion failed');
     });
   });
 
   describe('searchEquipment', () => {
     it('should search equipment by name', async () => {
-      const mockResults = [
-        {
-          id: 'eq1',
-          name: 'Dell Laptop',
-          category: 'laptop'
-        }
+      const docs = [
+        createDocumentSnapshot({ name: 'Dell Laptop', category: 'laptop' }, { id: 'eq1' })
       ];
 
-      const mockSnapshot = {
-        docs: mockResults.map(eq => ({
-          id: eq.id,
-          data: () => ({ ...eq, id: undefined })
-        }))
-      };
-
-      const { getDocs } = require('firebase/firestore');
-      getDocs.mockResolvedValue(mockSnapshot);
+      firestore.collection.mockReturnValue('equipment');
+      firestore.query.mockReturnValue('query');
+      firestore.where.mockReturnValue('where');
+      firestore.orderBy.mockReturnValue('orderBy');
+      firestore.limit.mockReturnValue('limit');
+      firestore.getDocs.mockResolvedValue(createQuerySnapshot(docs));
 
       const results = await EquipmentService.searchEquipment('Dell', 10);
 
       expect(results).toHaveLength(1);
-      expect(results[0].name).toBe('Dell Laptop');
+      expect(results[0].id).toBe('eq1');
     });
 
     it('should handle empty search results', async () => {
-      const mockSnapshot = {
-        docs: []
-      };
-
-      const { getDocs } = require('firebase/firestore');
-      getDocs.mockResolvedValue(mockSnapshot);
+      firestore.collection.mockReturnValue('equipment');
+      firestore.query.mockReturnValue('query');
+      firestore.where.mockReturnValue('where');
+      firestore.orderBy.mockReturnValue('orderBy');
+      firestore.limit.mockReturnValue('limit');
+      firestore.getDocs.mockResolvedValue(createQuerySnapshot());
 
       const results = await EquipmentService.searchEquipment('NonExistent', 10);
 
@@ -313,32 +398,29 @@ describe('EquipmentService', () => {
     });
 
     it('should handle search errors', async () => {
-      const { getDocs } = require('firebase/firestore');
-      getDocs.mockRejectedValue(new Error('Search failed'));
+      firestore.collection.mockReturnValue('equipment');
+      firestore.query.mockReturnValue('query');
+      firestore.where.mockReturnValue('where');
+      firestore.orderBy.mockReturnValue('orderBy');
+      firestore.limit.mockReturnValue('limit');
+      firestore.getDocs.mockRejectedValue(new Error('Search failed'));
 
-      await expect(EquipmentService.searchEquipment('Dell', 10))
-        .rejects.toThrow('Search failed');
+      await expect(EquipmentService.searchEquipment('Dell', 10)).rejects.toThrow('Search failed');
     });
   });
 
   describe('getEquipmentStats', () => {
     it('should get equipment statistics successfully', async () => {
-      const mockEquipment = [
-        { status: EQUIPMENT_STATUS.AVAILABLE, category: 'laptop' },
-        { status: EQUIPMENT_STATUS.BORROWED, category: 'laptop' },
-        { status: EQUIPMENT_STATUS.AVAILABLE, category: 'tablet' },
-        { status: EQUIPMENT_STATUS.MAINTENANCE, category: 'laptop' }
+      const docs = [
+        createDocumentSnapshot({ status: EQUIPMENT_STATUS.AVAILABLE, category: 'laptop' }, { id: 'eq1' }),
+        createDocumentSnapshot({ status: EQUIPMENT_STATUS.BORROWED, category: 'laptop' }, { id: 'eq2' }),
+        createDocumentSnapshot({ status: EQUIPMENT_STATUS.AVAILABLE, category: 'tablet' }, { id: 'eq3' }),
+        createDocumentSnapshot({ status: EQUIPMENT_STATUS.MAINTENANCE, category: 'laptop' }, { id: 'eq4' })
       ];
 
-      const mockSnapshot = {
-        docs: mockEquipment.map((eq, index) => ({
-          id: `eq${index}`,
-          data: () => eq
-        }))
-      };
-
-      const { getDocs } = require('firebase/firestore');
-      getDocs.mockResolvedValue(mockSnapshot);
+      firestore.collection.mockReturnValue('equipment');
+      firestore.query.mockReturnValue('query');
+      firestore.getDocs.mockResolvedValue(createQuerySnapshot(docs));
 
       const stats = await EquipmentService.getEquipmentStats();
 
@@ -351,12 +433,9 @@ describe('EquipmentService', () => {
     });
 
     it('should handle empty equipment collection', async () => {
-      const mockSnapshot = {
-        docs: []
-      };
-
-      const { getDocs } = require('firebase/firestore');
-      getDocs.mockResolvedValue(mockSnapshot);
+      firestore.collection.mockReturnValue('equipment');
+      firestore.query.mockReturnValue('query');
+      firestore.getDocs.mockResolvedValue(createQuerySnapshot());
 
       const stats = await EquipmentService.getEquipmentStats();
 
@@ -366,11 +445,11 @@ describe('EquipmentService', () => {
     });
 
     it('should handle stats calculation errors', async () => {
-      const { getDocs } = require('firebase/firestore');
-      getDocs.mockRejectedValue(new Error('Stats calculation failed'));
+      firestore.collection.mockReturnValue('equipment');
+      firestore.query.mockReturnValue('query');
+      firestore.getDocs.mockRejectedValue(new Error('Stats calculation failed'));
 
-      await expect(EquipmentService.getEquipmentStats())
-        .rejects.toThrow('Stats calculation failed');
+      await expect(EquipmentService.getEquipmentStats()).rejects.toThrow('Stats calculation failed');
     });
   });
 
@@ -379,26 +458,22 @@ describe('EquipmentService', () => {
       const mockFile = new File(['image data'], 'test.jpg', { type: 'image/jpeg' });
       const mockDownloadURL = 'https://example.com/image.jpg';
 
-      const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
-      ref.mockReturnValue('storage-ref');
-      uploadBytes.mockResolvedValue({ ref: 'storage-ref' });
-      getDownloadURL.mockResolvedValue(mockDownloadURL);
+      storage.ref.mockReturnValue('storage-ref');
+      storage.uploadBytes.mockResolvedValue({ ref: 'storage-ref' });
+      storage.getDownloadURL.mockResolvedValue(mockDownloadURL);
 
-      const result = await EquipmentService.uploadEquipmentImage(mockFile, 'eq1');
+      const result = await EquipmentService.uploadEquipmentImage(mockFile, 'EQ001');
 
-      expect(uploadBytes).toHaveBeenCalledWith('storage-ref', mockFile);
-      expect(getDownloadURL).toHaveBeenCalledWith('storage-ref');
+      expect(storage.uploadBytes).toHaveBeenCalledWith('storage-ref', mockFile);
+      expect(storage.getDownloadURL).toHaveBeenCalledWith('storage-ref');
       expect(result).toBe(mockDownloadURL);
     });
 
     it('should handle upload errors', async () => {
       const mockFile = new File(['image data'], 'test.jpg', { type: 'image/jpeg' });
+      storage.uploadBytes.mockRejectedValue(new Error('Upload failed'));
 
-      const { uploadBytes } = require('firebase/storage');
-      uploadBytes.mockRejectedValue(new Error('Upload failed'));
-
-      await expect(EquipmentService.uploadEquipmentImage(mockFile, 'eq1'))
-        .rejects.toThrow('Upload failed');
+      await expect(EquipmentService.uploadEquipmentImage(mockFile, 'EQ001')).rejects.toThrow('Upload failed');
     });
   });
 });

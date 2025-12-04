@@ -37,6 +37,18 @@
 // src/services/__tests__/settingsService.property.test.js
 ```
 
+#### รัน Property Tests พร้อม Firebase Emulator
+1. ติดตั้ง/อัปเดต Firebase CLI (`npm install -g firebase-tools`)
+2. รันคำสั่ง
+  ```bash
+  npm run test:property
+  ```
+  คำสั่งนี้จะ:
+  - เปิด Auth/Firestore/Storage Emulator ตามค่าใน `firebase.json`
+  - ใส่ environment variables (`REACT_APP_USE_FIREBASE_EMULATORS=true` และ host/port) ให้อัตโนมัติก่อนรัน Jest
+  - รันเฉพาะไฟล์ `*.property.test.js` แบบ `--runInBand` เพื่อหลีกเลี่ยง race condition
+3. ปิด emulator โดยอัตโนมัติหลังเทสต์จบ (เพราะใช้ `firebase emulators:exec`)
+
 ### 4. E2E Testing
 ทดสอบ user flow ทั้งหมด
 

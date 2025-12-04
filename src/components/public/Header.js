@@ -33,43 +33,8 @@ const Header = ({ onLoginClick, isLoading = false }) => {
             </div>
           </div>
 
-          {/* Navigation and Login Button */}
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            {/* Navigation Links - Hidden on mobile */}
-            <nav 
-              className="hidden lg:flex space-x-6" 
-              role="navigation" 
-              aria-label="การนำทางหลัก"
-            >
-              <a 
-                href="#stats" 
-                className="text-gray-600 hover:text-primary-600 transition-colors duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-sm"
-                aria-describedby="stats-nav-desc"
-              >
-                สถิติ
-              </a>
-              <span id="stats-nav-desc" className="sr-only">ดูสถิติการใช้งานอุปกรณ์</span>
-              
-              <a 
-                href="#about" 
-                className="text-gray-600 hover:text-primary-600 transition-colors duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-sm"
-                aria-describedby="about-nav-desc"
-              >
-                เกี่ยวกับ
-              </a>
-              <span id="about-nav-desc" className="sr-only">เรียนรู้เกี่ยวกับระบบ</span>
-              
-              <a 
-                href="#contact" 
-                className="text-gray-600 hover:text-primary-600 transition-colors duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-sm"
-                aria-describedby="contact-nav-desc"
-              >
-                ติดต่อ
-              </a>
-              <span id="contact-nav-desc" className="sr-only">ข้อมูลการติดต่อ</span>
-            </nav>
-
-            {/* Login Button */}
+          {/* Only show login button */}
+          <div className="flex items-center">
             <button
               onClick={onLoginClick}
               disabled={isLoading}
@@ -100,35 +65,7 @@ const Header = ({ onLoginClick, isLoading = false }) => {
         </div>
       </div>
 
-      {/* Mobile Navigation Menu - Show navigation links on tablet */}
-      <div className="lg:hidden border-t border-gray-100">
-        <div className="px-3 py-2 sm:px-4 sm:py-3 bg-gray-50/50">
-          <nav 
-            className="flex justify-center space-x-6 sm:space-x-8" 
-            role="navigation" 
-            aria-label="การนำทางสำหรับมือถือ"
-          >
-            <a 
-              href="#stats" 
-              className="text-sm text-gray-600 hover:text-primary-600 transition-colors duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-sm"
-            >
-              สถิติ
-            </a>
-            <a 
-              href="#about" 
-              className="text-sm text-gray-600 hover:text-primary-600 transition-colors duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-sm"
-            >
-              เกี่ยวกับ
-            </a>
-            <a 
-              href="#contact" 
-              className="text-sm text-gray-600 hover:text-primary-600 transition-colors duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-sm"
-            >
-              ติดต่อ
-            </a>
-          </nav>
-        </div>
-      </div>
+      {/* No additional navigation on mobile */}
     </header>
   );
 };

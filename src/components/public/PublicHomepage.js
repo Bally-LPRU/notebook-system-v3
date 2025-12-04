@@ -78,8 +78,8 @@ const PublicHomepageContent = memo(() => {
       
       // Check for authentication cancelled scenarios
       if (error.message?.includes('popup') && error.message?.includes('blocked')) {
-        errorMessage = 'การเข้าสู่ระบบถูกยกเลิก กรุณาลองใหม่';
-        errorType = 'cancelled';
+        errorMessage = 'หน้าต่างการเข้าสู่ระบบถูกบล็อก';
+        errorType = 'popup-blocked';
       }
       // Check for popup closed by user
       else if (error.message?.includes('popup') && error.message?.includes('closed')) {
@@ -92,7 +92,13 @@ const PublicHomepageContent = memo(() => {
         errorType = 'cancelled';
       }
       // Check for email domain validation
-      else if (error.message?.includes('อีเมล') && error.message?.includes('อนุญาต')) {
+      else if (
+        error.message?.includes('อีเมล') && (
+          error.message?.includes('อนุญาต') ||
+          error.message?.includes('@gmail.com') ||
+          error.message?.includes('@g.lpru.ac.th')
+        )
+      ) {
         errorMessage = error.message; // Use the specific domain validation message
         errorType = 'domain-validation';
       }
@@ -106,10 +112,6 @@ const PublicHomepageContent = memo(() => {
     } finally {
       setAuthLoading(false);
     }
-  };
-
-  const handleGetStarted = () => {
-    handleLoginClick();
   };
 
   const clearAuthError = () => {
@@ -152,7 +154,6 @@ const PublicHomepageContent = memo(() => {
         <HeroSection 
           title="ระบบยืม-คืนอุปกรณ์"
           subtitle="จัดการการยืม-คืนอุปกรณ์อย่างมีประสิทธิภาพ ตรวจสอบสถานะอุปกรณ์และจองล่วงหน้าได้ง่ายๆ"
-          onGetStarted={handleGetStarted}
         />
         
         {/* Authentication Error Display */}
@@ -203,6 +204,17 @@ const PublicHomepageContent = memo(() => {
                       </div>
                     )}
                     
+                    {authError.type === 'popup-blocked' && (
+                      <div className="mt-1 sm:mt-2 space-y-1">
+                        <p className="text-xs text-gray-600">
+                          คลิกที่ไอคอนป๊อปอัพที่ถูกบล็อกบริเวณแถบที่อยู่ แล้วเลือกอนุญาตป๊อปอัพจากระบบนี้
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          หากยังไม่สามารถเข้าสู่ระบบได้ ให้ปิดตัวบล็อกป๊อปอัพหรือเปิดหน้าเว็บนี้ในหน้าต่างใหม่
+                        </p>
+                      </div>
+                    )}
+
                     {authError.type === 'network' && (
                       <div className="mt-1 sm:mt-2">
                         <button
@@ -217,6 +229,7 @@ const PublicHomepageContent = memo(() => {
                   <div className="ml-2 sm:ml-3 flex-shrink-0">
                     <button
                       onClick={clearAuthError}
+                      aria-label="Close notification | ปิดข้อความแจ้งเตือน"
                       className={`inline-flex p-1 rounded-lg transition-colors duration-200 ${
                         authError.type === 'domain-validation' 
                           ? 'text-yellow-400 hover:text-yellow-600 hover:bg-yellow-100' 

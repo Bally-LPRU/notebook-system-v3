@@ -45,6 +45,19 @@ class ErrorBoundary extends React.Component {
       };
     }
 
+    // Firebase Analytics/Performance errors
+    if (errorMessage.includes('analytics') || 
+        errorMessage.includes('performance') ||
+        errorCode.includes('analytics') ||
+        errorCode.includes('performance') ||
+        errorMessage.includes('optional service')) {
+      return {
+        type: 'firebase_optional',
+        isRecoverable: true,
+        category: 'optional_services'
+      };
+    }
+
     // Firebase initialization errors
     if (errorMessage.includes('firebase') && 
         (errorMessage.includes('initialization') || 
@@ -58,25 +71,13 @@ class ErrorBoundary extends React.Component {
     }
 
     // Firebase Authentication errors
-    if (errorCode.startsWith('auth/') || 
+    if ((typeof errorCode === 'string' && errorCode.startsWith('auth/')) || 
         errorMessage.includes('authentication') ||
         errorMessage.includes('google auth')) {
       return {
         type: 'firebase_auth',
         isRecoverable: true,
         category: 'authentication'
-      };
-    }
-
-    // Firebase Analytics/Performance errors
-    if (errorMessage.includes('analytics') || 
-        errorMessage.includes('performance') ||
-        errorCode.includes('analytics') ||
-        errorCode.includes('performance')) {
-      return {
-        type: 'firebase_optional',
-        isRecoverable: true,
-        category: 'optional_services'
       };
     }
 
@@ -92,10 +93,21 @@ class ErrorBoundary extends React.Component {
       };
     }
 
+    if (errorMessage.includes('unknown error') ||
+        errorMessage.includes('unexpected error')) {
+      return {
+        type: 'unknown',
+        isRecoverable: true,
+        category: 'general'
+      };
+    }
+
     // React/Component errors
-    if (errorStack.includes('react') || 
-        errorMessage.includes('component') ||
-        errorMessage.includes('render')) {
+    if (errorMessage.includes('component') ||
+      errorMessage.includes('render') ||
+      errorMessage.includes('hook') ||
+      errorMessage.includes('cannot read') ||
+        errorMessage.includes('undefined')) {
       return {
         type: 'react_component',
         isRecoverable: true,
@@ -176,6 +188,19 @@ class ErrorBoundary extends React.Component {
   componentWillUnmount() {
     // Clear any pending retry timeouts
     this.retryTimeouts.forEach(timeout => clearTimeout(timeout));
+  }
+
+  componentDidUpdate(prevProps) {
+    if (this.state.hasError && prevProps.children !== this.props.children) {
+      this.setState({
+        hasError: false,
+        error: null,
+        errorInfo: null,
+        eventId: null,
+        errorType: null,
+        isRecoverable: false
+      });
+    }
   }
 
   handleRetry = () => {

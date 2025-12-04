@@ -2,7 +2,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import usePublicStats from '../usePublicStats';
 
 // Mock dependencies
-jest.mock('../services/statisticsService', () => ({
+jest.mock('../../services/statisticsService', () => ({
   getPublicStats: jest.fn(),
   subscribeToStats: jest.fn(),
   clearCache: jest.fn(),
@@ -15,7 +15,7 @@ jest.mock('../useOfflineDetection', () => ({
 }));
 
 describe('usePublicStats', () => {
-  const mockStatisticsService = require('../services/statisticsService');
+  const mockStatisticsService = require('../../services/statisticsService');
   const mockUseOfflineDetection = require('../useOfflineDetection').default;
 
   const mockStats = {
@@ -172,7 +172,7 @@ describe('usePublicStats', () => {
       expect(result.current.error).toBe(offlineMessage);
     });
 
-    it('should combine error and offline messages', () => {
+    it('should combine error and offline messages', async () => {
       const offlineMessage = 'No internet connection';
       const errorMessage = 'Failed to load';
       
@@ -184,8 +184,20 @@ describe('usePublicStats', () => {
       });
 
       mockStatisticsService.getPublicStats.mockRejectedValue(new Error(errorMessage));
+      mockStatisticsService.getFallbackStats.mockReturnValueOnce({
+        totalEquipment: 0,
+        availableEquipment: 0,
+        borrowedEquipment: 0,
+        pendingReservations: 0,
+        hasError: true,
+        errorMessage
+      });
 
       const { result } = renderHook(() => usePublicStats());
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
 
       expect(result.current.error).toBe(`${errorMessage} (${offlineMessage})`);
     });
@@ -214,6 +226,8 @@ describe('usePublicStats', () => {
         getOfflineMessage: jest.fn(() => null),
         retryWhenOnline: jest.fn()
       });
+
+      rerender();
 
       // Trigger network reconnection event
       act(() => {

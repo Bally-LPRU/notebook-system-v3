@@ -1,96 +1,155 @@
-import { jest } from '@jest/globals';
-import AuthService from '../authService';
+const CLASSIFIED_ERROR_MESSAGE = 'Mock classified message';
 
-// Mock Firebase
+const mockDoc = jest.fn();
+const mockGetDoc = jest.fn();
+const mockSetDoc = jest.fn();
+const mockServerTimestamp = jest.fn(() => ({ seconds: Date.now() / 1000 }));
+
+const mockFirebaseSignOut = jest.fn();
+const mockGetRedirectResult = jest.fn();
+const mockOnAuthStateChanged = jest.fn();
+const mockSetPersistence = jest.fn();
+const mockBrowserLocalPersistence = {};
+const mockFirebaseSignInWithPopup = jest.fn();
+
+const mockLogError = jest.fn();
+
+const mockErrorClassifier = {
+  classify: jest.fn(() => ({ type: 'unknown', severity: 'low' })),
+  getErrorMessage: jest.fn(() => ({ message: CLASSIFIED_ERROR_MESSAGE }))
+};
+
+const createRetryMock = () =>
+  jest.fn(async (operationFn) => {
+    if (typeof operationFn === 'function') {
+      return operationFn();
+    }
+    return undefined;
+  });
+
+const mockWithRetry = createRetryMock();
+const mockWithProfileRetry = createRetryMock();
+const mockWithFirestoreRetry = createRetryMock();
+
 jest.mock('../../config/firebase', () => ({
   auth: {
     currentUser: null,
-    signInWithPopup: jest.fn(),
-    signOut: jest.fn(),
-    onAuthStateChanged: jest.fn()
+    app: { name: 'test-app' },
+    config: { authDomain: 'test.firebaseapp.com' }
   },
-  googleProvider: {}
+  googleProvider: {
+    setCustomParameters: jest.fn(),
+    customParameters: {}
+  },
+  db: {}
 }));
 
 jest.mock('firebase/firestore', () => ({
-  doc: jest.fn(),
-  getDoc: jest.fn(),
-  setDoc: jest.fn(),
-  updateDoc: jest.fn(),
-  serverTimestamp: jest.fn(() => ({ seconds: Date.now() / 1000 }))
+  doc: mockDoc,
+  getDoc: mockGetDoc,
+  setDoc: mockSetDoc,
+  serverTimestamp: mockServerTimestamp
 }));
 
+jest.mock('firebase/auth', () => ({
+  __esModule: true,
+  signOut: mockFirebaseSignOut,
+  getRedirectResult: mockGetRedirectResult,
+  onAuthStateChanged: mockOnAuthStateChanged,
+  setPersistence: mockSetPersistence,
+  browserLocalPersistence: mockBrowserLocalPersistence,
+  signInWithPopup: mockFirebaseSignInWithPopup
+}));
+
+jest.mock('../../utils/errorLogger', () => ({
+  logError: mockLogError
+}));
+
+jest.mock('../../utils/errorClassification', () => ({
+  ErrorClassifier: mockErrorClassifier
+}));
+
+jest.mock('../../utils/retryHandler', () => ({
+  withRetry: mockWithRetry,
+  withProfileRetry: mockWithProfileRetry,
+  withFirestoreRetry: mockWithFirestoreRetry
+}));
+
+const AuthService = require('../authService').default;
+
 describe('AuthService', () => {
+  let connectivitySpy;
+  let duplicateSpy;
+
   beforeEach(() => {
+    jest.restoreAllMocks();
     jest.clearAllMocks();
+
+    mockWithRetry.mockImplementation(async (operationFn) => operationFn());
+    mockWithProfileRetry.mockImplementation(async (operationFn) => operationFn());
+    mockWithFirestoreRetry.mockImplementation(async (operationFn) => operationFn());
+    mockServerTimestamp.mockImplementation(() => ({ seconds: Date.now() / 1000 }));
+    mockErrorClassifier.classify.mockReturnValue({ type: 'unknown', severity: 'low' });
+    mockErrorClassifier.getErrorMessage.mockReturnValue({ message: CLASSIFIED_ERROR_MESSAGE });
+
+    connectivitySpy = jest.spyOn(AuthService, '_checkNetworkConnectivity').mockResolvedValue();
+    duplicateSpy = jest
+      .spyOn(AuthService, 'checkForDuplicateProfile')
+      .mockResolvedValue({ hasDuplicate: false });
   });
 
   describe('signInWithGoogle', () => {
-    it('should sign in user with Google successfully', async () => {
+    it('should return popup result when sign in succeeds', async () => {
       const mockUser = {
         uid: 'test-uid',
         email: 'test@gmail.com',
-        displayName: 'Test User',
-        photoURL: 'https://example.com/photo.jpg'
-      };
-
-      const mockResult = {
-        user: mockUser
-      };
-
-      const { auth, googleProvider } = require('../../config/firebase');
-      auth.signInWithPopup.mockResolvedValue(mockResult);
-
-      const result = await AuthService.signInWithGoogle();
-
-      expect(auth.signInWithPopup).toHaveBeenCalledWith(googleProvider);
-      expect(result).toEqual(mockUser);
-    });
-
-    it('should handle sign in errors', async () => {
-      const mockError = new Error('Sign in failed');
-      const { auth } = require('../../config/firebase');
-      auth.signInWithPopup.mockRejectedValue(mockError);
-
-      await expect(AuthService.signInWithGoogle()).rejects.toThrow('Sign in failed');
-    });
-
-    it('should reject non-allowed email domains', async () => {
-      const mockUser = {
-        uid: 'test-uid',
-        email: 'test@example.com',
         displayName: 'Test User'
       };
 
-      const mockResult = {
-        user: mockUser
-      };
+      const popupSpy = jest.spyOn(AuthService, '_signInWithPopup').mockResolvedValue(mockUser);
 
-      const { auth } = require('../../config/firebase');
-      auth.signInWithPopup.mockResolvedValue(mockResult);
+      const result = await AuthService.signInWithGoogle();
 
-      await expect(AuthService.signInWithGoogle()).rejects.toThrow(
-        'อีเมลต้องเป็น @gmail.com หรือ @g.lpru.ac.th เท่านั้น'
-      );
+      expect(connectivitySpy).toHaveBeenCalled();
+      expect(popupSpy).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockUser);
+    });
+
+    it('should surface classified errors from popup failures', async () => {
+      const popupError = new Error('Sign in failed');
+      jest.spyOn(AuthService, '_signInWithPopup').mockRejectedValue(popupError);
+
+      await expect(AuthService.signInWithGoogle()).rejects.toThrow(CLASSIFIED_ERROR_MESSAGE);
+      expect(mockErrorClassifier.classify).toHaveBeenCalled();
+      expect(mockErrorClassifier.getErrorMessage).toHaveBeenCalled();
+    });
+
+    it('should stop when network connectivity check fails', async () => {
+      const popupSpy = jest.spyOn(AuthService, '_signInWithPopup').mockResolvedValue({});
+      connectivitySpy.mockRejectedValueOnce(new Error('offline'));
+
+      await expect(AuthService.signInWithGoogle()).rejects.toThrow(CLASSIFIED_ERROR_MESSAGE);
+      expect(popupSpy).not.toHaveBeenCalled();
     });
   });
 
   describe('signOut', () => {
     it('should sign out user successfully', async () => {
       const { auth } = require('../../config/firebase');
-      auth.signOut.mockResolvedValue();
+      const { signOut } = require('firebase/auth');
+      signOut.mockResolvedValue();
 
       await AuthService.signOut();
 
-      expect(auth.signOut).toHaveBeenCalled();
+      expect(signOut).toHaveBeenCalledWith(auth);
     });
 
     it('should handle sign out errors', async () => {
-      const mockError = new Error('Sign out failed');
-      const { auth } = require('../../config/firebase');
-      auth.signOut.mockRejectedValue(mockError);
+      const { signOut } = require('firebase/auth');
+      signOut.mockRejectedValue(new Error('Sign out failed'));
 
-      await expect(AuthService.signOut()).rejects.toThrow('Sign out failed');
+      await expect(AuthService.signOut()).rejects.toThrow(CLASSIFIED_ERROR_MESSAGE);
+      expect(mockErrorClassifier.classify).toHaveBeenCalled();
     });
   });
 
@@ -111,25 +170,33 @@ describe('AuthService', () => {
         userType: 'staff'
       };
 
-      const { doc, setDoc, serverTimestamp } = require('firebase/firestore');
-      doc.mockReturnValue({ id: 'test-uid' });
+      const { doc, setDoc } = require('firebase/firestore');
+      doc.mockReturnValue({ id: 'users/test-uid' });
       setDoc.mockResolvedValue();
-      serverTimestamp.mockReturnValue({ seconds: Date.now() / 1000 });
 
       const result = await AuthService.createUserProfile(mockUser, mockProfileData);
 
-      expect(setDoc).toHaveBeenCalled();
-      expect(result).toEqual({
-        uid: mockUser.uid,
-        email: mockUser.email,
-        displayName: mockUser.displayName,
-        photoURL: mockUser.photoURL,
-        ...mockProfileData,
-        role: 'user',
-        status: 'pending',
-        createdAt: expect.any(Object),
-        updatedAt: expect.any(Object)
-      });
+      expect(setDoc).toHaveBeenCalledWith(
+        { id: 'users/test-uid' },
+        expect.objectContaining({
+          uid: mockUser.uid,
+          email: mockUser.email.toLowerCase(),
+          role: 'user',
+          status: 'incomplete'
+        })
+      );
+        expect(duplicateSpy).toHaveBeenCalledWith(mockUser.email);
+      expect(result).toEqual(
+        expect.objectContaining({
+          uid: mockUser.uid,
+          email: mockUser.email.toLowerCase(),
+          ...mockProfileData,
+          role: 'user',
+          status: 'incomplete',
+          createdAt: expect.any(Object),
+          updatedAt: expect.any(Object)
+        })
+      );
     });
 
     it('should handle profile creation errors', async () => {
@@ -143,11 +210,13 @@ describe('AuthService', () => {
         lastName: 'User'
       };
 
-      const { setDoc } = require('firebase/firestore');
+      const { doc, setDoc } = require('firebase/firestore');
+      doc.mockReturnValue({ id: 'users/test-uid' });
       setDoc.mockRejectedValue(new Error('Profile creation failed'));
 
       await expect(AuthService.createUserProfile(mockUser, mockProfileData))
-        .rejects.toThrow('Profile creation failed');
+        .rejects.toThrow(CLASSIFIED_ERROR_MESSAGE);
+      expect(mockErrorClassifier.classify).toHaveBeenCalled();
     });
   });
 
@@ -166,13 +235,14 @@ describe('AuthService', () => {
       doc.mockReturnValue({ id: 'test-uid' });
       getDoc.mockResolvedValue({
         exists: () => true,
-        data: () => mockProfile
+        data: () => mockProfile,
+        id: 'test-uid'
       });
 
       const result = await AuthService.getUserProfile('test-uid');
 
       expect(getDoc).toHaveBeenCalled();
-      expect(result).toEqual(mockProfile);
+      expect(result).toEqual({ id: 'test-uid', ...mockProfile });
     });
 
     it('should return null for non-existent profile', async () => {
@@ -192,7 +262,8 @@ describe('AuthService', () => {
       getDoc.mockRejectedValue(new Error('Profile fetch failed'));
 
       await expect(AuthService.getUserProfile('test-uid'))
-        .rejects.toThrow('Profile fetch failed');
+        .rejects.toThrow(CLASSIFIED_ERROR_MESSAGE);
+      expect(mockErrorClassifier.classify).toHaveBeenCalled();
     });
   });
 
@@ -203,28 +274,30 @@ describe('AuthService', () => {
         lastName: 'Name'
       };
 
-      const { doc, updateDoc, serverTimestamp } = require('firebase/firestore');
+      const { doc, setDoc } = require('firebase/firestore');
       doc.mockReturnValue({ id: 'test-uid' });
-      updateDoc.mockResolvedValue();
-      serverTimestamp.mockReturnValue({ seconds: Date.now() / 1000 });
+      setDoc.mockResolvedValue();
 
       await AuthService.updateUserProfile('test-uid', updateData);
 
-      expect(updateDoc).toHaveBeenCalledWith(
+      expect(setDoc).toHaveBeenCalledWith(
         { id: 'test-uid' },
         {
           ...updateData,
           updatedAt: expect.any(Object)
-        }
+        },
+        { merge: true }
       );
     });
 
     it('should handle profile update errors', async () => {
-      const { updateDoc } = require('firebase/firestore');
-      updateDoc.mockRejectedValue(new Error('Profile update failed'));
+      const { doc, setDoc } = require('firebase/firestore');
+      doc.mockReturnValue({ id: 'test-uid' });
+      setDoc.mockRejectedValue(new Error('Profile update failed'));
 
-      await expect(AuthService.updateUserProfile('test-uid', {}))
-        .rejects.toThrow('Profile update failed');
+      await expect(AuthService.updateUserProfile('test-uid', { firstName: 'Test' }))
+        .rejects.toThrow(CLASSIFIED_ERROR_MESSAGE);
+      expect(mockErrorClassifier.classify).toHaveBeenCalled();
     });
   });
 

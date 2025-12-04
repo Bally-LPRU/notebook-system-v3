@@ -41,10 +41,11 @@ export const useEquipmentSearch = () => {
 
   return {
     searchQuery,
+    setSearchQuery,
     searchResults,
-    isSearching,
-    searchError,
-    handleSearch,
+    loading: isSearching,
+    error: searchError,
+    searchEquipment: handleSearch,
     clearSearch
   };
 };

@@ -5,6 +5,8 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import EmptyState from '../common/EmptyState';
 import EquipmentStatusBadge from './EquipmentStatusBadge';
 
+const DEFAULT_SELECTED_ITEMS = [];
+
 const EquipmentListView = ({
   equipment = [],
   loading = false,
@@ -15,7 +17,7 @@ const EquipmentListView = ({
   onBorrow,
   onReserve,
   isSelectable = false,
-  selectedItems = [],
+  selectedItems = DEFAULT_SELECTED_ITEMS,
   onSelectItem,
   onSelectAll,
   onDeselectAll,

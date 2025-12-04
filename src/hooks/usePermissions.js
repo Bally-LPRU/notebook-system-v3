@@ -25,7 +25,6 @@ export const usePermissions = () => {
         canDeleteEquipment: false,
         canBulkEdit: false,
         canBulkDelete: false,
-        canExportEquipment: false,
         canManageCategories: false,
         canViewReports: false,
         canGenerateReports: false,
@@ -59,7 +58,6 @@ export const usePermissions = () => {
       canDeleteEquipment: PermissionService.hasPermission(userProfile, PermissionService.PERMISSIONS.EQUIPMENT_DELETE),
       canBulkEdit: PermissionService.hasPermission(userProfile, PermissionService.PERMISSIONS.EQUIPMENT_BULK_EDIT),
       canBulkDelete: PermissionService.hasPermission(userProfile, PermissionService.PERMISSIONS.EQUIPMENT_BULK_DELETE),
-      canExportEquipment: PermissionService.hasPermission(userProfile, PermissionService.PERMISSIONS.EQUIPMENT_EXPORT),
       
       // Category permissions
       canManageCategories: PermissionService.hasPermission(userProfile, PermissionService.PERMISSIONS.CATEGORY_MANAGE),

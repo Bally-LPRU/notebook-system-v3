@@ -106,7 +106,6 @@ describe('AdminSettingsPage', () => {
       expect(tabTexts).toContain('จำกัดการยืม');
       expect(tabTexts).toContain('การแจ้งเตือน');
       expect(tabTexts).toContain('บันทึกการเปลี่ยนแปลง');
-      expect(tabTexts).toContain('นำเข้า/ส่งออก');
     });
 
     it('should have "ทั่วไป" tab active by default', () => {
@@ -173,9 +172,6 @@ describe('AdminSettingsPage', () => {
 
       fireEvent.click(screen.getByText('บันทึกการเปลี่ยนแปลง'));
       expect(screen.getByText('ประวัติการแก้ไขการตั้งค่า')).toBeInTheDocument();
-
-      fireEvent.click(screen.getByText('นำเข้า/ส่งออก'));
-      expect(screen.getByText('สำรองและกู้คืนการตั้งค่า')).toBeInTheDocument();
     });
   });
 

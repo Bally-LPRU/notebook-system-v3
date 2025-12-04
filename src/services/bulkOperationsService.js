@@ -280,35 +280,6 @@ class BulkOperationsService {
     }));
   }
 
-  /**
-   * Export equipment data in various formats
-   * @param {Array} equipmentList - List of equipment to export
-   * @param {string} format - Export format (excel, pdf, csv)
-   * @param {Object} options - Export options
-   */
-  static async exportEquipmentData(equipmentList, format = 'excel', options = {}) {
-    // This would integrate with export libraries
-    // For now, return the data structure that can be used for export
-    const exportData = equipmentList.map(equipment => ({
-      'หมายเลขครุภัณฑ์': equipment.equipmentNumber,
-      'ชื่ออุปกรณ์': equipment.name,
-      'ประเภท': equipment.category,
-      'ยี่ห้อ': equipment.brand,
-      'รุ่น': equipment.model,
-      'สถานะ': equipment.status,
-      'สถานที่': equipment.location,
-      'ผู้รับผิดชอบ': equipment.responsiblePerson,
-      'วันที่สร้าง': equipment.createdAt?.toDate?.()?.toLocaleDateString?.('th-TH') || '',
-      'วันที่อัปเดต': equipment.updatedAt?.toDate?.()?.toLocaleDateString?.('th-TH') || ''
-    }));
-
-    return {
-      data: exportData,
-      format,
-      filename: `equipment_export_${new Date().toISOString().split('T')[0]}.${format}`,
-      count: equipmentList.length
-    };
-  }
 }
 
 export default BulkOperationsService;

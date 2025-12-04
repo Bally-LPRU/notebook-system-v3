@@ -60,7 +60,6 @@ jest.mock('./components/lazy/LazyComponents', () => ({
   LazyUserApprovalListWithSkeleton: () => <div data-testid="user-approval">User Approval</div>,
   LazyMyRequestsWithSkeleton: () => <div data-testid="my-requests">My Requests</div>,
   LazyReservationPageWithSkeleton: () => <div data-testid="reservations">Reservations</div>,
-  LazyReportsPageWithSkeleton: () => <div data-testid="reports">Reports</div>,
   preloadCriticalComponents: jest.fn()
 }));
 

@@ -3,7 +3,7 @@ import BulkActionBar from '../BulkActionBar';
 import BulkEditModal from '../BulkEditModal';
 import BulkDeleteModal from '../BulkDeleteModal';
 import useBulkSelection from '../../../hooks/useBulkSelection';
-import { AuthContext } from '../../../contexts/AuthContext';
+import AuthContext from '../../../contexts/AuthContext';
 
 // Mock the hooks and services
 jest.mock('../../../hooks/useBulkSelection');
@@ -168,7 +168,8 @@ describe('Bulk Operations', () => {
       const statusCheckbox = screen.getByLabelText('อัปเดตสถานะ');
       fireEvent.click(statusCheckbox);
 
-      expect(screen.getByDisplayValue('')).toBeInTheDocument(); // Status select should be visible
+      const statusSelect = screen.getByRole('combobox');
+      expect(statusSelect).toBeInTheDocument();
     });
 
     it('validates form before submission', async () => {
@@ -185,7 +186,7 @@ describe('Bulk Operations', () => {
         </AuthContext.Provider>
       );
 
-      const submitButton = screen.getByText(/อัปเดต.*รายการ/);
+      const submitButton = screen.getByRole('button', { name: /อัปเดต[\s\d]+รายการ/ });
       fireEvent.click(submitButton);
 
       await waitFor(() => {
@@ -246,7 +247,7 @@ describe('Bulk Operations', () => {
         />
       );
 
-      const deleteButton = screen.getByText(/ลบ.*รายการ/);
+      const deleteButton = screen.getByRole('button', { name: /ลบ[\s\d]+รายการ/ });
       expect(deleteButton).toBeDisabled();
 
       const confirmInput = screen.getByPlaceholderText("พิมพ์ 'ลบ' เพื่อยืนยัน");
@@ -270,7 +271,7 @@ describe('Bulk Operations', () => {
       const confirmInput = screen.getByPlaceholderText("พิมพ์ 'ลบ' เพื่อยืนยัน");
       fireEvent.change(confirmInput, { target: { value: 'ลบ' } });
 
-      const deleteButton = screen.getByText(/ลบ.*รายการ/);
+      const deleteButton = screen.getByRole('button', { name: /ลบ[\s\d]+รายการ/ });
       fireEvent.click(deleteButton);
 
       await waitFor(() => {

@@ -2,17 +2,37 @@ import DuplicateDetectionService from '../duplicateDetectionService';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 
-// Mock Firebase
+// Mock Firebase config
 jest.mock('../../config/firebase', () => ({
   db: {}
 }));
 
-jest.mock('firebase/firestore');
+// Mock Firestore functions
+jest.mock('firebase/firestore', () => {
+  const mockCollection = jest.fn(() => ({}));
+  const mockQuery = jest.fn((...args) => ({ __type: 'query', args }));
+  const mockWhere = jest.fn((...args) => ({ __type: 'where', args }));
+  const mockGetDocs = jest.fn();
+  const mockLimit = jest.fn((count) => ({ __type: 'limit', count }));
+
+  return {
+    collection: mockCollection,
+    query: mockQuery,
+    where: mockWhere,
+    getDocs: mockGetDocs,
+    limit: mockLimit
+  };
+});
+
 jest.mock('../../utils/errorLogger');
 
 describe('Duplicate Detection Service Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    collection.mockImplementation(() => ({}));
+    query.mockImplementation((...args) => ({ __type: 'query', args }));
+    where.mockImplementation((...args) => ({ __type: 'where', args }));
+    limit.mockImplementation((count) => ({ __type: 'limit', count }));
   });
 
   describe('checkProfileByEmail', () => {

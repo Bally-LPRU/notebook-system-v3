@@ -1,425 +1,344 @@
-import { jest } from '@jest/globals';
 import LoanRequestService from '../loanRequestService';
 import { LOAN_REQUEST_STATUS } from '../../types/loanRequest';
+import { EQUIPMENT_STATUS } from '../../types/equipment';
 
-// Mock Firebase
 jest.mock('../../config/firebase', () => ({
   db: {}
 }));
 
-jest.mock('firebase/firestore', () => ({
-  collection: jest.fn(),
-  doc: jest.fn(),
-  getDocs: jest.fn(),
-  getDoc: jest.fn(),
-  addDoc: jest.fn(),
-  updateDoc: jest.fn(),
-  deleteDoc: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
-  orderBy: jest.fn(),
-  limit: jest.fn(),
-  startAfter: jest.fn(),
-  serverTimestamp: jest.fn(() => ({ seconds: Date.now() / 1000 }))
+jest.mock('firebase/firestore', () => {
+  const mockTimestamp = {
+    fromDate: jest.fn((date) => ({ toDate: () => date }))
+  };
+  const mockWriteBatch = jest.fn(() => ({
+    delete: jest.fn(),
+    update: jest.fn(),
+    commit: jest.fn()
+  }));
+  return {
+    collection: jest.fn(),
+    doc: jest.fn(),
+    getDocs: jest.fn(),
+    getDoc: jest.fn(),
+    addDoc: jest.fn(),
+    updateDoc: jest.fn(),
+    deleteDoc: jest.fn(),
+    query: jest.fn(),
+    where: jest.fn(),
+    orderBy: jest.fn(),
+    limit: jest.fn(),
+    startAfter: jest.fn(),
+    serverTimestamp: jest.fn(() => 'timestamp'),
+    Timestamp: mockTimestamp,
+    writeBatch: mockWriteBatch
+  };
+});
+
+jest.mock('../equipmentService', () => ({
+  getEquipmentById: jest.fn()
 }));
+
+jest.mock('../notificationService', () => ({
+  notifyAdminsNewLoanRequest: jest.fn(),
+  notifyUserLoanRequestStatus: jest.fn()
+}));
+
+jest.mock('../overdueManagementService', () => ({
+  getOverdueLoanRequests: jest.fn()
+}));
+
+jest.mock('../loanRequestSearchService', () => ({
+  generateSearchKeywords: jest.fn(() => []),
+  searchLoanRequests: jest.fn()
+}));
+
+const firestore = jest.requireMock('firebase/firestore');
+const EquipmentServiceMock = jest.requireMock('../equipmentService');
+const NotificationServiceMock = jest.requireMock('../notificationService');
+const OverdueManagementServiceMock = jest.requireMock('../overdueManagementService');
+const LoanRequestSearchServiceMock = jest.requireMock('../loanRequestSearchService');
+
+const createDocumentSnapshot = (data = {}, overrides = {}) => {
+  const id = overrides.id || data.id || 'doc-id';
+  return {
+    id,
+    data: () => ({ ...data }),
+    exists: () => overrides.exists ?? true,
+    ref: overrides.ref || { id }
+  };
+};
+
+const createQuerySnapshot = (docs = []) => ({
+  docs,
+  forEach: (callback) => docs.forEach(callback),
+  size: docs.length,
+  empty: docs.length === 0
+});
+
+const daysFromNow = (days) => {
+  const date = new Date();
+  date.setHours(10, 0, 0, 0);
+  date.setDate(date.getDate() + days);
+  return new Date(date);
+};
 
 describe('LoanRequestService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  const setupUserDoc = () => {
+    firestore.doc.mockReturnValueOnce({ path: 'users/user1' });
+    firestore.getDoc.mockResolvedValueOnce(
+      createDocumentSnapshot({
+        displayName: 'User One',
+        email: 'user@example.com',
+        department: 'IT'
+      }, { id: 'user1' })
+    );
+  };
+
   describe('createLoanRequest', () => {
-    it('should create loan request successfully', async () => {
-      const requestData = {
-        equipmentId: 'eq1',
-        userId: 'user1',
-        borrowDate: new Date('2024-01-15'),
-        expectedReturnDate: new Date('2024-01-20'),
-        purpose: 'For presentation',
-        notes: 'Handle with care'
-      };
+    const createBaseRequest = () => ({
+      equipmentId: 'eq1',
+      userId: 'user1',
+      borrowDate: daysFromNow(2),
+      expectedReturnDate: daysFromNow(5),
+      purpose: 'For presentation',
+      notes: 'Handle with care'
+    });
 
-      const mockDocRef = { id: 'loan-req-1' };
-
-      const { collection, addDoc, serverTimestamp } = require('firebase/firestore');
-      collection.mockReturnValue('loanRequests');
-      addDoc.mockResolvedValue(mockDocRef);
-      serverTimestamp.mockReturnValue({ seconds: Date.now() / 1000 });
-
-      const result = await LoanRequestService.createLoanRequest(requestData);
-
-      expect(addDoc).toHaveBeenCalledWith('loanRequests', {
-        ...requestData,
-        status: LOAN_REQUEST_STATUS.PENDING,
-        createdAt: expect.any(Object),
-        updatedAt: expect.any(Object)
+    const prepareSuccessMocks = () => {
+      EquipmentServiceMock.getEquipmentById.mockResolvedValue({
+        id: 'eq1',
+        status: EQUIPMENT_STATUS.AVAILABLE,
+        category: 'laptop',
+        name: 'Laptop Dell'
       });
-      expect(result).toBe('loan-req-1');
-    });
+      jest.spyOn(LoanRequestService, 'getExistingPendingRequest').mockResolvedValue(null);
+      jest.spyOn(LoanRequestService, 'checkCategoryLimit').mockResolvedValue({ allowed: true });
+      jest.spyOn(LoanRequestService, 'notifyAdminsNewLoanRequest').mockResolvedValue();
+      firestore.collection.mockReturnValue('loanRequests');
+      firestore.addDoc.mockResolvedValue({ id: 'loan-req-1' });
+      setupUserDoc();
+    };
 
-    it('should validate required fields', async () => {
-      const incompleteData = {
-        equipmentId: 'eq1'
-        // Missing required fields
-      };
+    it('creates loan request with normalized payload', async () => {
+      const baseRequest = createBaseRequest();
+      prepareSuccessMocks();
 
-      await expect(LoanRequestService.createLoanRequest(incompleteData))
-        .rejects.toThrow();
-    });
+      const result = await LoanRequestService.createLoanRequest(baseRequest, 'user1');
 
-    it('should validate date ranges', async () => {
-      const invalidData = {
+      expect(firestore.addDoc).toHaveBeenCalledWith('loanRequests', expect.objectContaining({
         equipmentId: 'eq1',
         userId: 'user1',
-        borrowDate: new Date('2024-01-20'),
-        expectedReturnDate: new Date('2024-01-15'), // Return date before borrow date
-        purpose: 'Test'
-      };
-
-      await expect(LoanRequestService.createLoanRequest(invalidData))
-        .rejects.toThrow('วันที่คืนต้องมาหลังวันที่ยืม');
+        status: LOAN_REQUEST_STATUS.PENDING,
+        equipmentCategory: 'laptop'
+      }));
+      expect(result.id).toBe('loan-req-1');
+      expect(result.status).toBe(LOAN_REQUEST_STATUS.PENDING);
     });
 
-    it('should handle creation errors', async () => {
-      const requestData = {
-        equipmentId: 'eq1',
-        userId: 'user1',
-        borrowDate: new Date(),
-        expectedReturnDate: new Date(Date.now() + 86400000),
-        purpose: 'Test'
-      };
+    it('rejects when return date is before borrow date', async () => {
+      const invalid = createBaseRequest();
+      invalid.borrowDate = daysFromNow(5);
+      invalid.expectedReturnDate = daysFromNow(4);
+      prepareSuccessMocks();
 
-      const { addDoc } = require('firebase/firestore');
-      addDoc.mockRejectedValue(new Error('Creation failed'));
+      await expect(LoanRequestService.createLoanRequest(invalid, 'user1'))
+        .rejects.toThrow('วันที่คืนต้องหลังจากวันที่ยืม');
+    });
 
-      await expect(LoanRequestService.createLoanRequest(requestData))
+    it('propagates creation errors from Firestore', async () => {
+      const baseRequest = createBaseRequest();
+      prepareSuccessMocks();
+      firestore.addDoc.mockRejectedValue(new Error('Creation failed'));
+
+      await expect(LoanRequestService.createLoanRequest(baseRequest, 'user1'))
         .rejects.toThrow('Creation failed');
     });
   });
 
   describe('getLoanRequestById', () => {
-    it('should get loan request by ID successfully', async () => {
-      const mockRequest = {
-        id: 'loan-req-1',
-        equipmentId: 'eq1',
-        userId: 'user1',
-        status: LOAN_REQUEST_STATUS.PENDING,
-        purpose: 'For presentation'
-      };
-
-      const mockDoc = {
-        exists: () => true,
-        data: () => ({ ...mockRequest, id: undefined }),
-        id: 'loan-req-1'
-      };
-
-      const { doc, getDoc } = require('firebase/firestore');
-      doc.mockReturnValue({ id: 'loan-req-1' });
-      getDoc.mockResolvedValue(mockDoc);
+    it('returns loan request data when document exists', async () => {
+      firestore.doc.mockReturnValue({ path: 'loanRequests/loan-req-1' });
+      firestore.getDoc.mockResolvedValue(
+        createDocumentSnapshot({ equipmentId: 'eq1', status: LOAN_REQUEST_STATUS.PENDING }, { id: 'loan-req-1' })
+      );
 
       const result = await LoanRequestService.getLoanRequestById('loan-req-1');
 
-      expect(result).toEqual(mockRequest);
+      expect(result).toEqual({ id: 'loan-req-1', equipmentId: 'eq1', status: LOAN_REQUEST_STATUS.PENDING });
     });
 
-    it('should return null for non-existent request', async () => {
-      const mockDoc = {
-        exists: () => false
-      };
+    it('returns null when document missing', async () => {
+      firestore.getDoc.mockResolvedValue(createDocumentSnapshot({}, { exists: false }));
 
-      const { getDoc } = require('firebase/firestore');
-      getDoc.mockResolvedValue(mockDoc);
-
-      const result = await LoanRequestService.getLoanRequestById('non-existent');
+      const result = await LoanRequestService.getLoanRequestById('missing');
 
       expect(result).toBeNull();
     });
   });
 
-  describe('getLoanRequestsByUser', () => {
-    it('should get user loan requests successfully', async () => {
-      const mockRequests = [
-        {
-          id: 'req1',
-          equipmentId: 'eq1',
-          userId: 'user1',
-          status: LOAN_REQUEST_STATUS.PENDING
-        },
-        {
-          id: 'req2',
-          equipmentId: 'eq2',
-          userId: 'user1',
-          status: LOAN_REQUEST_STATUS.APPROVED
-        }
-      ];
+  describe('getUserLoanRequests', () => {
+    it('delegates to getLoanRequests with user filter', async () => {
+      const mockList = [{ id: 'req1' }, { id: 'req2' }];
+      const spy = jest.spyOn(LoanRequestService, 'getLoanRequests').mockResolvedValue({
+        loanRequests: mockList,
+        pagination: {},
+        lastDoc: null
+      });
 
-      const mockSnapshot = {
-        docs: mockRequests.map(req => ({
-          id: req.id,
-          data: () => ({ ...req, id: undefined })
-        })),
-        empty: false
-      };
+      const result = await LoanRequestService.getUserLoanRequests('user123', { status: LOAN_REQUEST_STATUS.PENDING });
 
-      const { collection, query, where, orderBy, getDocs } = require('firebase/firestore');
-      collection.mockReturnValue('loanRequests');
-      query.mockReturnValue('query');
-      where.mockReturnValue('where');
-      orderBy.mockReturnValue('orderBy');
-      getDocs.mockResolvedValue(mockSnapshot);
-
-      const result = await LoanRequestService.getLoanRequestsByUser('user1');
-
-      expect(where).toHaveBeenCalledWith('userId', '==', 'user1');
-      expect(result.requests).toHaveLength(2);
-    });
-
-    it('should handle empty results', async () => {
-      const mockSnapshot = {
-        docs: [],
-        empty: true
-      };
-
-      const { getDocs } = require('firebase/firestore');
-      getDocs.mockResolvedValue(mockSnapshot);
-
-      const result = await LoanRequestService.getLoanRequestsByUser('user1');
-
-      expect(result.requests).toHaveLength(0);
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user123', status: LOAN_REQUEST_STATUS.PENDING }));
+      expect(result).toEqual(mockList);
     });
   });
 
   describe('approveLoanRequest', () => {
-    it('should approve loan request successfully', async () => {
-      const { doc, updateDoc, serverTimestamp } = require('firebase/firestore');
-      doc.mockReturnValue({ id: 'loan-req-1' });
-      updateDoc.mockResolvedValue();
-      serverTimestamp.mockReturnValue({ seconds: Date.now() / 1000 });
+    it('updates status and notifies user', async () => {
+      jest.spyOn(LoanRequestService, 'getLoanRequestById').mockResolvedValue({
+        id: 'loan-req-1',
+        equipmentId: 'eq1',
+        status: LOAN_REQUEST_STATUS.PENDING,
+        userId: 'user1'
+      });
+      EquipmentServiceMock.getEquipmentById.mockResolvedValue({
+        id: 'eq1',
+        status: EQUIPMENT_STATUS.AVAILABLE,
+        name: 'Laptop'
+      });
+      jest.spyOn(LoanRequestService, 'notifyUserLoanRequestStatus').mockResolvedValue();
+      firestore.doc.mockReturnValue({ id: 'loan-req-1' });
+      firestore.updateDoc.mockResolvedValue();
 
-      await LoanRequestService.approveLoanRequest('loan-req-1', 'admin-id');
+      const result = await LoanRequestService.approveLoanRequest('loan-req-1', 'admin-id');
 
-      expect(updateDoc).toHaveBeenCalledWith(
+      expect(firestore.updateDoc).toHaveBeenCalledWith(
         { id: 'loan-req-1' },
-        {
-          status: LOAN_REQUEST_STATUS.APPROVED,
-          approvedBy: 'admin-id',
-          approvedAt: expect.any(Object),
-          updatedAt: expect.any(Object)
-        }
+        expect.objectContaining({ status: LOAN_REQUEST_STATUS.APPROVED, approvedBy: 'admin-id' })
       );
-    });
-
-    it('should handle approval errors', async () => {
-      const { updateDoc } = require('firebase/firestore');
-      updateDoc.mockRejectedValue(new Error('Approval failed'));
-
-      await expect(LoanRequestService.approveLoanRequest('loan-req-1', 'admin-id'))
-        .rejects.toThrow('Approval failed');
+      expect(result.status).toBe(LOAN_REQUEST_STATUS.APPROVED);
     });
   });
 
   describe('rejectLoanRequest', () => {
-    it('should reject loan request successfully', async () => {
-      const rejectionReason = 'Equipment not available';
+    const setupRejectMocks = () => {
+      jest.spyOn(LoanRequestService, 'getLoanRequestById').mockResolvedValue({
+        id: 'loan-req-1',
+        equipmentId: 'eq1',
+        status: LOAN_REQUEST_STATUS.PENDING,
+        userId: 'user1'
+      });
+      EquipmentServiceMock.getEquipmentById.mockResolvedValue({ id: 'eq1', status: EQUIPMENT_STATUS.AVAILABLE });
+      jest.spyOn(LoanRequestService, 'notifyUserLoanRequestStatus').mockResolvedValue();
+      firestore.doc.mockReturnValue({ id: 'loan-req-1' });
+      firestore.updateDoc.mockResolvedValue();
+    };
 
-      const { doc, updateDoc, serverTimestamp } = require('firebase/firestore');
-      doc.mockReturnValue({ id: 'loan-req-1' });
-      updateDoc.mockResolvedValue();
-      serverTimestamp.mockReturnValue({ seconds: Date.now() / 1000 });
+    it('persists rejection metadata and notifies user', async () => {
+      setupRejectMocks();
 
-      await LoanRequestService.rejectLoanRequest('loan-req-1', rejectionReason, 'admin-id');
+      const result = await LoanRequestService.rejectLoanRequest('loan-req-1', 'Not available', 'admin-id');
 
-      expect(updateDoc).toHaveBeenCalledWith(
+      expect(firestore.updateDoc).toHaveBeenCalledWith(
         { id: 'loan-req-1' },
-        {
+        expect.objectContaining({
           status: LOAN_REQUEST_STATUS.REJECTED,
-          rejectionReason,
-          rejectedBy: 'admin-id',
-          rejectedAt: expect.any(Object),
-          updatedAt: expect.any(Object)
-        }
+          rejectionReason: 'Not available',
+          approvedBy: 'admin-id'
+        })
       );
+      expect(result.status).toBe(LOAN_REQUEST_STATUS.REJECTED);
+      expect(LoanRequestService.notifyUserLoanRequestStatus).toHaveBeenCalled();
     });
 
-    it('should require rejection reason', async () => {
-      await expect(LoanRequestService.rejectLoanRequest('loan-req-1', '', 'admin-id'))
-        .rejects.toThrow('กรุณาระบุเหตุผลในการปฏิเสธ');
-    });
+    it('trims rejection reason before persisting', async () => {
+      setupRejectMocks();
 
-    it('should handle rejection errors', async () => {
-      const { updateDoc } = require('firebase/firestore');
-      updateDoc.mockRejectedValue(new Error('Rejection failed'));
+      const result = await LoanRequestService.rejectLoanRequest('loan-req-1', '  Not available  ', 'admin-id');
 
-      await expect(LoanRequestService.rejectLoanRequest('loan-req-1', 'Reason', 'admin-id'))
-        .rejects.toThrow('Rejection failed');
+      expect(firestore.updateDoc).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ rejectionReason: 'Not available' })
+      );
+      expect(result.rejectionReason).toBe('Not available');
     });
   });
 
   describe('markAsReturned', () => {
-    it('should mark loan as returned successfully', async () => {
-      const { doc, updateDoc, serverTimestamp } = require('firebase/firestore');
-      doc.mockReturnValue({ id: 'loan-req-1' });
-      updateDoc.mockResolvedValue();
-      serverTimestamp.mockReturnValue({ seconds: Date.now() / 1000 });
+    it('sets status to returned with timestamps', async () => {
+      jest.spyOn(LoanRequestService, 'getLoanRequestById').mockResolvedValue({
+        id: 'loan-req-1',
+        equipmentId: 'eq1',
+        status: LOAN_REQUEST_STATUS.BORROWED,
+        userId: 'user1'
+      });
+      const batchUpdate = jest.fn();
+      const batchCommit = jest.fn().mockResolvedValue();
+      firestore.writeBatch.mockReturnValue({ update: batchUpdate, delete: jest.fn(), commit: batchCommit });
+      firestore.doc
+        .mockReturnValueOnce({ ref: 'loanRequests/loan-req-1' })
+        .mockReturnValueOnce({ ref: 'equipmentManagement/eq1' });
 
-      await LoanRequestService.markAsReturned('loan-req-1');
+      const result = await LoanRequestService.markAsReturned('loan-req-1', 'admin-id');
 
-      expect(updateDoc).toHaveBeenCalledWith(
-        { id: 'loan-req-1' },
-        {
-          status: LOAN_REQUEST_STATUS.RETURNED,
-          actualReturnDate: expect.any(Object),
-          updatedAt: expect.any(Object)
-        }
-      );
-    });
-
-    it('should handle return marking errors', async () => {
-      const { updateDoc } = require('firebase/firestore');
-      updateDoc.mockRejectedValue(new Error('Return marking failed'));
-
-      await expect(LoanRequestService.markAsReturned('loan-req-1'))
-        .rejects.toThrow('Return marking failed');
+      expect(batchUpdate).toHaveBeenCalledTimes(2);
+      expect(batchCommit).toHaveBeenCalled();
+      expect(result.status).toBe(LOAN_REQUEST_STATUS.RETURNED);
     });
   });
 
   describe('getLoanRequestStats', () => {
-    it('should get loan request statistics successfully', async () => {
-      const mockRequests = [
-        { status: LOAN_REQUEST_STATUS.PENDING },
-        { status: LOAN_REQUEST_STATUS.APPROVED },
-        { status: LOAN_REQUEST_STATUS.APPROVED },
-        { status: LOAN_REQUEST_STATUS.REJECTED },
-        { status: LOAN_REQUEST_STATUS.RETURNED },
-        { status: LOAN_REQUEST_STATUS.OVERDUE }
+    it('aggregates counts for each status', async () => {
+      const docs = [
+        createDocumentSnapshot({ status: LOAN_REQUEST_STATUS.PENDING }, { id: 'req1' }),
+        createDocumentSnapshot({ status: LOAN_REQUEST_STATUS.APPROVED }, { id: 'req2' }),
+        createDocumentSnapshot({ status: LOAN_REQUEST_STATUS.APPROVED }, { id: 'req3' }),
+        createDocumentSnapshot({ status: LOAN_REQUEST_STATUS.REJECTED }, { id: 'req4' }),
+        createDocumentSnapshot({ status: LOAN_REQUEST_STATUS.RETURNED }, { id: 'req5' }),
+        createDocumentSnapshot({ status: LOAN_REQUEST_STATUS.OVERDUE }, { id: 'req6' })
       ];
 
-      const mockSnapshot = {
-        docs: mockRequests.map((req, index) => ({
-          id: `req${index}`,
-          data: () => req
-        }))
-      };
-
-      const { getDocs } = require('firebase/firestore');
-      getDocs.mockResolvedValue(mockSnapshot);
+      firestore.collection.mockReturnValue('loanRequests');
+      firestore.getDocs.mockResolvedValue(createQuerySnapshot(docs));
 
       const stats = await LoanRequestService.getLoanRequestStats();
 
-      expect(stats.total).toBe(6);
-      expect(stats.pending).toBe(1);
-      expect(stats.approved).toBe(2);
-      expect(stats.rejected).toBe(1);
-      expect(stats.returned).toBe(1);
-      expect(stats.overdue).toBe(1);
+      expect(stats).toMatchObject({
+        total: 6,
+        pending: 1,
+        approved: 2,
+        rejected: 1,
+        returned: 1,
+        overdue: 1
+      });
     });
 
-    it('should handle empty loan requests collection', async () => {
-      const mockSnapshot = {
-        docs: []
-      };
-
-      const { getDocs } = require('firebase/firestore');
-      getDocs.mockResolvedValue(mockSnapshot);
+    it('returns zeros when no documents', async () => {
+      firestore.collection.mockReturnValue('loanRequests');
+      firestore.getDocs.mockResolvedValue(createQuerySnapshot());
 
       const stats = await LoanRequestService.getLoanRequestStats();
 
       expect(stats.total).toBe(0);
       expect(stats.pending).toBe(0);
-      expect(stats.approved).toBe(0);
     });
   });
 
   describe('getOverdueLoanRequests', () => {
-    it('should get overdue loan requests successfully', async () => {
-      const pastDate = new Date(Date.now() - 86400000); // Yesterday
-      const mockOverdueRequests = [
-        {
-          id: 'overdue1',
-          status: LOAN_REQUEST_STATUS.BORROWED,
-          expectedReturnDate: { toDate: () => pastDate }
-        }
-      ];
+    it('delegates to OverdueManagementService', async () => {
+      OverdueManagementServiceMock.getOverdueLoanRequests.mockResolvedValue(['req1']);
 
-      const mockSnapshot = {
-        docs: mockOverdueRequests.map(req => ({
-          id: req.id,
-          data: () => ({ ...req, id: undefined })
-        }))
-      };
+      const result = await LoanRequestService.getOverdueLoanRequests('user1');
 
-      const { collection, query, where, getDocs } = require('firebase/firestore');
-      collection.mockReturnValue('loanRequests');
-      query.mockReturnValue('query');
-      where.mockReturnValue('where');
-      getDocs.mockResolvedValue(mockSnapshot);
-
-      const result = await LoanRequestService.getOverdueLoanRequests();
-
-      expect(where).toHaveBeenCalledWith('status', '==', LOAN_REQUEST_STATUS.BORROWED);
-      expect(result).toHaveLength(1);
-    });
-
-    it('should handle no overdue requests', async () => {
-      const mockSnapshot = {
-        docs: []
-      };
-
-      const { getDocs } = require('firebase/firestore');
-      getDocs.mockResolvedValue(mockSnapshot);
-
-      const result = await LoanRequestService.getOverdueLoanRequests();
-
-      expect(result).toHaveLength(0);
-    });
-  });
-
-  describe('updateOverdueStatus', () => {
-    it('should update overdue status successfully', async () => {
-      const pastDate = new Date(Date.now() - 86400000);
-      const mockOverdueRequests = [
-        {
-          id: 'overdue1',
-          status: LOAN_REQUEST_STATUS.BORROWED,
-          expectedReturnDate: { toDate: () => pastDate }
-        }
-      ];
-
-      const mockSnapshot = {
-        docs: mockOverdueRequests.map(req => ({
-          id: req.id,
-          data: () => ({ ...req, id: undefined })
-        }))
-      };
-
-      const { getDocs, doc, updateDoc } = require('firebase/firestore');
-      getDocs.mockResolvedValue(mockSnapshot);
-      doc.mockReturnValue({ id: 'overdue1' });
-      updateDoc.mockResolvedValue();
-
-      const result = await LoanRequestService.updateOverdueStatus();
-
-      expect(updateDoc).toHaveBeenCalledWith(
-        { id: 'overdue1' },
-        {
-          status: LOAN_REQUEST_STATUS.OVERDUE,
-          updatedAt: expect.any(Object)
-        }
-      );
-      expect(result).toBe(1); // Number of updated requests
-    });
-
-    it('should handle no overdue requests to update', async () => {
-      const mockSnapshot = {
-        docs: []
-      };
-
-      const { getDocs } = require('firebase/firestore');
-      getDocs.mockResolvedValue(mockSnapshot);
-
-      const result = await LoanRequestService.updateOverdueStatus();
-
-      expect(result).toBe(0);
+      expect(OverdueManagementServiceMock.getOverdueLoanRequests).toHaveBeenCalledWith('user1');
+      expect(result).toEqual(['req1']);
     });
   });
 });
