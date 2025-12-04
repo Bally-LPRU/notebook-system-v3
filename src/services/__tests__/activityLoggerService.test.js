@@ -1,24 +1,43 @@
 import ActivityLoggerService from '../activityLoggerService';
 
-// Mock Firebase
+const mockCollection = jest.fn(() => ({}));
+const mockAddDoc = jest.fn();
+const mockGetDocs = jest.fn();
+const mockQuery = jest.fn();
+const mockWhere = jest.fn();
+const mockOrderBy = jest.fn();
+const mockLimit = jest.fn();
+const mockStartAfter = jest.fn();
+const mockServerTimestamp = jest.fn(() => new Date());
+const mockDoc = jest.fn(() => ({}));
+const mockGetDoc = jest.fn();
+
 jest.mock('../../config/firebase', () => ({
-  db: {},
-  collection: jest.fn(),
-  addDoc: jest.fn(),
-  getDocs: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
-  orderBy: jest.fn(),
-  limit: jest.fn(),
-  startAfter: jest.fn(),
-  serverTimestamp: jest.fn(() => new Date()),
-  doc: jest.fn(),
-  getDoc: jest.fn()
+  db: {}
+}));
+
+jest.mock('firebase/firestore', () => ({
+  collection: (...args) => mockCollection(...args),
+  addDoc: (...args) => mockAddDoc(...args),
+  getDocs: (...args) => mockGetDocs(...args),
+  query: (...args) => mockQuery(...args),
+  where: (...args) => mockWhere(...args),
+  orderBy: (...args) => mockOrderBy(...args),
+  limit: (...args) => mockLimit(...args),
+  startAfter: (...args) => mockStartAfter(...args),
+  serverTimestamp: () => mockServerTimestamp(),
+  doc: (...args) => mockDoc(...args),
+  getDoc: (...args) => mockGetDoc(...args)
 }));
 
 describe('ActivityLoggerService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    mockAddDoc.mockResolvedValue({ id: 'activity-log-default' });
+    mockGetDoc.mockResolvedValue({
+      exists: () => false
+    });
     
     // Mock navigator
     Object.defineProperty(navigator, 'userAgent', {
@@ -29,10 +48,8 @@ describe('ActivityLoggerService', () => {
 
   describe('logEquipmentActivity', () => {
     test('should log equipment creation activity', async () => {
-      const mockAddDoc = require('../../config/firebase').addDoc;
       mockAddDoc.mockResolvedValue({ id: 'activity-123' });
 
-      const mockGetDoc = require('../../config/firebase').getDoc;
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         data: () => ({
@@ -76,7 +93,6 @@ describe('ActivityLoggerService', () => {
     });
 
     test('should handle errors gracefully', async () => {
-      const mockAddDoc = require('../../config/firebase').addDoc;
       mockAddDoc.mockRejectedValue(new Error('Database error'));
 
       const result = await ActivityLoggerService.logEquipmentActivity(
@@ -91,7 +107,6 @@ describe('ActivityLoggerService', () => {
 
   describe('logPermissionDenied', () => {
     test('should log permission denied activity', async () => {
-      const mockAddDoc = require('../../config/firebase').addDoc;
       mockAddDoc.mockResolvedValue({ id: 'activity-123' });
 
       await ActivityLoggerService.logPermissionDenied(
@@ -122,7 +137,6 @@ describe('ActivityLoggerService', () => {
 
   describe('logSystemError', () => {
     test('should log system error activity', async () => {
-      const mockAddDoc = require('../../config/firebase').addDoc;
       mockAddDoc.mockResolvedValue({ id: 'activity-123' });
 
       const error = new Error('Test error');

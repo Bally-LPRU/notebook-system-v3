@@ -14,6 +14,7 @@ jest.mock('../../config/firebase', () => ({
 // Mock Firestore functions
 const mockGetDoc = jest.fn();
 const mockSetDoc = jest.fn();
+const mockAddDoc = jest.fn();
 const mockUpdateDoc = jest.fn();
 const mockServerTimestamp = jest.fn(() => new Date());
 const mockDoc = jest.fn(() => ({}));
@@ -25,6 +26,7 @@ jest.mock('firebase/firestore', () => ({
   getDoc: (...args) => mockGetDoc(...args),
   setDoc: (...args) => mockSetDoc(...args),
   updateDoc: (...args) => mockUpdateDoc(...args),
+  addDoc: (...args) => mockAddDoc(...args),
   serverTimestamp: () => mockServerTimestamp(),
   Timestamp: {
     now: () => ({ toDate: () => new Date() })
@@ -96,6 +98,7 @@ describe('settingsService', () => {
       });
       mockUpdateDoc.mockResolvedValue();
       mockSetDoc.mockResolvedValue();
+      mockAddDoc.mockResolvedValue({ id: 'audit-log-entry' });
     });
 
     it('should update a valid setting', async () => {
@@ -160,8 +163,8 @@ describe('settingsService', () => {
     it('should create audit log entry', async () => {
       await settingsService.updateSetting('maxLoanDuration', 21, 'admin123', 'Admin User');
 
-      // Audit log is created with setDoc
-      expect(mockSetDoc).toHaveBeenCalled();
+      // Audit log is created with addDoc
+      expect(mockAddDoc).toHaveBeenCalled();
     });
   });
 
@@ -178,6 +181,7 @@ describe('settingsService', () => {
       });
       mockUpdateDoc.mockResolvedValue();
       mockSetDoc.mockResolvedValue();
+      mockAddDoc.mockResolvedValue({ id: 'audit-log-entry' });
     });
 
     it('should update multiple valid settings', async () => {
@@ -220,8 +224,8 @@ describe('settingsService', () => {
 
       await settingsService.updateMultipleSettings(settings, 'admin123', 'Admin User');
 
-      // Should create audit log entries (using setDoc)
-      expect(mockSetDoc).toHaveBeenCalled();
+      // Should create audit log entries (using addDoc)
+      expect(mockAddDoc).toHaveBeenCalled();
     });
 
     it('should handle empty settings object', async () => {
