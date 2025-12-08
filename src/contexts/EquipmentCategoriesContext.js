@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useCallback } from 'react';
-import { useEquipmentCategories } from '../hooks/useEquipmentCategories';
+import React, { createContext, useContext, useCallback, useState, useEffect } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { useAuth } from './AuthContext';
 
 /**
  * Context for managing equipment categories data across the application.
@@ -49,28 +51,124 @@ const EquipmentCategoriesContext = createContext(null);
  * @returns {JSX.Element} Provider component wrapping children
  */
 export const EquipmentCategoriesProvider = ({ children }) => {
-  const categoriesData = useEquipmentCategories();
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { user, authInitialized } = useAuth();
 
-  // Create a refetch function that reloads the component
-  // Since useEquipmentCategories loads on mount, we can trigger a re-mount
+  // Fetch categories from Firebase
+  const fetchCategories = useCallback(async () => {
+    if (!user) {
+      setCategories([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const categoriesRef = collection(db, 'equipmentCategories');
+      const querySnapshot = await getDocs(categoriesRef);
+      
+      const categoriesData = querySnapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        .filter(cat => cat.isActive !== false)
+        .sort((a, b) => {
+          const sortOrderDiff = (a.sortOrder || 0) - (b.sortOrder || 0);
+          if (sortOrderDiff !== 0) return sortOrderDiff;
+          return (a.name || '').localeCompare(b.name || '', 'th');
+        });
+
+      setCategories(categoriesData);
+    } catch (err) {
+      console.error('Error fetching equipment categories:', err);
+      setError('เกิดข้อผิดพลาดในการโหลดประเภทอุปกรณ์');
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  // Initial fetch when auth is ready
+  useEffect(() => {
+    if (!authInitialized) return;
+    fetchCategories();
+  }, [authInitialized, fetchCategories]);
+
+  // Refetch function - can be called after CRUD operations
   const refetch = useCallback(async () => {
-    // Force a re-fetch by reloading the hook
-    // The hook will automatically fetch on mount
-    window.location.reload();
-  }, []);
+    await fetchCategories();
+  }, [fetchCategories]);
+
+  // Utility functions
+  const getCategoryById = useCallback((categoryId) => {
+    return categories.find(category => category.id === categoryId);
+  }, [categories]);
+
+  const getCategoriesByParent = useCallback((parentId = null) => {
+    return categories.filter(category => category.parentId === parentId);
+  }, [categories]);
+
+  const getRootCategories = useCallback(() => {
+    return categories.filter(category => !category.parentId);
+  }, [categories]);
+
+  const getCategoryHierarchy = useCallback(() => {
+    const buildHierarchy = (parentCategories) => {
+      return parentCategories.map(category => ({
+        ...category,
+        children: buildHierarchy(categories.filter(c => c.parentId === category.id))
+      }));
+    };
+    return buildHierarchy(categories.filter(c => !c.parentId));
+  }, [categories]);
+
+  const getCategoryPath = useCallback((categoryId) => {
+    // Create a Map for O(1) lookup to avoid function in loop warning
+    const categoryMap = new Map(categories.map(c => [c.id, c]));
+    
+    const category = categoryMap.get(categoryId);
+    if (!category) return [];
+
+    const path = [category];
+    let parentId = category.parentId;
+
+    while (parentId) {
+      const parentCategory = categoryMap.get(parentId);
+      if (parentCategory) {
+        path.unshift(parentCategory);
+        parentId = parentCategory.parentId;
+      } else {
+        break;
+      }
+    }
+    return path;
+  }, [categories]);
+
+  const searchCategories = useCallback((searchTerm) => {
+    if (!searchTerm) return categories;
+    const term = searchTerm.toLowerCase();
+    return categories.filter(category => 
+      category.name?.toLowerCase().includes(term) ||
+      category.nameEn?.toLowerCase().includes(term) ||
+      category.description?.toLowerCase().includes(term)
+    );
+  }, [categories]);
 
   const value = {
-    categories: categoriesData.categories,
-    loading: categoriesData.loading,
-    error: categoriesData.error,
+    categories,
+    loading,
+    error,
     refetch,
-    // Include all utility functions from the hook
-    getCategoryById: categoriesData.getCategoryById,
-    getCategoriesByParent: categoriesData.getCategoriesByParent,
-    getRootCategories: categoriesData.getRootCategories,
-    getCategoryHierarchy: categoriesData.getCategoryHierarchy,
-    getCategoryPath: categoriesData.getCategoryPath,
-    searchCategories: categoriesData.searchCategories
+    getCategoryById,
+    getCategoriesByParent,
+    getRootCategories,
+    getCategoryHierarchy,
+    getCategoryPath,
+    searchCategories
   };
 
   return (

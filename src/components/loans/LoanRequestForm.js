@@ -5,7 +5,6 @@ import LoanRequestService from '../../services/loanRequestService';
 import EquipmentService from '../../services/equipmentService';
 import { 
   DEFAULT_LOAN_REQUEST_FORM, 
-  DEFAULT_LOAN_DURATION_DAYS,
   MAX_LOAN_DURATION_DAYS
 } from '../../types/loanRequest';
 import { EQUIPMENT_STATUS } from '../../types/equipment';

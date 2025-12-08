@@ -1,14 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import UserService from '../../services/userService';
+import { 
+  USER_TYPES, 
+  USER_TYPE_NAMES 
+} from '../../types/settings';
+import { getUserTypeLimitsFromSettings } from '../../hooks/useUserTypeLimits';
 
 const UserEditModal = ({ user, onClose, onSave }) => {
   const { user: currentUser } = useAuth();
+  const { settings } = useSettings();
   const [formData, setFormData] = useState({
     displayName: '',
     firstName: '',
     lastName: '',
     department: '',
+    userType: '',
     role: 'user',
     status: 'pending'
   });
@@ -32,11 +40,27 @@ const UserEditModal = ({ user, onClose, onSave }) => {
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         department: departmentValue,
+        userType: user.userType || '',
         role: user.role || 'user',
         status: user.status || 'pending'
       });
     }
   }, [user]);
+
+  /**
+   * Get borrowing limits for a specific user type
+   * @param {string} userType - User type (teacher/staff/student)
+   * @returns {Object} Limits object with maxItems, maxDays, maxAdvanceBookingDays
+   */
+  const getBorrowingLimitsForUserType = (userType) => {
+    if (!userType) {
+      return null;
+    }
+    return getUserTypeLimitsFromSettings(settings, userType);
+  };
+
+  // Get current limits based on selected user type
+  const currentLimits = getBorrowingLimitsForUserType(formData.userType);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -71,6 +95,7 @@ const UserEditModal = ({ user, onClose, onSave }) => {
         firstName: formData.firstName,
         lastName: formData.lastName,
         department: formData.department,
+        userType: formData.userType || null,
         role: formData.role,
         status: formData.status
       };
@@ -107,7 +132,8 @@ const UserEditModal = ({ user, onClose, onSave }) => {
         displayName: formData.displayName,
         firstName: formData.firstName,
         lastName: formData.lastName,
-        department: formData.department
+        department: formData.department,
+        userType: formData.userType || null
       }, currentUser.uid);
 
       onSave(updates);
@@ -214,6 +240,64 @@ const UserEditModal = ({ user, onClose, onSave }) => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     </div>
+
+                    {/* User Type */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ประเภทผู้ใช้
+                      </label>
+                      <select
+                        name="userType"
+                        value={formData.userType}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      >
+                        <option value="">-- ไม่ระบุ --</option>
+                        <option value={USER_TYPES.TEACHER}>{USER_TYPE_NAMES.teacher}</option>
+                        <option value={USER_TYPES.STAFF}>{USER_TYPE_NAMES.staff}</option>
+                        <option value={USER_TYPES.STUDENT}>{USER_TYPE_NAMES.student}</option>
+                      </select>
+                    </div>
+
+                    {/* Borrowing Limits Display */}
+                    {currentLimits && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                        <h4 className="text-sm font-medium text-blue-800 mb-2">
+                          สิทธิ์การยืมที่จะใช้กับผู้ใช้นี้
+                          {!settings?.userTypeLimitsEnabled && (
+                            <span className="ml-2 text-xs text-blue-600">(ค่าเริ่มต้นระบบ)</span>
+                          )}
+                        </h4>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div className="text-center p-2 bg-white rounded">
+                            <p className="text-gray-500 text-xs">จำนวนสูงสุด</p>
+                            <p className="font-semibold text-blue-700">{currentLimits.maxItems} ชิ้น</p>
+                          </div>
+                          <div className="text-center p-2 bg-white rounded">
+                            <p className="text-gray-500 text-xs">ระยะเวลายืม</p>
+                            <p className="font-semibold text-blue-700">{currentLimits.maxDays} วัน</p>
+                          </div>
+                          <div className="text-center p-2 bg-white rounded">
+                            <p className="text-gray-500 text-xs">จองล่วงหน้า</p>
+                            <p className="font-semibold text-blue-700">{currentLimits.maxAdvanceBookingDays} วัน</p>
+                          </div>
+                        </div>
+                        {currentLimits.isDefault && settings?.userTypeLimitsEnabled && (
+                          <p className="mt-2 text-xs text-blue-600">
+                            * ใช้ค่าเริ่มต้นสำหรับประเภท {currentLimits.userTypeName}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Warning when user type limits are disabled */}
+                    {!settings?.userTypeLimitsEnabled && (
+                      <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                        <p className="text-xs text-yellow-700">
+                          <span className="font-medium">หมายเหตุ:</span> ระบบจำกัดตามประเภทผู้ใช้ถูกปิดอยู่ ผู้ใช้ทุกคนจะใช้ค่าเริ่มต้นของระบบ
+                        </p>
+                      </div>
+                    )}
 
                     {/* Role */}
                     <div>

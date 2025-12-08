@@ -17,7 +17,6 @@ import {
   orderBy,
   Timestamp,
   serverTimestamp,
-  arrayUnion,
   addDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -30,6 +29,7 @@ const COLLECTIONS = {
   SETTINGS: 'settings',
   CLOSED_DATES: 'closedDates',
   CATEGORY_LIMITS: 'categoryLimits',
+  USER_TYPE_LIMITS: 'userTypeLimits',
   SYSTEM_NOTIFICATIONS: 'systemNotifications',
   AUDIT_LOG: 'settingsAuditLog'
 };
@@ -569,26 +569,6 @@ class SettingsService {
   async sendDiscordNotification(message, options = {}) {
     const discordWebhookService = (await import('./discordWebhookService.js')).default;
     return discordWebhookService.sendDiscordNotification(message, options);
-  }
-
-  /**
-   * Create system notification
-   * @param {Object} notification - Notification data
-   * @returns {Promise<string>} Document ID of created notification
-   */
-  async createSystemNotification(notification) {
-    // Implementation will be added in task 10
-    throw new Error('Not implemented yet');
-  }
-
-  /**
-   * Get system notifications with optional filters
-   * @param {Object} filters - Filter options
-   * @returns {Promise<Array>} Array of notification objects
-   */
-  async getSystemNotifications(filters = {}) {
-    // Implementation will be added in task 10
-    throw new Error('Not implemented yet');
   }
 
   /**
@@ -1254,6 +1234,271 @@ class SettingsService {
     } catch (error) {
       console.error('Error getting notification feedback:', error);
       throw error;
+    }
+  }
+
+  // ============================================
+  // User Type Limits Methods
+  // ============================================
+
+  /**
+   * Get all user type limits
+   * @returns {Promise<Object>} Object with user type limits keyed by user type
+   */
+  async getUserTypeLimits() {
+    try {
+      const limitsRef = collection(db, COLLECTIONS.USER_TYPE_LIMITS);
+      const querySnapshot = await getDocs(limitsRef);
+      
+      const limits = {};
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        limits[docSnap.id] = {
+          ...data,
+          userType: docSnap.id,
+          updatedAt: data.updatedAt?.toDate()
+        };
+      });
+      
+      return limits;
+    } catch (error) {
+      console.error('Error getting user type limits:', error);
+      
+      if (this._isRetryableError(error)) {
+        return this._retryOperation(() => this.getUserTypeLimits());
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Get limit for a specific user type
+   * @param {string} userType - User type (teacher, staff, student)
+   * @returns {Promise<Object|null>} User type limit or null if not set
+   */
+  async getUserTypeLimit(userType) {
+    try {
+      if (!userType || typeof userType !== 'string') {
+        throw new Error('User type is required');
+      }
+
+      const limitRef = doc(db, COLLECTIONS.USER_TYPE_LIMITS, userType);
+      const limitSnap = await getDoc(limitRef);
+
+      if (limitSnap.exists()) {
+        const data = limitSnap.data();
+        return {
+          ...data,
+          userType: limitSnap.id,
+          updatedAt: data.updatedAt?.toDate()
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error getting user type limit:', error);
+      
+      if (this._isRetryableError(error)) {
+        return this._retryOperation(() => this.getUserTypeLimit(userType));
+      }
+      
+      return null;
+    }
+  }
+
+  /**
+   * Set limits for all user types
+   * @param {Object} limits - Object with user type limits keyed by user type
+   * @param {string} adminId - Admin user ID
+   * @param {string} adminName - Admin display name
+   * @returns {Promise<void>}
+   */
+  async setUserTypeLimits(limits, adminId, adminName) {
+    try {
+      if (!limits || typeof limits !== 'object') {
+        throw new Error('Limits object is required');
+      }
+
+      if (!adminId || typeof adminId !== 'string') {
+        throw new Error('Admin ID is required');
+      }
+
+      // Get current limits for audit log
+      const currentLimits = await this.getUserTypeLimits();
+
+      // Update each user type limit
+      for (const [userType, limitData] of Object.entries(limits)) {
+        const limitRef = doc(db, COLLECTIONS.USER_TYPE_LIMITS, userType);
+        
+        const updateData = {
+          userType,
+          userTypeName: limitData.userTypeName,
+          maxItems: limitData.maxItems,
+          maxDays: limitData.maxDays,
+          maxAdvanceBookingDays: limitData.maxAdvanceBookingDays,
+          isActive: limitData.isActive,
+          updatedAt: serverTimestamp(),
+          updatedBy: adminId
+        };
+
+        await setDoc(limitRef, updateData, { merge: true });
+
+        // Log the change if values changed
+        const oldLimit = currentLimits[userType];
+        if (!oldLimit || JSON.stringify(oldLimit) !== JSON.stringify(limitData)) {
+          await this._logChange({
+            adminId,
+            adminName,
+            action: oldLimit ? 'update' : 'create',
+            settingType: 'userTypeLimit',
+            settingPath: `userTypeLimits/${userType}`,
+            oldValue: oldLimit || null,
+            newValue: updateData
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error setting user type limits:', error);
+      
+      if (this._isRetryableError(error)) {
+        return this._retryOperation(() => 
+          this.setUserTypeLimits(limits, adminId, adminName)
+        );
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Set limit for a specific user type
+   * @param {string} userType - User type (teacher, staff, student)
+   * @param {Object} limitData - Limit data
+   * @param {string} adminId - Admin user ID
+   * @param {string} adminName - Admin display name
+   * @returns {Promise<void>}
+   */
+  async setUserTypeLimit(userType, limitData, adminId, adminName) {
+    try {
+      if (!userType || typeof userType !== 'string') {
+        throw new Error('User type is required');
+      }
+
+      if (!limitData || typeof limitData !== 'object') {
+        throw new Error('Limit data is required');
+      }
+
+      if (!adminId || typeof adminId !== 'string') {
+        throw new Error('Admin ID is required');
+      }
+
+      // Validate limit values
+      const { maxItems, maxDays, maxAdvanceBookingDays } = limitData;
+      
+      if (typeof maxItems !== 'number' || maxItems < 1 || maxItems > 50) {
+        throw new Error('maxItems must be between 1 and 50');
+      }
+      
+      if (typeof maxDays !== 'number' || maxDays < 1 || maxDays > 365) {
+        throw new Error('maxDays must be between 1 and 365');
+      }
+      
+      if (typeof maxAdvanceBookingDays !== 'number' || maxAdvanceBookingDays < 1 || maxAdvanceBookingDays > 365) {
+        throw new Error('maxAdvanceBookingDays must be between 1 and 365');
+      }
+
+      // Get current limit for audit log
+      const currentLimit = await this.getUserTypeLimit(userType);
+
+      const limitRef = doc(db, COLLECTIONS.USER_TYPE_LIMITS, userType);
+      const updateData = {
+        userType,
+        userTypeName: limitData.userTypeName,
+        maxItems,
+        maxDays,
+        maxAdvanceBookingDays,
+        isActive: limitData.isActive !== false,
+        updatedAt: serverTimestamp(),
+        updatedBy: adminId
+      };
+
+      await setDoc(limitRef, updateData, { merge: true });
+
+      // Log the change
+      await this._logChange({
+        adminId,
+        adminName,
+        action: currentLimit ? 'update' : 'create',
+        settingType: 'userTypeLimit',
+        settingPath: `userTypeLimits/${userType}`,
+        oldValue: currentLimit,
+        newValue: updateData
+      });
+    } catch (error) {
+      console.error('Error setting user type limit:', error);
+      
+      if (this._isRetryableError(error)) {
+        return this._retryOperation(() => 
+          this.setUserTypeLimit(userType, limitData, adminId, adminName)
+        );
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Get effective loan limits for a user based on their type
+   * @param {string} userType - User type (teacher, staff, student)
+   * @returns {Promise<Object>} Effective limits (from user type or global defaults)
+   */
+  async getEffectiveLoanLimits(userType) {
+    try {
+      // Get global settings
+      const settings = await this.getSettings();
+      
+      // If user type limits are not enabled, return global settings
+      if (!settings.userTypeLimitsEnabled) {
+        return {
+          maxItems: settings.defaultCategoryLimit || 3,
+          maxDays: settings.maxLoanDuration || 14,
+          maxAdvanceBookingDays: settings.maxAdvanceBookingDays || 30,
+          source: 'global'
+        };
+      }
+
+      // Get user type specific limit
+      const userTypeLimit = await this.getUserTypeLimit(userType);
+      
+      // If user type limit exists and is active, use it
+      if (userTypeLimit && userTypeLimit.isActive) {
+        return {
+          maxItems: userTypeLimit.maxItems,
+          maxDays: Math.min(userTypeLimit.maxDays, settings.maxLoanDuration),
+          maxAdvanceBookingDays: Math.min(userTypeLimit.maxAdvanceBookingDays, settings.maxAdvanceBookingDays),
+          source: 'userType',
+          userType
+        };
+      }
+
+      // Fall back to global settings
+      return {
+        maxItems: settings.defaultCategoryLimit || 3,
+        maxDays: settings.maxLoanDuration || 14,
+        maxAdvanceBookingDays: settings.maxAdvanceBookingDays || 30,
+        source: 'global'
+      };
+    } catch (error) {
+      console.error('Error getting effective loan limits:', error);
+      
+      // Return safe defaults on error
+      return {
+        maxItems: 3,
+        maxDays: 14,
+        maxAdvanceBookingDays: 30,
+        source: 'default'
+      };
     }
   }
 }

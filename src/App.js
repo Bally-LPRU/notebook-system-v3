@@ -37,12 +37,14 @@ const LazyAdminDashboard = lazy(() => import('./components/admin/AdminDashboard'
 const LazyUserApprovalList = lazy(() => import('./components/admin/UserApprovalList'));
 const LazyAdminEquipmentManagement = lazy(() => import('./components/admin/AdminEquipmentManagement'));
 const LazyLoanRequestList = lazy(() => import('./components/admin/LoanRequestList'));
-const LazyReservationManagement = lazy(() => import('./components/reservations/ReservationManagement'));
+const LazyReservationManagement = lazy(() => import('./components/admin/AdminReservationManagement'));
 const LazyMyRequests = lazy(() => import('./components/requests/MyRequests'));
 const LazyReservationPage = lazy(() => import('./components/reservations/ReservationPage'));
 const LazyProfilePage = lazy(() => import('./components/profile/ProfilePage'));
 const LazyNotificationCenter = lazy(() => import('./components/admin/NotificationCenter'));
 const LazyNotificationSettings = lazy(() => import('./components/notifications/NotificationSettings'));
+const LazyLoanHistoryPage = lazy(() => import('./components/loan/LoanHistoryPage'));
+const LazyNotificationHistoryPage = lazy(() => import('./components/notifications/NotificationHistoryPage'));
 
 // Simple login for debugging
 const SimpleLogin = lazy(() => import('./components/auth/SimpleLogin'));
@@ -154,6 +156,18 @@ const AppRoutes = () => {
       <Route path="/notification-settings" element={
         <ProtectedRoute>
           <LazyNotificationSettings />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/loan-history" element={
+        <ProtectedRoute>
+          <LazyLoanHistoryPage />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/notification-history" element={
+        <ProtectedRoute>
+          <LazyNotificationHistoryPage />
         </ProtectedRoute>
       } />
       

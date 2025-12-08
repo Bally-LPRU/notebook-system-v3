@@ -6,13 +6,15 @@
  * - Better error feedback
  * - Equipment info fallback
  * - Clear status display
+ * - User type limits enforcement (Requirements: 4.1, 4.2, 4.3, 4.4, 4.5)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   CheckCircleIcon, 
   XCircleIcon,
-  ExclamationCircleIcon 
+  ExclamationCircleIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import useLoanRequestValidation from '../../hooks/useLoanRequestValidation';
 import EquipmentInfoFallback from './EquipmentInfoFallback';
@@ -20,6 +22,7 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useClosedDates } from '../../hooks/useClosedDates';
 import { useCategoryLimits } from '../../hooks/useCategoryLimits';
+import { useUserTypeLimits } from '../../hooks/useUserTypeLimits';
 
 /**
  * Field Input Component with validation feedback
@@ -132,8 +135,25 @@ const EnhancedLoanRequestForm = ({
   const { isDateClosed, closedDates } = useClosedDates();
   const { getCategoryLimit } = useCategoryLimits();
   
-  // Get max loan duration from settings (default to 30)
-  const maxLoanDuration = settings?.maxLoanDuration || 30;
+  // Use user type limits hook (Requirements: 4.1, 4.4, 4.5)
+  const {
+    limits,
+    loading: limitsLoading,
+    currentBorrowedCount,
+    pendingRequestsCount,
+    remainingQuota,
+    canBorrow
+  } = useUserTypeLimits();
+  
+  // Get max loan duration from user type limits (Requirements: 4.2)
+  // Use user type specific maxDays if available, otherwise fall back to settings
+  const maxLoanDuration = limits?.maxDays || settings?.maxLoanDuration || 30;
+  
+  // Get max items from user type limits (Requirements: 4.3)
+  const maxItems = limits?.maxItems || 5;
+  
+  // Check if user has exceeded max items (Requirements: 4.3)
+  const hasExceededMaxItems = !canBorrow;
   
   // Get category limit for this equipment
   const categoryLimit = equipment?.category ? getCategoryLimit(equipment.category) : null;
@@ -238,6 +258,75 @@ const EnhancedLoanRequestForm = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Borrowing Limits Info (Requirements: 4.1, 4.4) */}
+      {!limitsLoading && (
+        <div className={`rounded-lg border p-4 ${hasExceededMaxItems ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+          <div className="flex items-start">
+            <InformationCircleIcon className={`w-5 h-5 mt-0.5 mr-2 ${hasExceededMaxItems ? 'text-red-500' : 'text-blue-500'}`} />
+            <div className="flex-1">
+              <h4 className={`text-sm font-medium ${hasExceededMaxItems ? 'text-red-800' : 'text-blue-800'}`}>
+                สิทธิ์การยืมของคุณ ({limits?.userTypeName || 'ไม่ระบุประเภท'})
+              </h4>
+              <div className="mt-2 text-sm space-y-1">
+                {/* Remaining Quota Display (Requirements: 4.4) */}
+                <p className={hasExceededMaxItems ? 'text-red-700 font-medium' : 'text-blue-700'}>
+                  {hasExceededMaxItems ? (
+                    <>
+                      <ExclamationCircleIcon className="w-4 h-4 inline mr-1" />
+                      คุณยืมอุปกรณ์ครบจำนวนสูงสุดแล้ว ({currentBorrowedCount + pendingRequestsCount}/{maxItems} ชิ้น)
+                    </>
+                  ) : (
+                    <>คุณยืมได้อีก <span className="font-semibold">{remainingQuota} ชิ้น</span> จากทั้งหมด {maxItems} ชิ้น</>
+                  )}
+                </p>
+                <p className="text-blue-600">
+                  ระยะเวลายืมสูงสุด: <span className="font-semibold">{maxLoanDuration} วัน</span>
+                </p>
+                {limits?.maxAdvanceBookingDays && (
+                  <p className="text-blue-600">
+                    จองล่วงหน้าได้สูงสุด: <span className="font-semibold">{limits.maxAdvanceBookingDays} วัน</span>
+                  </p>
+                )}
+              </div>
+              {/* Current Status */}
+              {(currentBorrowedCount > 0 || pendingRequestsCount > 0) && (
+                <div className="mt-2 pt-2 border-t border-blue-200 text-xs text-blue-600">
+                  {currentBorrowedCount > 0 && <span>กำลังยืม: {currentBorrowedCount} ชิ้น</span>}
+                  {currentBorrowedCount > 0 && pendingRequestsCount > 0 && <span className="mx-1">|</span>}
+                  {pendingRequestsCount > 0 && <span>รอดำเนินการ: {pendingRequestsCount} รายการ</span>}
+                </div>
+              )}
+              {/* Warning for user type not set */}
+              {limits?.warning && (
+                <p className="mt-2 text-xs text-amber-600">
+                  <ExclamationCircleIcon className="w-4 h-4 inline mr-1" />
+                  {limits.warning}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Max Items Exceeded Warning (Requirements: 4.3) */}
+      {hasExceededMaxItems && (
+        <div className="rounded-md bg-red-100 border border-red-300 p-4">
+          <div className="flex">
+            <XCircleIcon className="w-5 h-5 text-red-500 mr-2" />
+            <div>
+              <h4 className="text-sm font-medium text-red-800">ไม่สามารถส่งคำขอยืมได้</h4>
+              <p className="mt-1 text-sm text-red-700">
+                คุณมีอุปกรณ์ที่กำลังยืมและคำขอที่รอดำเนินการรวม {currentBorrowedCount + pendingRequestsCount} ชิ้น 
+                ซึ่งถึงจำนวนสูงสุดที่อนุญาต ({maxItems} ชิ้น) แล้ว
+              </p>
+              <p className="mt-1 text-sm text-red-600">
+                กรุณาคืนอุปกรณ์หรือรอให้คำขอได้รับการดำเนินการก่อน
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Equipment Info */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -254,7 +343,7 @@ const EnhancedLoanRequestForm = ({
         {equipment && categoryLimit && (
           <div className="mt-2 rounded-md bg-blue-50 p-3">
             <p className="text-sm text-blue-800">
-              <span className="font-medium">ข้อจำกัดการยืม:</span> สามารถยืมอุปกรณ์ในหมวดหมู่นี้ได้สูงสุด {categoryLimit} ชิ้นพร้อมกัน
+              <span className="font-medium">ข้อจำกัดหมวดหมู่:</span> สามารถยืมอุปกรณ์ในหมวดหมู่นี้ได้สูงสุด {categoryLimit} ชิ้นพร้อมกัน
             </p>
           </div>
         )}
@@ -366,7 +455,9 @@ const EnhancedLoanRequestForm = ({
             !isValid || 
             isValidating || 
             isDateStringClosed(formData.borrowDate) || 
-            isDateStringClosed(formData.expectedReturnDate)
+            isDateStringClosed(formData.expectedReturnDate) ||
+            hasExceededMaxItems ||
+            limitsLoading
           }
           className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
         >
@@ -375,6 +466,8 @@ const EnhancedLoanRequestForm = ({
               <LoadingSpinner size="sm" className="mr-2" />
               กำลังส่งคำขอ...
             </>
+          ) : hasExceededMaxItems ? (
+            'ไม่สามารถยืมได้ (เกินจำนวนสูงสุด)'
           ) : (
             'ส่งคำขอยืม'
           )}

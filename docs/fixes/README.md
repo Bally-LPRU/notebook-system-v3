@@ -9,6 +9,20 @@
 
 ### การแก้ไข
 - `PROFILE_PAGE_FIX.md` - แก้ไขหน้า Profile
+- `firestore-index-optimization.md` - การแก้ไขปัญหา Firestore Index (ธ.ค. 2567)
+- `admin-settings-permission-quickfix.md` - แก้ไข Admin Settings Permission
+- `equipment-page-troubleshooting.md` - การแก้ไขปัญหาหน้า Equipment
+
+### Equipment System
+- `equipment-page-simplification.md` - ลดความซับซ้อนหน้า Equipment
+- `equipment-display-issue-summary.md` - สรุปปัญหาการแสดงผล Equipment
+- `equipment-page-hydration-fix.md` - แก้ไข Hydration Error
+- `equipment-page-firebase-config-fix.md` - แก้ไข Firebase Config
+- `equipment-service-unified-structure.md` - โครงสร้าง Equipment Service
+- `equipment-service-use-equipmentmanagement-structure.md` - ใช้โครงสร้าง equipmentManagement
+- `admin-equipment-isactive-fix.md` - แก้ไข isActive field
+- `user-equipment-navigation-fix.md` - แก้ไข Navigation
+- `user-equipment-page-rebuild.md` - สร้างหน้า Equipment ใหม่
 
 ### สรุปผลลัพธ์
 - `SUCCESS_SUMMARY.md` - สรุปความสำเร็จ

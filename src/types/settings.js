@@ -153,6 +153,85 @@ export const SETTINGS_CACHE_CONFIG = {
 };
 
 /**
+ * User Type Limit Document Structure
+ * @typedef {Object} UserTypeLimit
+ * @property {string} userType - User type: 'teacher', 'staff', 'student'
+ * @property {string} userTypeName - Display name for user type
+ * @property {number} maxItems - Maximum items allowed to borrow at once
+ * @property {number} maxDays - Maximum loan duration in days
+ * @property {number} maxAdvanceBookingDays - Maximum advance booking days
+ * @property {boolean} isActive - Whether this limit is active
+ * @property {Date} updatedAt - Last update timestamp
+ * @property {string} updatedBy - Admin user ID who last updated
+ */
+
+/**
+ * User type constants
+ */
+export const USER_TYPES = {
+  TEACHER: 'teacher',
+  STAFF: 'staff',
+  STUDENT: 'student'
+};
+
+/**
+ * User type display names (Thai)
+ */
+export const USER_TYPE_NAMES = {
+  teacher: 'อาจารย์',
+  staff: 'เจ้าหน้าที่',
+  student: 'นักศึกษา'
+};
+
+/**
+ * Default user type limits
+ */
+export const DEFAULT_USER_TYPE_LIMITS = {
+  teacher: {
+    userType: 'teacher',
+    userTypeName: 'อาจารย์',
+    maxItems: 10,
+    maxDays: 30,
+    maxAdvanceBookingDays: 60,
+    isActive: true
+  },
+  staff: {
+    userType: 'staff',
+    userTypeName: 'เจ้าหน้าที่',
+    maxItems: 5,
+    maxDays: 14,
+    maxAdvanceBookingDays: 30,
+    isActive: true
+  },
+  student: {
+    userType: 'student',
+    userTypeName: 'นักศึกษา',
+    maxItems: 3,
+    maxDays: 7,
+    maxAdvanceBookingDays: 14,
+    isActive: true
+  }
+};
+
+/**
+ * User type limits validation
+ */
+export const USER_TYPE_LIMITS_VALIDATION = {
+  maxItems: {
+    min: 1,
+    max: 50
+  },
+  maxDays: {
+    min: 1,
+    max: 365
+  },
+  maxAdvanceBookingDays: {
+    min: 1,
+    max: 365
+  }
+};
+
+/**
  * Default system settings
  */
 export const DEFAULT_SETTINGS = {
@@ -163,5 +242,6 @@ export const DEFAULT_SETTINGS = {
   loanReturnEndTime: null,
   discordWebhookUrl: null,
   discordEnabled: false,
+  userTypeLimitsEnabled: false,
   version: 1
 };

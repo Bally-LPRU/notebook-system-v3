@@ -10,7 +10,8 @@ export const RESERVATION_STATUS = {
   READY: 'ready',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
-  EXPIRED: 'expired'
+  EXPIRED: 'expired',
+  NO_SHOW: 'no_show'
 };
 
 // Reservation status labels in Thai
@@ -20,7 +21,8 @@ export const RESERVATION_STATUS_LABELS = {
   [RESERVATION_STATUS.READY]: 'พร้อมรับอุปกรณ์',
   [RESERVATION_STATUS.COMPLETED]: 'เสร็จสิ้น',
   [RESERVATION_STATUS.CANCELLED]: 'ยกเลิก',
-  [RESERVATION_STATUS.EXPIRED]: 'หมดอายุ'
+  [RESERVATION_STATUS.EXPIRED]: 'หมดอายุ',
+  [RESERVATION_STATUS.NO_SHOW]: 'ไม่มารับอุปกรณ์'
 };
 
 // Reservation status colors for UI
@@ -30,7 +32,8 @@ export const RESERVATION_STATUS_COLORS = {
   [RESERVATION_STATUS.READY]: 'green',
   [RESERVATION_STATUS.COMPLETED]: 'gray',
   [RESERVATION_STATUS.CANCELLED]: 'red',
-  [RESERVATION_STATUS.EXPIRED]: 'red'
+  [RESERVATION_STATUS.EXPIRED]: 'red',
+  [RESERVATION_STATUS.NO_SHOW]: 'orange'
 };
 
 /**

@@ -259,6 +259,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
+    // User type limits collection - admin write, authenticated read
+    match /userTypeLimits/{userType} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
     // Settings audit log collection - admin only
     match /settingsAuditLog/{logId} {
       allow read: if isAdmin();

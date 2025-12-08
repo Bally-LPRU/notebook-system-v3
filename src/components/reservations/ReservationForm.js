@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useReservations } from '../../hooks/useReservations';
-import { useSettings } from '../../contexts/SettingsContext';
 import { useClosedDates } from '../../hooks/useClosedDates';
+import { useUserTypeLimits } from '../../hooks/useUserTypeLimits';
 import { 
   DEFAULT_RESERVATION_FORM,
   RESERVATION_VALIDATION,
@@ -13,6 +13,8 @@ import {
 /**
  * ReservationForm Component
  * ฟอร์มสำหรับส่งคำขอจองอุปกรณ์
+ * 
+ * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
  */
 const ReservationForm = ({ 
   equipment, 
@@ -22,7 +24,8 @@ const ReservationForm = ({
   onCancel,
   className = '' 
 }) => {
-  const { settings } = useSettings();
+  // Use user type limits hook to get maxAdvanceBookingDays based on user type
+  const { limits, loading: limitsLoading } = useUserTypeLimits();
   const { isDateClosed, closedDates } = useClosedDates();
   const [formData, setFormData] = useState({
     ...DEFAULT_RESERVATION_FORM,
@@ -37,8 +40,8 @@ const ReservationForm = ({
 
   const { createReservation } = useReservations();
   
-  // Get max advance booking days from settings (default to 30)
-  const maxAdvanceBookingDays = settings?.maxAdvanceBookingDays || 30;
+  // Get max advance booking days from user type limits (Requirements: 5.1, 5.5)
+  const maxAdvanceBookingDays = limits.maxAdvanceBookingDays;
   
   // Calculate max reservation date
   const maxReservationDate = (() => {
@@ -252,6 +255,40 @@ const ReservationForm = ({
                   <p className="font-medium text-gray-900">{equipment.name}</p>
                   <p className="text-sm text-gray-500">{equipment.brand} {equipment.model}</p>
                   <p className="text-sm text-gray-500">สถานที่: {equipment.location}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Advance Booking Limit Info - Requirements: 5.4 */}
+          {!limitsLoading && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium text-blue-800">
+                    ข้อจำกัดการจองล่วงหน้า
+                  </h4>
+                  <div className="mt-1 text-sm text-blue-700">
+                    <p>
+                      ประเภทผู้ใช้: <span className="font-medium">{limits.userTypeName || 'ไม่ระบุ'}</span>
+                    </p>
+                    <p>
+                      จองล่วงหน้าได้สูงสุด: <span className="font-medium">{maxAdvanceBookingDays} วัน</span>
+                      {limits.isDefault && (
+                        <span className="ml-2 text-xs text-blue-600">(ค่าเริ่มต้น)</span>
+                      )}
+                    </p>
+                  </div>
+                  {limits.warning && (
+                    <p className="mt-2 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">
+                      ⚠️ {limits.warning}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

@@ -8,7 +8,6 @@ import React, { useState, useEffect } from 'react';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import discordWebhookService from '../../../services/discordWebhookService';
-import settingsService from '../../../services/settingsService';
 
 /**
  * Discord Webhook Configuration Component
@@ -42,16 +41,6 @@ const DiscordWebhookConfig = () => {
       setIsEnabled(settings.discordEnabled || false);
     }
   }, [settings]);
-
-  /**
-   * Mask webhook URL for security
-   * Shows only last 4 characters
-   */
-  const getMaskedUrl = (url) => {
-    if (!url || url.length <= 4) return url;
-    const lastFour = url.slice(-4);
-    return '•'.repeat(url.length - 4) + lastFour;
-  };
 
   /**
    * Handle URL input change

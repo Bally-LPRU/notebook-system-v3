@@ -7,8 +7,7 @@ import {
   getDocs, 
   query, 
   where, 
-  orderBy, 
-  and,
+  orderBy,
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -212,36 +211,48 @@ class ReservationService {
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
 
+      // Simple query - filter by equipmentId only, then filter in memory
       const reservationsRef = collection(db, this.COLLECTION_NAME);
       const q = query(
         reservationsRef,
-        and(
-          where('equipmentId', '==', equipmentId),
-          where('reservationDate', '>=', startOfDay),
-          where('reservationDate', '<=', endOfDay),
-          where('status', 'in', [
-            RESERVATION_STATUS.PENDING,
-            RESERVATION_STATUS.APPROVED,
-            RESERVATION_STATUS.READY
-          ])
-        ),
-        orderBy('startTime', 'asc')
+        where('equipmentId', '==', equipmentId)
       );
 
       const querySnapshot = await getDocs(q);
       const reservations = [];
       
-      querySnapshot.forEach((doc) => {
-        reservations.push({
-          id: doc.id,
-          ...doc.data()
-        });
+      const activeStatuses = [
+        RESERVATION_STATUS.PENDING,
+        RESERVATION_STATUS.APPROVED,
+        RESERVATION_STATUS.READY
+      ];
+      
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const reservationDate = data.reservationDate?.toDate ? data.reservationDate.toDate() : new Date(data.reservationDate);
+        
+        // Filter by date range and status in memory
+        if (reservationDate >= startOfDay && 
+            reservationDate <= endOfDay && 
+            activeStatuses.includes(data.status)) {
+          reservations.push({
+            id: docSnap.id,
+            ...data
+          });
+        }
+      });
+
+      // Sort by startTime
+      reservations.sort((a, b) => {
+        const aTime = a.startTime?.toDate ? a.startTime.toDate() : new Date(a.startTime);
+        const bTime = b.startTime?.toDate ? b.startTime.toDate() : new Date(b.startTime);
+        return aTime - bTime;
       });
 
       return reservations;
     } catch (error) {
       console.error('Error getting equipment reservations:', error);
-      throw error;
+      return []; // Return empty array on error to not block UI
     }
   }
 
@@ -590,34 +601,183 @@ class ReservationService {
     try {
       const now = new Date();
       const reservationsRef = collection(db, this.COLLECTION_NAME);
+      let totalUpdatedCount = 0;
       
-      // Get reservations that should be expired
+      // Query separately for each status to avoid composite index issues
+      const statusesToCheck = [RESERVATION_STATUS.APPROVED, RESERVATION_STATUS.READY];
+      
+      for (const status of statusesToCheck) {
+        try {
+          const q = query(
+            reservationsRef,
+            where('status', '==', status),
+            orderBy('endTime', 'asc')
+          );
+          
+          const querySnapshot = await getDocs(q);
+          const updatePromises = [];
+          const expiredDocs = [];
+          
+          querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const endTime = data.endTime?.toDate ? data.endTime.toDate() : new Date(data.endTime);
+            
+            // Check if reservation has expired
+            if (endTime < now) {
+              expiredDocs.push(docSnap.ref);
+            }
+          });
+          
+          // Create update promises outside the forEach loop
+          for (const docRef of expiredDocs) {
+            updatePromises.push(
+              updateDoc(docRef, {
+                status: RESERVATION_STATUS.EXPIRED,
+                updatedAt: serverTimestamp()
+              })
+            );
+          }
+          
+          await Promise.all(updatePromises);
+          totalUpdatedCount += expiredDocs.length;
+        } catch (statusError) {
+          console.warn(`Error checking ${status} reservations:`, statusError.message);
+        }
+      }
+      
+      return totalUpdatedCount;
+    } catch (error) {
+      console.error('Error updating expired reservations:', error);
+      // Don't throw - just return 0 to not block the UI
+      return 0;
+    }
+  }
+
+  /**
+   * Check if user has active loan for same equipment on same day
+   * @param {string} userId - User ID
+   * @param {string} equipmentId - Equipment ID
+   * @param {Date} date - Date to check
+   * @returns {Promise<boolean>} True if conflict exists
+   */
+  static async hasLoanConflict(userId, equipmentId, date) {
+    try {
+      // Import loanRequestService dynamically to avoid circular dependency
+      const { default: LoanRequestService } = await import('./loanRequestService');
+      
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      // Check for active loans on the same day
+      const loans = await LoanRequestService.getUserLoanRequests(userId, {
+        status: ['approved', 'borrowed'],
+        equipmentId
+      });
+      
+      // Check if any loan overlaps with the reservation date
+      for (const loan of loans) {
+        const borrowDate = loan.borrowDate?.toDate ? loan.borrowDate.toDate() : new Date(loan.borrowDate);
+        const returnDate = loan.expectedReturnDate?.toDate ? loan.expectedReturnDate.toDate() : new Date(loan.expectedReturnDate);
+        
+        if (borrowDate <= endOfDay && returnDate >= startOfDay) {
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking loan conflict:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if user can make a reservation based on settings
+   * @param {string} userId - User ID
+   * @param {Object} reservationData - Reservation data
+   * @param {Object} settings - System settings
+   * @returns {Promise<Object>} Validation result { valid: boolean, error?: string }
+   */
+  static async validateReservationWithSettings(userId, reservationData, settings) {
+    try {
+      const { equipmentId, reservationDate } = reservationData;
+      const date = new Date(reservationDate);
+      
+      // Check max advance booking days
+      const maxAdvanceDays = settings.maxAdvanceBookingDays || 30;
+      const maxDate = new Date();
+      maxDate.setDate(maxDate.getDate() + maxAdvanceDays);
+      
+      if (date > maxDate) {
+        return {
+          valid: false,
+          error: `สามารถจองล่วงหน้าได้สูงสุด ${maxAdvanceDays} วัน`
+        };
+      }
+      
+      // Check for loan conflict on same day
+      const hasConflict = await this.hasLoanConflict(userId, equipmentId, date);
+      if (hasConflict) {
+        return {
+          valid: false,
+          error: 'ไม่สามารถจองอุปกรณ์ที่คุณกำลังยืมอยู่ในวันเดียวกันได้'
+        };
+      }
+      
+      // Check closed dates
+      const settingsService = (await import('./settingsService')).default;
+      const isClosed = await settingsService.isDateClosed(date);
+      if (isClosed) {
+        return {
+          valid: false,
+          error: 'วันที่เลือกเป็นวันปิดทำการ'
+        };
+      }
+      
+      return { valid: true };
+    } catch (error) {
+      console.error('Error validating reservation with settings:', error);
+      return { valid: true }; // Allow on error to not block users
+    }
+  }
+
+  /**
+   * Get user's active reservations count
+   * @param {string} userId - User ID
+   * @returns {Promise<number>} Count of active reservations
+   */
+  static async getUserActiveReservationsCount(userId) {
+    try {
+      const reservationsRef = collection(db, this.COLLECTION_NAME);
+      // Simple query - filter by userId only, then filter status in memory
       const q = query(
         reservationsRef,
-        where('status', 'in', [RESERVATION_STATUS.APPROVED, RESERVATION_STATUS.READY]),
-        where('endTime', '<', now)
+        where('userId', '==', userId)
       );
       
       const querySnapshot = await getDocs(q);
-      let updatedCount = 0;
       
-      const updatePromises = [];
-      querySnapshot.forEach((doc) => {
-        const reservationRef = doc.ref;
-        updatePromises.push(
-          updateDoc(reservationRef, {
-            status: RESERVATION_STATUS.EXPIRED,
-            updatedAt: serverTimestamp()
-          })
-        );
-        updatedCount++;
+      const activeStatuses = [
+        RESERVATION_STATUS.PENDING,
+        RESERVATION_STATUS.APPROVED,
+        RESERVATION_STATUS.READY
+      ];
+      
+      let count = 0;
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (activeStatuses.includes(data.status)) {
+          count++;
+        }
       });
       
-      await Promise.all(updatePromises);
-      return updatedCount;
+      return count;
     } catch (error) {
-      console.error('Error updating expired reservations:', error);
-      throw error;
+      console.error('Error getting user active reservations count:', error);
+      return 0;
     }
   }
 }

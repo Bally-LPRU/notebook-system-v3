@@ -11,6 +11,7 @@ const EquipmentManagementContainer = ({
   onAddEquipment,
   onEditEquipment,
   onViewEquipment,
+  onDeleteEquipment,
   className = ''
 }) => {
   const { isAdmin, refreshToken } = useAuth();
@@ -551,6 +552,15 @@ const EquipmentManagementContainer = ({
                           title="แก้ไข"
                         >
                           แก้ไข
+                        </button>
+                      )}
+                      {isAdmin && onDeleteEquipment && (
+                        <button
+                          onClick={() => onDeleteEquipment(item)}
+                          className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                          title="ลบ"
+                        >
+                          ลบ
                         </button>
                       )}
                     </div>

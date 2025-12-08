@@ -1,10 +1,29 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useSettings } from '../contexts/SettingsContext';
+import { useUserTypeLimits } from '../hooks/useUserTypeLimits';
+import { useClosedDates } from '../hooks/useClosedDates';
 import { Layout } from './layout';
-import { DashboardStats, RecentActivity, StatsChart, QuickActions } from './dashboard/index';
+import { 
+  DashboardStats, 
+  RecentActivity, 
+  StatsChart, 
+  QuickActions,
+  BorrowingLimitsCard,
+  LoanRulesSection
+} from './dashboard/index';
 
 const Dashboard = () => {
   const { user, userProfile, isAdmin } = useAuth();
+  const { settings, loading: settingsLoading } = useSettings();
+  const { closedDates, loading: closedDatesLoading } = useClosedDates();
+  const {
+    limits,
+    loading: limitsLoading,
+    currentBorrowedCount,
+    pendingRequestsCount,
+    remainingQuota
+  } = useUserTypeLimits();
 
   return (
     <Layout>
@@ -99,6 +118,26 @@ const Dashboard = () => {
               </div>
             )}
           </div>
+
+          {/* Borrowing Limits Card - Requirements: 1.1, 1.2, 1.3, 1.4 */}
+          {userProfile?.status === 'approved' && (
+            <BorrowingLimitsCard
+              limits={limits}
+              currentBorrowedCount={currentBorrowedCount}
+              pendingRequestsCount={pendingRequestsCount}
+              remainingQuota={remainingQuota}
+              loading={limitsLoading}
+            />
+          )}
+
+          {/* Loan Rules Section - Requirements: 1.6, 1.7, 1.8, 1.9 */}
+          {userProfile?.status === 'approved' && (
+            <LoanRulesSection
+              settings={settings}
+              closedDates={closedDates}
+              loading={settingsLoading || closedDatesLoading}
+            />
+          )}
 
           {/* Dashboard Statistics */}
           <DashboardStats />

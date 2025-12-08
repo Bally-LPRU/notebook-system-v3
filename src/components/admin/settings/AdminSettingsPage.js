@@ -13,14 +13,16 @@
  * Requirements: 1.1, 1.3, 1.4
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { Layout } from '../../layout';
 import { Navigate } from 'react-router-dom';
+import GeneralTab from './GeneralTab';
 import ClosedDatesTab from './ClosedDatesTab';
 import LoanRulesTab from './LoanRulesTab';
 import CategoryLimitsTab from './CategoryLimitsTab';
+import UserTypeLimitsTab from './UserTypeLimitsTab';
 import NotificationsTab from './NotificationsTab';
 import SystemNotificationsTab from './SystemNotificationsTab';
 import AuditLogTab from './AuditLogTab';
@@ -33,6 +35,7 @@ const SETTINGS_TABS = [
   {
     id: 'general',
     name: 'ทั่วไป',
+    shortName: 'ทั่วไป',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -44,6 +47,7 @@ const SETTINGS_TABS = [
   {
     id: 'loan-rules',
     name: 'กฎการยืม',
+    shortName: 'กฎยืม',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -52,8 +56,20 @@ const SETTINGS_TABS = [
     description: 'ระยะเวลาการยืมและการจองล่วงหน้า'
   },
   {
+    id: 'user-type-limits',
+    name: 'ยืมตามประเภทผู้ใช้',
+    shortName: 'ตามผู้ใช้',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+    description: 'กำหนดจำนวนอุปกรณ์และวันยืมตามประเภทผู้ใช้'
+  },
+  {
     id: 'closed-dates',
     name: 'วันปิดทำการ',
+    shortName: 'วันปิด',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -63,27 +79,30 @@ const SETTINGS_TABS = [
   },
   {
     id: 'category-limits',
-    name: 'จำกัดการยืม',
+    name: 'จำกัดตามหมวดหมู่',
+    shortName: 'หมวดหมู่',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
       </svg>
     ),
-    description: 'จำนวนอุปกรณ์ที่ยืมได้ตามประเภท'
+    description: 'จำนวนอุปกรณ์ที่ยืมได้ตามหมวดหมู่'
   },
   {
     id: 'notifications',
-    name: 'การแจ้งเตือน',
+    name: 'Discord Webhook',
+    shortName: 'Discord',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
       </svg>
     ),
-    description: 'Discord webhook และข้อความแจ้งเตือน'
+    description: 'ตั้งค่า Discord webhook สำหรับแจ้งเตือน'
   },
   {
     id: 'system-notifications',
-    name: 'ข้อความแจ้งเตือนระบบ',
+    name: 'ข้อความแจ้งเตือน',
+    shortName: 'ข้อความ',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -94,6 +113,7 @@ const SETTINGS_TABS = [
   {
     id: 'audit-log',
     name: 'บันทึกการเปลี่ยนแปลง',
+    shortName: 'บันทึก',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -114,8 +134,9 @@ const SETTINGS_TABS = [
  */
 const AdminSettingsPage = () => {
   const { isAdmin, loading: authLoading, userProfile } = useAuth();
-  const { settings, loading: settingsLoading, error: settingsError } = useSettings();
+  const { loading: settingsLoading, error: settingsError } = useSettings();
   const [activeTab, setActiveTab] = useState('general');
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Access control: Redirect non-admin users
   if (!authLoading && !isAdmin) {
@@ -210,29 +231,15 @@ const AdminSettingsPage = () => {
         case 'system-notifications':
           return <SystemNotificationsTab />;
         
+        case 'user-type-limits':
+          return <UserTypeLimitsTab />;
+        
         case 'audit-log':
           return <AuditLogTab />;
         
+        case 'general':
         default:
-          // Placeholder content for tabs not yet implemented
-          return (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="text-center py-12">
-                <div className="mx-auto h-16 w-16 text-gray-300 mb-4">
-                  {activeTabInfo?.icon}
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {activeTabInfo?.name}
-                </h3>
-                <p className="text-gray-500">
-                  {activeTabInfo?.description}
-                </p>
-                <p className="mt-4 text-sm text-gray-400">
-                  ฟีเจอร์นี้จะพัฒนาในขั้นตอนถัดไป
-                </p>
-              </div>
-            </div>
-          );
+          return <GeneralTab />;
       }
     };
 
@@ -279,29 +286,86 @@ const AdminSettingsPage = () => {
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="mb-6">
+        {/* Mobile Tab Selector */}
+        <div className="mb-6 lg:hidden">
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-blue-600">
+                {SETTINGS_TABS.find(t => t.id === activeTab)?.icon}
+              </span>
+              <span className="font-medium text-gray-900">
+                {SETTINGS_TABS.find(t => t.id === activeTab)?.name}
+              </span>
+            </div>
+            <svg 
+              className={`w-5 h-5 text-gray-500 transition-transform ${showMobileMenu ? 'rotate-180' : ''}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          
+          {/* Mobile Dropdown Menu */}
+          {showMobileMenu && (
+            <div className="mt-2 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+              {SETTINGS_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setShowMobileMenu(false);
+                  }}
+                  className={`
+                    w-full flex items-center gap-3 px-4 py-3 text-left transition-colors
+                    ${activeTab === tab.id
+                      ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50 border-l-4 border-transparent'
+                    }
+                  `}
+                >
+                  <span className={activeTab === tab.id ? 'text-blue-600' : 'text-gray-400'}>
+                    {tab.icon}
+                  </span>
+                  <div>
+                    <div className="font-medium">{tab.name}</div>
+                    <div className="text-xs text-gray-500">{tab.description}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Tab Navigation */}
+        <div className="mb-6 hidden lg:block">
           <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
+            <nav className="-mb-px flex space-x-1 overflow-x-auto scrollbar-thin" aria-label="Tabs">
               {SETTINGS_TABS.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`
-                    group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap
+                    group inline-flex items-center py-3 px-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors
                     ${activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-blue-500 text-blue-600 bg-blue-50/50'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                     }
                   `}
                   aria-current={activeTab === tab.id ? 'page' : undefined}
+                  title={tab.description}
                 >
                   <span className={`
                     ${activeTab === tab.id ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'}
                   `}>
                     {tab.icon}
                   </span>
-                  <span className="ml-2">{tab.name}</span>
+                  <span className="ml-2 hidden xl:inline">{tab.name}</span>
+                  <span className="ml-2 xl:hidden">{tab.shortName}</span>
                 </button>
               ))}
             </nav>

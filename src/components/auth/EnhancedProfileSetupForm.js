@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import FormField from '../common/FormField';
 import DepartmentSelector from '../common/DepartmentSelector';
 import ProgressIndicator from '../common/ProgressIndicator';
@@ -23,7 +22,6 @@ const EnhancedProfileSetupForm = ({
   errorClassification = null
 }) => {
   const { user, updateProfile, loading, error } = useAuth();
-  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -35,7 +33,6 @@ const EnhancedProfileSetupForm = ({
     error: duplicateError,
     checkDuplicates,
     clearState: clearDuplicateState,
-    hasDuplicate,
     existingProfile
   } = useDuplicateDetection();
 

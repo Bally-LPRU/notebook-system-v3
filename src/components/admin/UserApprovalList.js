@@ -167,6 +167,27 @@ const UserApprovalList = () => {
     }
   };
 
+  const handleUserDelete = async (userId) => {
+    try {
+      console.log('🗑️ Starting delete process for user:', userId);
+      setError(null);
+      
+      await UserService.deleteUser(userId, user.uid);
+      
+      console.log('✅ User deleted successfully');
+      
+      // Reload users and stats
+      await loadUsers();
+      await loadUserStats();
+      
+      alert('✅ ลบผู้ใช้สำเร็จ');
+    } catch (error) {
+      console.error('❌ Error deleting user:', error);
+      setError(error.message || 'ไม่สามารถลบผู้ใช้ได้ กรุณาลองใหม่อีกครั้ง');
+      alert('❌ เกิดข้อผิดพลาด: ' + (error.message || 'ไม่สามารถลบผู้ใช้ได้'));
+    }
+  };
+
   const tabs = [
     { id: 'pending', label: 'รอการอนุมัติ', count: stats.pending },
     { id: 'all', label: 'ทั้งหมด', count: stats.total },
@@ -427,6 +448,7 @@ const UserApprovalList = () => {
                 <UserManagementTable
                   users={allUsers}
                   onUserUpdate={handleUserUpdate}
+                  onUserDelete={handleUserDelete}
                   onLoadMore={handleLoadMore}
                   hasMore={hasMore}
                   loading={loadingMore}

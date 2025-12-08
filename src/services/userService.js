@@ -5,6 +5,8 @@ import {
   getDocs, 
   doc, 
   updateDoc, 
+  deleteDoc,
+  getDoc,
   serverTimestamp,
   orderBy,
   limit as firestoreLimit,
@@ -339,6 +341,77 @@ class UserService {
     } catch (error) {
       console.error('Error updating user profile:', error);
       throw error;
+    }
+  }
+
+  // Get user by ID
+  static async getUserById(userId) {
+    try {
+      const userDocRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        return {
+          id: userDoc.id,
+          ...userDoc.data()
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting user by ID:', error);
+      throw error;
+    }
+  }
+
+  // Delete user (soft delete - set status to deleted)
+  static async deleteUser(userId, deletedBy) {
+    try {
+      console.log('🗑️ Deleting user:', userId);
+      const userDocRef = doc(db, 'users', userId);
+      
+      // Check if user exists
+      const userDoc = await getDoc(userDocRef);
+      if (!userDoc.exists()) {
+        throw new Error('ไม่พบผู้ใช้ที่ต้องการลบ');
+      }
+
+      // Soft delete - update status to deleted
+      await updateDoc(userDocRef, {
+        status: 'deleted',
+        deletedBy: deletedBy,
+        deletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        isActive: false
+      });
+      
+      console.log('✅ User deleted successfully:', userId);
+      return { success: true, message: 'ลบผู้ใช้สำเร็จ' };
+    } catch (error) {
+      console.error('❌ Error deleting user:', error);
+      throw new Error(`ไม่สามารถลบผู้ใช้ได้: ${error.message}`);
+    }
+  }
+
+  // Hard delete user (permanently remove from database)
+  static async hardDeleteUser(userId, deletedBy) {
+    try {
+      console.log('🗑️ Permanently deleting user:', userId);
+      const userDocRef = doc(db, 'users', userId);
+      
+      // Check if user exists
+      const userDoc = await getDoc(userDocRef);
+      if (!userDoc.exists()) {
+        throw new Error('ไม่พบผู้ใช้ที่ต้องการลบ');
+      }
+
+      // Hard delete
+      await deleteDoc(userDocRef);
+      
+      console.log('✅ User permanently deleted:', userId);
+      return { success: true, message: 'ลบผู้ใช้ถาวรสำเร็จ' };
+    } catch (error) {
+      console.error('❌ Error permanently deleting user:', error);
+      throw new Error(`ไม่สามารถลบผู้ใช้ถาวรได้: ${error.message}`);
     }
   }
 }

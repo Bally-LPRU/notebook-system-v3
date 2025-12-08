@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Layout } from '../layout';
 import { useUserLoanRequests } from '../../hooks/useLoanRequests';
+import { useUserTypeLimits } from '../../hooks/useUserTypeLimits';
 import { 
   LOAN_REQUEST_STATUS_LABELS, 
   LOAN_REQUEST_STATUS_COLORS,
@@ -25,6 +26,16 @@ const MyRequests = () => {
     sortBy: 'createdAt',
     sortOrder: 'desc'
   });
+
+  // Use user type limits hook for borrowing summary
+  const {
+    limits,
+    loading: limitsLoading,
+    currentBorrowedCount,
+    pendingRequestsCount,
+    remainingQuota,
+    canBorrow
+  } = useUserTypeLimits();
 
   useEffect(() => {
     updateFilters({ status: statusFilter });
@@ -82,6 +93,128 @@ const MyRequests = () => {
           <p className="mt-2 text-gray-600">
             ติดตามสถานะคำขอยืมและการจองของคุณ
           </p>
+        </div>
+
+        {/* Borrowing Summary Card - Requirements: 6.1, 6.2, 6.3, 6.4, 6.5 */}
+        <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            สรุปการยืมของคุณ
+          </h2>
+          
+          {limitsLoading ? (
+            <div className="flex justify-center py-4">
+              <LoadingSpinner size="sm" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Current Borrowed Count */}
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-600">กำลังยืมอยู่</p>
+                    <p className="text-2xl font-bold text-blue-900">{currentBorrowedCount}</p>
+                  </div>
+                  <div className="p-3 bg-blue-100 rounded-full">
+                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                  </div>
+                </div>
+                <p className="text-xs text-blue-500 mt-1">อุปกรณ์ที่ยืมอยู่ในขณะนี้</p>
+              </div>
+
+              {/* Pending Requests Count */}
+              <div className="bg-yellow-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-yellow-600">รอดำเนินการ</p>
+                    <p className="text-2xl font-bold text-yellow-900">{pendingRequestsCount}</p>
+                  </div>
+                  <div className="p-3 bg-yellow-100 rounded-full">
+                    <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <p className="text-xs text-yellow-500 mt-1">คำขอที่รอการอนุมัติ/รับอุปกรณ์</p>
+              </div>
+
+              {/* Remaining Quota */}
+              <div className={`rounded-lg p-4 ${canBorrow ? 'bg-green-50' : 'bg-red-50'}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm font-medium ${canBorrow ? 'text-green-600' : 'text-red-600'}`}>
+                      ยืมได้อีก
+                    </p>
+                    <p className={`text-2xl font-bold ${canBorrow ? 'text-green-900' : 'text-red-900'}`}>
+                      {remainingQuota}
+                    </p>
+                  </div>
+                  <div className={`p-3 rounded-full ${canBorrow ? 'bg-green-100' : 'bg-red-100'}`}>
+                    <svg className={`w-6 h-6 ${canBorrow ? 'text-green-600' : 'text-red-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {canBorrow ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      )}
+                    </svg>
+                  </div>
+                </div>
+                <p className={`text-xs mt-1 ${canBorrow ? 'text-green-500' : 'text-red-500'}`}>
+                  จากโควต้าสูงสุด {limits.maxItems} ชิ้น
+                </p>
+              </div>
+
+              {/* Max Items Limit */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">โควต้าสูงสุด</p>
+                    <p className="text-2xl font-bold text-gray-900">{limits.maxItems}</p>
+                  </div>
+                  <div className="p-3 bg-gray-100 rounded-full">
+                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {limits.isEnabled 
+                    ? `ตามประเภท: ${limits.userTypeName}` 
+                    : 'ค่าเริ่มต้นของระบบ'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Warning if cannot borrow */}
+          {!limitsLoading && !canBorrow && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="text-sm text-red-700">
+                  คุณยืมอุปกรณ์ครบจำนวนสูงสุดแล้ว กรุณาคืนอุปกรณ์ก่อนยืมเพิ่ม
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* User type warning */}
+          {!limitsLoading && limits.warning && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-yellow-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm text-yellow-700">{limits.warning}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Status Filter */}

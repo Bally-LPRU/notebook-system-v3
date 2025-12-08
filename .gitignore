@@ -25,6 +25,7 @@
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+functions/node_modules/
 
 # Firebase Service Account Key (NEVER COMMIT THIS!)
 config/serviceAccountKey.json

@@ -11,13 +11,16 @@ const LoanRequestCard = ({
   onReject,
   isSelectable = false,
   isSelected = false,
-  onSelect
+  onSelect,
+  compact = false
 }) => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const handleSelectChange = (e) => {
+    e.stopPropagation();
     if (onSelect) {
       onSelect(e.target.checked);
     }
@@ -36,25 +39,20 @@ const LoanRequestCard = ({
     if (!loc) return '-';
     if (typeof loc === 'string') return loc;
     if (typeof loc === 'object') {
-      const parts = [
-        loc.building,
-        loc.floor,
-        loc.room,
-        loc.description || loc.note
-      ].filter(Boolean);
+      const parts = [loc.building, loc.floor, loc.room].filter(Boolean);
       if (parts.length > 0) return parts.join(' / ');
-      return JSON.stringify(loc);
+      return loc.description || loc.note || '-';
     }
     return String(loc);
   };
 
   const getStatusColor = (status) => {
     const colorMap = {
-      yellow: 'bg-yellow-100 text-yellow-800',
-      green: 'bg-green-100 text-green-800',
-      red: 'bg-red-100 text-red-800',
-      blue: 'bg-blue-100 text-blue-800',
-      gray: 'bg-gray-100 text-gray-800'
+      yellow: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      green: 'bg-green-100 text-green-800 border-green-200',
+      red: 'bg-red-100 text-red-800 border-red-200',
+      blue: 'bg-blue-100 text-blue-800 border-blue-200',
+      gray: 'bg-gray-100 text-gray-800 border-gray-200'
     };
     return colorMap[LOAN_REQUEST_STATUS_COLORS[status]] || colorMap.gray;
   };
@@ -63,9 +61,9 @@ const LoanRequestCard = ({
     if (!date) return '-';
     const d = date.toDate ? date.toDate() : new Date(date);
     return d.toLocaleDateString('th-TH', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      month: 'short',
+      year: '2-digit'
     });
   };
 
@@ -73,15 +71,16 @@ const LoanRequestCard = ({
     if (!date) return '-';
     const d = date.toDate ? date.toDate() : new Date(date);
     return d.toLocaleString('th-TH', {
-      year: 'numeric',
-      month: 'long',
       day: 'numeric',
+      month: 'short',
+      year: '2-digit',
       hour: '2-digit',
       minute: '2-digit'
     });
   };
 
-  const handleApprove = async () => {
+  const handleApprove = async (e) => {
+    e.stopPropagation();
     if (window.confirm('คุณต้องการอนุมัติคำขอยืมนี้หรือไม่?')) {
       setIsProcessing(true);
       try {
@@ -120,169 +119,143 @@ const LoanRequestCard = ({
   };
 
   const isPending = request.status === LOAN_REQUEST_STATUS.PENDING;
+  const equipmentName = request.equipment?.name || request._equipmentName || 'ไม่ทราบชื่ออุปกรณ์';
+  const userName = request.user?.displayName || request.user?.firstName 
+    ? `${request.user?.firstName || ''} ${request.user?.lastName || ''}`.trim() 
+    : request._userName || 'ไม่ทราบชื่อ';
 
   return (
     <>
-      <div className={`bg-white rounded-lg shadow-sm border p-6 transition-all duration-200 ${
-        isSelected 
-          ? 'border-blue-500 shadow-md ring-2 ring-blue-200' 
-          : 'border-gray-200'
-      }`}>
-        <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-3 flex-1">
-            {/* Selection Checkbox */}
+      <div 
+        className={`bg-white rounded-lg shadow-sm border transition-all duration-200 ${
+          isSelected 
+            ? 'border-blue-500 ring-2 ring-blue-200' 
+            : 'border-gray-200 hover:border-gray-300'
+        }`}
+      >
+        {/* Compact Header - Always Visible */}
+        <div 
+          className="p-3 sm:p-4 cursor-pointer"
+          onClick={() => setExpanded(!expanded)}
+        >
+          <div className="flex items-start gap-2 sm:gap-3">
+            {/* Checkbox */}
             {isSelectable && (
-              <div className="mt-1">
+              <div className="pt-1 flex-shrink-0">
                 <input
                   type="checkbox"
                   checked={isSelected}
                   onChange={handleSelectChange}
+                  onClick={(e) => e.stopPropagation()}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
               </div>
             )}
-            
-            <div className="flex-1">
-              {/* Header */}
-              <div className="flex items-center space-x-3 mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {request.equipment?.name || 'อุปกรณ์ที่ไม่พบ'}
+
+            {/* Equipment Image - Mobile: smaller */}
+            {request.equipment?.imageURL && (
+              <img
+                src={request.equipment.imageURL}
+                alt={equipmentName}
+                className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded-lg flex-shrink-0"
+              />
+            )}
+            {!request.equipment?.imageURL && (
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+            )}
+
+            {/* Main Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900 truncate max-w-[150px] sm:max-w-none">
+                  {equipmentName}
                 </h3>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
-                {LOAN_REQUEST_STATUS_LABELS[request.status]}
-              </span>
-              {isPending && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                  รอดำเนินการ
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(request.status)}`}>
+                  {LOAN_REQUEST_STATUS_LABELS[request.status]}
                 </span>
+              </div>
+              
+              {/* Quick Info Row */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-gray-600">
+                <span className="flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span className="truncate max-w-[100px] sm:max-w-[150px]">{userName}</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  {formatDate(request.borrowDate)} - {formatDate(request.expectedReturnDate)}
+                </span>
+                <span className="hidden sm:flex items-center gap-1 text-gray-500">
+                  ({calculateLoanDuration()} วัน)
+                </span>
+              </div>
+            </div>
+
+            {/* Actions - Desktop */}
+            <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+              {isPending && (
+                <>
+                  <button
+                    onClick={handleApprove}
+                    disabled={isProcessing}
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isProcessing ? (
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                    ) : (
+                      <>
+                        <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        อนุมัติ
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowRejectModal(true); }}
+                    disabled={isProcessing}
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    ปฏิเสธ
+                  </button>
+                </>
               )}
-              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+                className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className={`w-5 h-5 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Equipment Info */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-gray-900">ข้อมูลอุปกรณ์</h4>
-                {request.equipment ? (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-start space-x-3">
-                      {request.equipment.imageURL && (
-                        <img
-                          src={request.equipment.imageURL}
-                          alt={request.equipment.name}
-                          className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">{request.equipment.name}</p>
-                        <p className="text-sm text-gray-600">{request.equipment.brand} {request.equipment.model}</p>
-                        <p className="text-xs text-gray-500 font-mono">รหัส: {formatText(request.equipment.serialNumber || request.equipment.equipmentNumber)}</p>
-                        <p className="text-xs text-gray-500">สถานที่: {formatLocation(request.equipment.location)}</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-red-50 rounded-lg p-4">
-                    <p className="text-sm text-red-600">ไม่พบข้อมูลอุปกรณ์</p>
-                  </div>
-                )}
-              </div>
-
-              {/* User Info */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-gray-900">ข้อมูลผู้ขอยืม</h4>
-                {request.user ? (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-start space-x-3">
-                      {request.user.photoURL && (
-                        <img
-                          src={request.user.photoURL}
-                          alt={`${request.user.firstName} ${request.user.lastName}`}
-                          className="w-12 h-12 rounded-full flex-shrink-0"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">
-                          {formatText(request.user.firstName)} {formatText(request.user.lastName)}
-                        </p>
-                        <p className="text-sm text-gray-600">{formatText(request.user.email)}</p>
-                        <p className="text-xs text-gray-500">
-                          {formatText(request.user.department)} ({formatText(request.user.userType)})
-                        </p>
-                        {request.user.phoneNumber && (
-                          <p className="text-xs text-gray-500">โทร: {formatText(request.user.phoneNumber)}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-red-50 rounded-lg p-4">
-                    <p className="text-sm text-red-600">ไม่พบข้อมูลผู้ใช้</p>
-                  </div>
-                )}
-              </div>
+            {/* Expand Icon - Mobile */}
+            <div className="sm:hidden flex-shrink-0">
+              <svg className={`w-5 h-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </div>
-
-            {/* Request Details */}
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="font-medium text-gray-700">วันที่ส่งคำขอ:</span>
-                <p className="text-gray-600">{formatDateTime(request.createdAt)}</p>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">วันที่ต้องการยืม:</span>
-                <p className="text-gray-600">{formatDate(request.borrowDate)}</p>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">วันที่คาดว่าจะคืน:</span>
-                <p className="text-gray-600">{formatDate(request.expectedReturnDate)}</p>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">ระยะเวลายืม:</span>
-                <p className="text-gray-600">{calculateLoanDuration()} วัน</p>
-              </div>
-            </div>
-
-            {/* Purpose */}
-            <div className="mt-4">
-              <span className="font-medium text-gray-700">วัตถุประสงค์การใช้งาน:</span>
-              <p className="text-gray-600 mt-1 bg-gray-50 rounded-lg p-3">{request.purpose}</p>
-            </div>
-
-            {/* Notes */}
-            {request.notes && (
-              <div className="mt-3">
-                <span className="font-medium text-gray-700">หมายเหตุเพิ่มเติม:</span>
-                <p className="text-gray-600 mt-1 bg-gray-50 rounded-lg p-3">{request.notes}</p>
-              </div>
-            )}
-
-            {/* Approval/Rejection Info */}
-            {request.approvedAt && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <div className="text-sm">
-                  <span className="font-medium text-blue-700">
-                    {request.status === LOAN_REQUEST_STATUS.REJECTED ? 'ปฏิเสธเมื่อ:' : 'อนุมัติเมื่อ:'}
-                  </span>
-                  <p className="text-blue-600">{formatDateTime(request.approvedAt)}</p>
-                  {request.rejectionReason && (
-                    <>
-                      <span className="font-medium text-red-700 block mt-2">เหตุผลที่ปฏิเสธ:</span>
-                      <p className="text-red-600">{request.rejectionReason}</p>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Actions */}
+          {/* Mobile Actions */}
           {isPending && (
-            <div className="ml-6 flex-shrink-0 space-y-2">
+            <div className="sm:hidden flex gap-2 mt-3 pt-3 border-t border-gray-100">
               <button
                 onClick={handleApprove}
                 disabled={isProcessing}
-                className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isProcessing ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -295,11 +268,10 @@ const LoanRequestCard = ({
                   </>
                 )}
               </button>
-              
               <button
-                onClick={() => setShowRejectModal(true)}
+                onClick={(e) => { e.stopPropagation(); setShowRejectModal(true); }}
                 disabled={isProcessing}
-                className="w-full inline-flex items-center justify-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -309,24 +281,143 @@ const LoanRequestCard = ({
             </div>
           )}
         </div>
+
+        {/* Expanded Details */}
+        {expanded && (
+          <div className="px-3 sm:px-4 pb-3 sm:pb-4 border-t border-gray-100">
+            <div className="pt-3 sm:pt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Equipment Info */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">ข้อมูลอุปกรณ์</h4>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-start gap-3">
+                    {request.equipment?.imageURL && (
+                      <img
+                        src={request.equipment.imageURL}
+                        alt={equipmentName}
+                        className="w-14 h-14 object-cover rounded-lg flex-shrink-0"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0 text-sm">
+                      <p className="font-medium text-gray-900">{equipmentName}</p>
+                      {(request.equipment?.brand || request.equipment?.model) && (
+                        <p className="text-gray-600">{request.equipment?.brand} {request.equipment?.model}</p>
+                      )}
+                      <p className="text-xs text-gray-500 font-mono">
+                        รหัส: {formatText(request.equipment?.serialNumber || request.equipment?.equipmentNumber || request.equipmentNumber)}
+                      </p>
+                      {request.equipment?.location && (
+                        <p className="text-xs text-gray-500">สถานที่: {formatLocation(request.equipment.location)}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* User Info */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">ข้อมูลผู้ขอยืม</h4>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-start gap-3">
+                    {request.user?.photoURL && (
+                      <img
+                        src={request.user.photoURL}
+                        alt={userName}
+                        className="w-10 h-10 rounded-full flex-shrink-0"
+                      />
+                    )}
+                    {!request.user?.photoURL && (
+                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0 text-sm">
+                      <p className="font-medium text-gray-900">{userName}</p>
+                      <p className="text-gray-600 truncate">{formatText(request.user?.email)}</p>
+                      <p className="text-xs text-gray-500">
+                        {formatText(request.user?.department)} {request.user?.userType && `(${formatText(request.user.userType)})`}
+                      </p>
+                      {request.user?.phoneNumber && (
+                        <p className="text-xs text-gray-500">โทร: {formatText(request.user.phoneNumber)}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Request Details */}
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+              <div className="bg-gray-50 rounded-lg p-2.5">
+                <span className="block text-xs text-gray-500">วันที่ส่งคำขอ</span>
+                <span className="font-medium text-gray-900">{formatDateTime(request.createdAt)}</span>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-2.5">
+                <span className="block text-xs text-gray-500">วันที่ยืม</span>
+                <span className="font-medium text-gray-900">{formatDate(request.borrowDate)}</span>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-2.5">
+                <span className="block text-xs text-gray-500">วันที่คืน</span>
+                <span className="font-medium text-gray-900">{formatDate(request.expectedReturnDate)}</span>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-2.5">
+                <span className="block text-xs text-gray-500">ระยะเวลา</span>
+                <span className="font-medium text-gray-900">{calculateLoanDuration()} วัน</span>
+              </div>
+            </div>
+
+            {/* Purpose */}
+            <div className="mt-3">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">วัตถุประสงค์</span>
+              <p className="mt-1 text-sm text-gray-700 bg-gray-50 rounded-lg p-2.5">{request.purpose || '-'}</p>
+            </div>
+
+            {/* Notes */}
+            {request.notes && (
+              <div className="mt-3">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">หมายเหตุ</span>
+                <p className="mt-1 text-sm text-gray-700 bg-gray-50 rounded-lg p-2.5">{request.notes}</p>
+              </div>
+            )}
+
+            {/* Approval/Rejection Info */}
+            {request.approvedAt && (
+              <div className={`mt-3 p-3 rounded-lg ${request.status === LOAN_REQUEST_STATUS.REJECTED ? 'bg-red-50' : 'bg-blue-50'}`}>
+                <div className="text-sm">
+                  <span className={`font-medium ${request.status === LOAN_REQUEST_STATUS.REJECTED ? 'text-red-700' : 'text-blue-700'}`}>
+                    {request.status === LOAN_REQUEST_STATUS.REJECTED ? 'ปฏิเสธเมื่อ:' : 'อนุมัติเมื่อ:'}
+                  </span>
+                  <span className={`ml-2 ${request.status === LOAN_REQUEST_STATUS.REJECTED ? 'text-red-600' : 'text-blue-600'}`}>
+                    {formatDateTime(request.approvedAt)}
+                  </span>
+                  {request.rejectionReason && (
+                    <div className="mt-2">
+                      <span className="font-medium text-red-700">เหตุผล:</span>
+                      <p className="text-red-600 mt-1">{request.rejectionReason}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Reject Modal */}
       {showRejectModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border max-w-md shadow-lg rounded-md bg-white">
-            <div className="mt-3">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+          <div className="relative w-full max-w-md bg-white rounded-lg shadow-xl">
+            <div className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">ปฏิเสธคำขอยืม</h3>
+                <h3 className="text-lg font-semibold text-gray-900">ปฏิเสธคำขอยืม</h3>
                 <button
-                  onClick={() => {
-                    setShowRejectModal(false);
-                    setRejectionReason('');
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => { setShowRejectModal(false); setRejectionReason(''); }}
+                  className="text-gray-400 hover:text-gray-600 p-1"
                   disabled={isProcessing}
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -340,38 +431,33 @@ const LoanRequestCard = ({
                   id="rejectionReason"
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  rows={4}
-                  placeholder="กรุณาระบุเหตุผลในการปฏิเสธคำขอยืมนี้..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  rows={3}
+                  placeholder="กรุณาระบุเหตุผล..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
                   disabled={isProcessing}
                   required
                 />
-                <p className="mt-1 text-sm text-gray-500">
-                  {rejectionReason.length}/500 ตัวอักษร
-                </p>
+                <p className="mt-1 text-xs text-gray-500">{rejectionReason.length}/500</p>
               </div>
               
-              <div className="flex justify-end space-x-3">
+              <div className="flex gap-3">
                 <button
-                  onClick={() => {
-                    setShowRejectModal(false);
-                    setRejectionReason('');
-                  }}
+                  onClick={() => { setShowRejectModal(false); setRejectionReason(''); }}
                   disabled={isProcessing}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   ยกเลิก
                 </button>
                 <button
                   onClick={handleReject}
                   disabled={isProcessing || !rejectionReason.trim()}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {isProcessing ? (
-                    <div className="flex items-center">
+                    <span className="flex items-center justify-center">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                       กำลังดำเนินการ...
-                    </div>
+                    </span>
                   ) : (
                     'ปฏิเสธคำขอ'
                   )}

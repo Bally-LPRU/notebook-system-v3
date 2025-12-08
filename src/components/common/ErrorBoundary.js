@@ -32,7 +32,6 @@ class ErrorBoundary extends React.Component {
   static analyzeError(error) {
     const errorMessage = error?.message?.toLowerCase() || '';
     const errorCode = error?.code || '';
-    const errorStack = error?.stack?.toLowerCase() || '';
 
     // Firebase configuration errors
     if (errorMessage.includes('firebase configuration') || 

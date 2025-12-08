@@ -17,6 +17,7 @@ const ReservationCalendar = ({
   selectedDate, 
   onDateSelect, 
   onTimeSlotSelect,
+  maxAdvanceBookingDays,
   className = '' 
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -58,13 +59,18 @@ const ReservationCalendar = ({
     return 0;
   };
 
-  // Check if date is selectable
+  // Check if date is selectable based on user's maxAdvanceBookingDays
+  // Requirements: 5.2 - limit date picker to maximum advance booking days for user's type
   const isDateSelectable = (date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    // Use user-specific maxAdvanceBookingDays if provided, otherwise use default from config
+    const advanceBookingLimit = maxAdvanceBookingDays || TIME_SLOTS_CONFIG.ADVANCE_BOOKING_DAYS;
+    
     const maxDate = new Date();
-    maxDate.setDate(maxDate.getDate() + TIME_SLOTS_CONFIG.ADVANCE_BOOKING_DAYS);
+    maxDate.setDate(maxDate.getDate() + advanceBookingLimit);
+    maxDate.setHours(23, 59, 59, 999);
     
     return date >= today && date <= maxDate;
   };

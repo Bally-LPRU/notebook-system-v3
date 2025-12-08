@@ -24,6 +24,10 @@
 ### การจัดการผู้ใช้
 - `USER_MANAGEMENT_MENU_FIX.md` - แก้ไขเมนูจัดการผู้ใช้
 
+### ระบบการจอง (ธ.ค. 2567)
+- `RESERVATION_MANAGEMENT_IMPLEMENTATION.md` - การพัฒนาระบบจัดการการจอง
+- `REPORTS_MODULE_ARCHIVE.md` - Archive ของ Reports Module
+
 ### ดัชนีเอกสาร
 - `ADMIN_SETTINGS_DOCS_INDEX.md` - ดัชนีเอกสาร Admin Settings
 
