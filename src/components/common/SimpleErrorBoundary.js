@@ -3,23 +3,95 @@ import React from 'react';
 class SimpleErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, isChunkError: false };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    // Check if it's a ChunkLoadError (code splitting issue)
+    const isChunkError = error?.name === 'ChunkLoadError' || 
+                         error?.message?.includes('Loading chunk') ||
+                         error?.message?.includes('Loading CSS chunk') ||
+                         error?.message?.includes('Failed to fetch dynamically imported module');
+    
+    return { hasError: true, error, isChunkError };
   }
 
   componentDidCatch(error, errorInfo) {
     console.error('Error caught by ErrorBoundary:', error, errorInfo);
+    
+    // Auto-reload for ChunkLoadError (usually caused by new deployment)
+    if (this.state.isChunkError) {
+      console.log('ChunkLoadError detected, will auto-reload...');
+      // Clear cache and reload
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => caches.delete(name));
+        });
+      }
+    }
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null, isChunkError: false });
+  };
+
+  handleHardReload = () => {
+    // Clear all caches and force reload
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        Promise.all(names.map(name => caches.delete(name))).then(() => {
+          window.location.reload(true);
+        });
+      });
+    } else {
+      window.location.reload(true);
+    }
   };
 
   render() {
     if (this.state.hasError) {
+      // Special handling for ChunkLoadError
+      if (this.state.isChunkError) {
+        return (
+          <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+            <div className="sm:mx-auto sm:w-full sm:max-w-md">
+              <div className="mx-auto h-16 w-16 text-blue-500 mb-6 flex items-center justify-center">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-full h-full">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              
+              <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+                <div className="text-center">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                    มีการอัปเดตใหม่
+                  </h2>
+                  
+                  <p className="text-gray-600 mb-4">
+                    ระบบได้รับการอัปเดตเวอร์ชันใหม่
+                  </p>
+
+                  <p className="text-sm text-gray-500 mb-6">
+                    กรุณารีโหลดหน้าเพื่อใช้งานเวอร์ชันล่าสุด
+                  </p>
+
+                  <button
+                    onClick={this.handleHardReload}
+                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    รีโหลดหน้า
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // Generic error handling
       return (
         <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
           <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -52,7 +124,7 @@ class SimpleErrorBoundary extends React.Component {
                   </button>
                   
                   <button
-                    onClick={() => window.location.reload()}
+                    onClick={this.handleHardReload}
                     className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                     รีโหลดหน้า
