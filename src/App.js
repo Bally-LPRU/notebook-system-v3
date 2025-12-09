@@ -42,6 +42,7 @@ const LazyMyRequests = lazy(() => import('./components/requests/MyRequests'));
 const LazyReservationPage = lazy(() => import('./components/reservations/ReservationPage'));
 const LazyProfilePage = lazy(() => import('./components/profile/ProfilePage'));
 const LazyNotificationCenter = lazy(() => import('./components/admin/NotificationCenter'));
+const LazyUnifiedNotificationCenter = lazy(() => import('./components/notifications/UnifiedNotificationCenter'));
 const LazyNotificationSettings = lazy(() => import('./components/notifications/NotificationSettings'));
 const LazyLoanHistoryPage = lazy(() => import('./components/loan/LoanHistoryPage'));
 const LazyNotificationHistoryPage = lazy(() => import('./components/notifications/NotificationHistoryPage'));
@@ -210,7 +211,7 @@ const AppRoutes = () => {
       
       <Route path="/admin/notifications" element={
         <ProtectedRoute requireAdmin={true}>
-          <LazyNotificationCenter />
+          <LazyUnifiedNotificationCenter />
         </ProtectedRoute>
       } />
       

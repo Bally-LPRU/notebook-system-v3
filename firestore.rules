@@ -149,6 +149,12 @@ service cloud.firestore {
                        resource.data.status == 'pending') ||
                        (isAdmin() && 
                        !request.resource.data.keys().hasAny(['userId', 'equipmentId', 'createdAt']));
+      
+      // Allow user to delete their own pending loan requests
+      allow delete: if (isApprovedUser() && 
+                       request.auth.uid == resource.data.userId &&
+                       resource.data.status == 'pending') ||
+                       isAdmin();
     }
     
     // Reservations collection rules
@@ -296,6 +302,36 @@ service cloud.firestore {
     // Settings backups collection - admin only
     match /settingsBackups/{backupId} {
       allow read, write: if isAdmin();
+    }
+    
+    // Admin notification state collection - stores read states for admin notifications
+    // Each admin can only read/write their own notification states
+    match /adminNotificationState/{stateId} {
+      allow read: if isAdmin() && resource.data.adminId == request.auth.uid;
+      allow create: if isAdmin() && 
+                       request.resource.data.adminId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['adminId', 'notificationId', 'sourceType', 'isRead', 'createdAt']);
+      allow update: if isAdmin() && 
+                       resource.data.adminId == request.auth.uid &&
+                       request.resource.data.adminId == request.auth.uid;
+      allow delete: if isAdmin() && resource.data.adminId == request.auth.uid;
+      
+      // Allow admin to query their own notification states
+      allow list: if isAdmin();
+    }
+    
+    // Admin notification history collection - stores completed actions history
+    // Each admin can only read/write their own history
+    match /adminNotificationHistory/{historyId} {
+      allow read: if isAdmin() && resource.data.adminId == request.auth.uid;
+      allow create: if isAdmin() && 
+                       request.resource.data.adminId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['adminId', 'action', 'sourceType', 'sourceId', 'actionAt']);
+      // History entries should not be modified or deleted (audit trail)
+      allow update, delete: if false;
+      
+      // Allow admin to query their own history
+      allow list: if isAdmin();
     }
   }
 }
