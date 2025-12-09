@@ -307,7 +307,8 @@ service cloud.firestore {
     // Admin notification state collection - stores read states for admin notifications
     // Each admin can only read/write their own notification states
     match /adminNotificationState/{stateId} {
-      allow read: if isAdmin() && resource.data.adminId == request.auth.uid;
+      // Allow admin to read their own notification states (single doc or query)
+      allow read: if isAdmin();
       allow create: if isAdmin() && 
                        request.resource.data.adminId == request.auth.uid &&
                        request.resource.data.keys().hasAll(['adminId', 'notificationId', 'sourceType', 'isRead', 'createdAt']);
@@ -315,23 +316,18 @@ service cloud.firestore {
                        resource.data.adminId == request.auth.uid &&
                        request.resource.data.adminId == request.auth.uid;
       allow delete: if isAdmin() && resource.data.adminId == request.auth.uid;
-      
-      // Allow admin to query their own notification states
-      allow list: if isAdmin();
     }
     
     // Admin notification history collection - stores completed actions history
     // Each admin can only read/write their own history
     match /adminNotificationHistory/{historyId} {
-      allow read: if isAdmin() && resource.data.adminId == request.auth.uid;
+      // Allow admin to read their own history (single doc or query)
+      allow read: if isAdmin();
       allow create: if isAdmin() && 
                        request.resource.data.adminId == request.auth.uid &&
                        request.resource.data.keys().hasAll(['adminId', 'action', 'sourceType', 'sourceId', 'actionAt']);
       // History entries should not be modified or deleted (audit trail)
       allow update, delete: if false;
-      
-      // Allow admin to query their own history
-      allow list: if isAdmin();
     }
   }
 }

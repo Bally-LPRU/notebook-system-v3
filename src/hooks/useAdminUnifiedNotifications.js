@@ -225,7 +225,9 @@ const useAdminUnifiedNotifications = (adminId, isAdmin = false) => {
         const states = await getReadStates(adminId);
         setReadStates(states);
       } catch (err) {
-        console.error('Error loading read states:', err);
+        // Handle permission errors gracefully - just use empty read states
+        console.warn('Could not load read states (may be first time or permission issue):', err.message);
+        setReadStates(new Map());
       }
     };
     

@@ -12,6 +12,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { Layout } from '../layout';
 import useAdminUnifiedNotifications from '../../hooks/useAdminUnifiedNotifications';
 import { getHistory } from '../../services/adminNotificationService';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -200,15 +201,18 @@ const UnifiedNotificationCenter = ({ defaultTab = 'action' }) => {
 
   if (!isAdmin) {
     return (
-      <div className="p-8 text-center">
-        <p className="text-gray-500">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</p>
-      </div>
+      <Layout>
+        <div className="p-8 text-center">
+          <p className="text-gray-500">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+        </div>
+      </Layout>
     );
   }
 
   const currentNotifications = getCurrentNotifications();
 
   return (
+    <Layout>
     <div className="max-w-6xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="mb-6">
@@ -456,6 +460,7 @@ const UnifiedNotificationCenter = ({ defaultTab = 'action' }) => {
         </div>
       )}
     </div>
+    </Layout>
   );
 };
 
