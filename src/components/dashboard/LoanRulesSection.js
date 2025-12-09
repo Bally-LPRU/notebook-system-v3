@@ -92,11 +92,11 @@ const LoanRulesSection = ({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse">
-        <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
-        <div className="space-y-3">
-          <div className="h-4 bg-gray-200 rounded w-full"></div>
-          <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 animate-pulse">
+        <div className="h-5 sm:h-6 bg-gray-200 rounded w-1/3 mb-3 sm:mb-4"></div>
+        <div className="space-y-2 sm:space-y-3">
+          <div className="h-3 sm:h-4 bg-gray-200 rounded w-full"></div>
+          <div className="h-3 sm:h-4 bg-gray-200 rounded w-2/3"></div>
         </div>
       </div>
     );
@@ -111,24 +111,24 @@ const LoanRulesSection = ({
   const hasReturnTimeRestriction = loanReturnStartTime && loanReturnEndTime;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+      <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">
         กฎระเบียบการยืม-คืน
       </h3>
 
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {/* Return Time Restriction */}
         {hasReturnTimeRestriction && (
           <div className="flex items-start">
             <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-blue-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-900">เวลาคืนอุปกรณ์</p>
-              <p className="text-sm text-gray-600">
-                สามารถคืนอุปกรณ์ได้ในช่วงเวลา {formatTime(loanReturnStartTime)} - {formatTime(loanReturnEndTime)} น.
+            <div className="ml-2 sm:ml-3">
+              <p className="text-xs sm:text-sm font-medium text-gray-900">เวลาคืนอุปกรณ์</p>
+              <p className="text-xs sm:text-sm text-gray-600">
+                {formatTime(loanReturnStartTime)} - {formatTime(loanReturnEndTime)} น.
               </p>
             </div>
           </div>
@@ -138,14 +138,14 @@ const LoanRulesSection = ({
         {maxAdvanceBookingDays && (
           <div className="flex items-start">
             <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-green-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-900">การจองล่วงหน้า</p>
-              <p className="text-sm text-gray-600">
-                สามารถจองอุปกรณ์ล่วงหน้าได้ไม่เกิน {maxAdvanceBookingDays} วัน
+            <div className="ml-2 sm:ml-3">
+              <p className="text-xs sm:text-sm font-medium text-gray-900">จองล่วงหน้า</p>
+              <p className="text-xs sm:text-sm text-gray-600">
+                ไม่เกิน {maxAdvanceBookingDays} วัน
               </p>
             </div>
           </div>
@@ -154,43 +154,42 @@ const LoanRulesSection = ({
         {/* General Rules */}
         <div className="flex items-start">
           <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-yellow-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium text-gray-900">ข้อควรทราบ</p>
-            <ul className="text-sm text-gray-600 list-disc list-inside mt-1 space-y-1">
-              <li>กรุณาคืนอุปกรณ์ตามกำหนดเวลา</li>
-              <li>หากคืนล่าช้าอาจมีผลต่อสิทธิ์การยืมครั้งต่อไป</li>
-              <li>ตรวจสอบสภาพอุปกรณ์ก่อนรับและคืน</li>
+          <div className="ml-2 sm:ml-3">
+            <p className="text-xs sm:text-sm font-medium text-gray-900">ข้อควรทราบ</p>
+            <ul className="text-xs sm:text-sm text-gray-600 list-disc list-inside mt-1 space-y-0.5 sm:space-y-1">
+              <li>คืนอุปกรณ์ตามกำหนด</li>
+              <li>ตรวจสอบสภาพก่อนรับ-คืน</li>
             </ul>
           </div>
         </div>
 
         {/* Upcoming Closed Dates */}
         {upcomingClosedDates.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
             <div className="flex items-start">
               <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </div>
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-medium text-gray-900">วันปิดทำการที่กำลังจะมาถึง</p>
-                <div className="mt-2 space-y-2">
+              <div className="ml-2 sm:ml-3 flex-1">
+                <p className="text-xs sm:text-sm font-medium text-gray-900">วันปิดทำการ</p>
+                <div className="mt-1.5 sm:mt-2 space-y-1.5 sm:space-y-2">
                   {upcomingClosedDates.map((item, index) => (
                     <div 
                       key={item.id || index}
-                      className="flex items-center justify-between bg-red-50 rounded-md px-3 py-2"
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-red-50 rounded-md px-2 sm:px-3 py-1.5 sm:py-2"
                     >
-                      <span className="text-sm text-red-800">
+                      <span className="text-xs sm:text-sm text-red-800">
                         {formatDate(item.date)}
                       </span>
                       {item.reason && (
-                        <span className="text-xs text-red-600 ml-2">
-                          ({item.reason})
+                        <span className="text-xs text-red-600 sm:ml-2">
+                          {item.reason}
                         </span>
                       )}
                     </div>
@@ -203,12 +202,12 @@ const LoanRulesSection = ({
 
         {/* No upcoming closed dates message */}
         {upcomingClosedDates.length === 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="flex items-center text-sm text-gray-500">
-              <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
+            <div className="flex items-center text-xs sm:text-sm text-gray-500">
+              <svg className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              ไม่มีวันปิดทำการในช่วง 30 วันข้างหน้า
+              ไม่มีวันปิดทำการใน 30 วันข้างหน้า
             </div>
           </div>
         )}

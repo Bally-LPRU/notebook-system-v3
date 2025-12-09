@@ -6,7 +6,7 @@
  * Requirements: 9.1, 9.2, 9.3, 9.4, 9.5
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useLoanHistory, HISTORY_STATUSES } from '../../hooks/useLoanHistory';
 import { useEquipmentCategories } from '../../hooks/useEquipmentCategories';
+import { Layout } from '../layout';
 import LoanStatusBadge from './LoanStatusBadge';
 import { LOAN_REQUEST_STATUS_LABELS } from '../../types/loanRequest';
 
@@ -58,14 +59,14 @@ const StatCard = ({ icon: Icon, label, value, color = 'blue' }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      <div className="flex items-center">
-        <div className={`p-2 rounded-lg ${colorClasses[color]}`}>
-          <Icon className="w-5 h-5" />
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 sm:p-4">
+      <div className="flex flex-col sm:flex-row sm:items-center">
+        <div className={`p-1.5 sm:p-2 rounded-lg ${colorClasses[color]} mx-auto sm:mx-0 mb-1 sm:mb-0`}>
+          <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
-        <div className="ml-3">
-          <p className="text-sm text-gray-500">{label}</p>
-          <p className="text-xl font-semibold text-gray-900">{value}</p>
+        <div className="sm:ml-3 text-center sm:text-left">
+          <p className="text-xs text-gray-500">{label}</p>
+          <p className="text-sm sm:text-xl font-semibold text-gray-900">{value}</p>
         </div>
       </div>
     </div>
@@ -259,32 +260,33 @@ const LoanHistoryPage = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
+    <Layout>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">ประวัติการยืม-คืน</h1>
-        <p className="text-sm text-gray-500 mt-1">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">ประวัติการยืม-คืน</h1>
+        <p className="text-xs sm:text-sm text-gray-500 mt-1">
           ดูประวัติการยืมและคืนอุปกรณ์ทั้งหมดของคุณ
         </p>
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
         <StatCard
           icon={ChartBarIcon}
-          label="จำนวนการยืมทั้งหมด"
-          value={`${stats.totalLoans} ครั้ง`}
+          label="ยืมทั้งหมด"
+          value={`${stats.totalLoans}`}
           color="blue"
         />
         <StatCard
           icon={ClockIcon}
-          label="ระยะเวลายืมเฉลี่ย"
+          label="เฉลี่ย"
           value={`${stats.averageDuration} วัน`}
           color="purple"
         />
         <StatCard
           icon={CheckCircleIcon}
-          label="อัตราคืนตรงเวลา"
+          label="ตรงเวลา"
           value={`${stats.onTimeReturnRate}%`}
           color="green"
         />
@@ -392,6 +394,7 @@ const LoanHistoryPage = () => {
         </div>
       )}
     </div>
+    </Layout>
   );
 };
 
