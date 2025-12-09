@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCategories } from '../../contexts/EquipmentCategoriesContext';
 import { 
   EQUIPMENT_STATUS,
   EQUIPMENT_STATUS_LABELS
 } from '../../types/equipment';
 import { validateEquipmentForm, validateImageFile, sanitizeEquipmentForm } from '../../utils/equipmentValidation';
 import EquipmentManagementService from '../../services/equipmentManagementService';
-import EquipmentCategoryService from '../../services/equipmentCategoryService';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 const EquipmentForm = ({ 
@@ -16,6 +16,9 @@ const EquipmentForm = ({
   isEdit = false 
 }) => {
   const { user } = useAuth();
+  // Use categories from Context for consistent data across the app
+  const { categories, loading: loadingCategories, error: categoriesError } = useCategories();
+  
   const [formData, setFormData] = useState({
     equipmentNumber: '',
     name: '',
@@ -44,29 +47,16 @@ const EquipmentForm = ({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [checkingSerial, setCheckingSerial] = useState(false);
-  const [categories, setCategories] = useState([]);
-  const [loadingCategories, setLoadingCategories] = useState(true);
 
-  // Load categories from Firebase
+  // Set categories error if loading failed
   useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        setLoadingCategories(true);
-        const categoriesData = await EquipmentCategoryService.getCategories();
-        setCategories(categoriesData);
-      } catch (error) {
-        console.error('Error loading categories:', error);
-        setErrors(prev => ({
-          ...prev,
-          categories: 'ไม่สามารถโหลดประเภทอุปกรณ์ได้'
-        }));
-      } finally {
-        setLoadingCategories(false);
-      }
-    };
-
-    loadCategories();
-  }, []);
+    if (categoriesError) {
+      setErrors(prev => ({
+        ...prev,
+        categories: 'ไม่สามารถโหลดประเภทอุปกรณ์ได้'
+      }));
+    }
+  }, [categoriesError]);
 
   // Initialize form data for editing
   useEffect(() => {

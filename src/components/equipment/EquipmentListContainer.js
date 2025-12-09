@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useEquipment } from '../../hooks/useEquipment';
-import EquipmentCategoryService from '../../services/equipmentCategoryService';
+import { useCategories } from '../../contexts/EquipmentCategoriesContext';
 import { getCategoryId } from '../../utils/equipmentHelpers';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmptyState from '../common/EmptyState';
@@ -12,7 +12,8 @@ import EquipmentStatusBadge from './EquipmentStatusBadge';
  */
 const EquipmentListContainer = () => {
   const { equipment, loading, error, refreshEquipment } = useEquipment({ limit: 50 });
-  const [categories, setCategories] = useState([]);
+  // Use categories from Context for consistent data across the app
+  const { categories } = useCategories();
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,20 +23,6 @@ const EquipmentListContainer = () => {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
-
-  // Load categories
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const categoriesData = await EquipmentCategoryService.getCategories();
-        setCategories(categoriesData);
-      } catch (error) {
-        console.error('Error loading categories:', error);
-      }
-    };
-
-    loadCategories();
-  }, []);
 
   // Filtered equipment
   const filteredEquipment = useMemo(() => {

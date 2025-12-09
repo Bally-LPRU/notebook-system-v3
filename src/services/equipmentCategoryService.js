@@ -76,7 +76,7 @@ class EquipmentCategoryService {
       };
 
       // Invalidate categories cache
-      CacheService.setCachedFilterOptions('categories', null);
+      CacheService.invalidateCategoryCache();
 
       return createdCategory;
     } catch (error) {
@@ -158,7 +158,7 @@ class EquipmentCategoryService {
       };
 
       // Invalidate categories cache
-      CacheService.setCachedFilterOptions('categories', null);
+      CacheService.invalidateCategoryCache();
 
       return result;
     } catch (error) {
@@ -199,7 +199,7 @@ class EquipmentCategoryService {
       });
 
       // Invalidate categories cache
-      CacheService.setCachedFilterOptions('categories', null);
+      CacheService.invalidateCategoryCache();
 
       return true;
     } catch (error) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCategories } from '../../contexts/EquipmentCategoriesContext';
 import EquipmentManagementService from '../../services/equipmentManagementService';
-import EquipmentCategoryService from '../../services/equipmentCategoryService';
 import { getCategoryId } from '../../utils/equipmentHelpers';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmptyState from '../common/EmptyState';
@@ -15,13 +15,15 @@ const EquipmentManagementContainer = ({
   className = ''
 }) => {
   const { isAdmin, refreshToken } = useAuth();
+  // Use categories from Context for consistent data across the app
+  const { categories } = useCategories();
+  const categoryOptions = Array.isArray(categories) ? categories : [];
+  
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isPermissionError, setIsPermissionError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [categories, setCategories] = useState([]);
-  const categoryOptions = Array.isArray(categories) ? categories : [];
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -78,20 +80,6 @@ const EquipmentManagementContainer = ({
       paginatedEquipment: paginated
     };
   }, [filteredEquipment, currentPage, itemsPerPage]);
-
-  // Load categories from Firebase
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const categoriesData = await EquipmentCategoryService.getCategories();
-        setCategories(categoriesData);
-      } catch (error) {
-        console.error('Error loading categories:', error);
-      }
-    };
-
-    loadCategories();
-  }, []);
 
   // Memoized loadEquipment function
   const loadEquipment = useCallback(async () => {

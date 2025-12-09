@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Layout } from './layout';
 import EquipmentManagementService from '../services/equipmentManagementService';
-import EquipmentCategoryService from '../services/equipmentCategoryService';
 import { getCategoryId } from '../utils/equipmentHelpers';
 import LoadingSpinner from './common/LoadingSpinner';
 import EmptyState from './common/EmptyState';
 import EquipmentStatusBadge from './equipment/EquipmentStatusBadge';
 import LoanRequestForm from './loans/LoanRequestForm';
 import { useAuth } from '../contexts/AuthContext';
+import { useCategories } from '../contexts/EquipmentCategoriesContext';
 import { useNotificationContext } from '../contexts/NotificationContext';
 import { EQUIPMENT_STATUS } from '../types/equipment';
 
@@ -19,10 +19,12 @@ import { EQUIPMENT_STATUS } from '../types/equipment';
 const EquipmentPage = () => {
   const { user } = useAuth();
   const { showToast } = useNotificationContext();
+  // Use categories from Context for consistent data across the app
+  const { categories } = useCategories();
+  
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [categories, setCategories] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [showBorrowModal, setShowBorrowModal] = useState(false);
   
@@ -81,20 +83,6 @@ const EquipmentPage = () => {
       paginatedEquipment: paginated
     };
   }, [filteredEquipment, currentPage, itemsPerPage]);
-
-  // Load categories from Firebase
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const categoriesData = await EquipmentCategoryService.getCategories();
-        setCategories(categoriesData);
-      } catch (error) {
-        console.error('Error loading categories:', error);
-      }
-    };
-
-    loadCategories();
-  }, []);
 
   // Memoized loadEquipment function
   const loadEquipment = useCallback(async () => {

@@ -136,11 +136,25 @@ class CacheService {
   }
 
   static setCachedCategories(categories) {
+    if (categories === null) {
+      // If null is passed, delete the cache entry
+      this.categoryCache.delete('categories');
+      return;
+    }
     this.categoryCache.set('categories', {
       data: categories,
       timestamp: Date.now(),
       type: 'categories'
     });
+  }
+
+  /**
+   * Invalidate all category-related caches
+   */
+  static invalidateCategoryCache() {
+    this.categoryCache.delete('categories');
+    // Also clear filter options related to categories
+    this.categoryCache.delete('filter_options_categories');
   }
 
   static getCachedFilterOptions(filterType) {
