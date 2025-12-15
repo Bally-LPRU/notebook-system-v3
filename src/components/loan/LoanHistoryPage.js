@@ -94,7 +94,7 @@ const LoanHistoryItem = ({ item }) => {
   // Ensure all values are strings to prevent React error #31
   const rawEquipmentName = item.equipmentName || item._equipmentName || item.equipmentSnapshot?.name;
   const equipmentName = typeof rawEquipmentName === 'string' ? rawEquipmentName : 'ไม่ทราบชื่ออุปกรณ์';
-  const equipmentImage = item.equipmentSnapshot?.imageUrl || null;
+  const equipmentImage = item.equipmentSnapshot?.imageUrl || item.equipmentSnapshot?.imageURL || item.equipment?.imageUrl || item.equipment?.imageURL || null;
   const rawSerialNumber = item.equipmentSnapshot?.serialNumber || item.equipmentSnapshot?.equipmentNumber;
   const serialNumber = typeof rawSerialNumber === 'string' ? rawSerialNumber : '-';
   // Ensure category is a string, not an object

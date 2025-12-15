@@ -424,6 +424,19 @@ class LoanRequestService {
       // Notify user about approval
       await this.notifyUserLoanRequestStatus(updatedRequest, equipment, true);
 
+      // Send Discord notification for loan approval
+      try {
+        const discordWebhookService = (await import('./discordWebhookService.js')).default;
+        await discordWebhookService.notifyLoanApproved({
+          userName: loanRequest.userSnapshot?.displayName || loanRequest._userName || 'Unknown',
+          equipmentName: equipment?.name || loanRequest.equipmentSnapshot?.name || 'Unknown',
+          borrowDate: loanRequest.borrowDate,
+          returnDate: loanRequest.expectedReturnDate
+        }, 'Admin');
+      } catch (discordError) {
+        console.warn('Error sending Discord notification for loan approval (ignored):', discordError);
+      }
+
       return updatedRequest;
     } catch (error) {
       console.error('Error approving loan request:', error);
@@ -606,6 +619,17 @@ class LoanRequestService {
         console.warn('Failed to notify user about equipment return:', notifyError);
       }
 
+      // Send Discord notification for equipment return
+      try {
+        const discordWebhookService = (await import('./discordWebhookService.js')).default;
+        await discordWebhookService.notifyEquipmentReturned({
+          userName: loanRequest.userSnapshot?.displayName || loanRequest._userName || 'Unknown',
+          equipmentName: equipment?.name || loanRequest.equipmentSnapshot?.name || 'Unknown'
+        }, 'Admin');
+      } catch (discordError) {
+        console.warn('Error sending Discord notification for equipment return (ignored):', discordError);
+      }
+
       return updatedRequest;
     } catch (error) {
       console.error('Error marking as returned:', error);
@@ -655,6 +679,17 @@ class LoanRequestService {
 
       // Notify user about rejection
       await this.notifyUserLoanRequestStatus(updatedRequest, equipment, false, rejectionReason);
+
+      // Send Discord notification for loan rejection
+      try {
+        const discordWebhookService = (await import('./discordWebhookService.js')).default;
+        await discordWebhookService.notifyLoanRejected({
+          userName: loanRequest.userSnapshot?.displayName || loanRequest._userName || 'Unknown',
+          equipmentName: equipment?.name || loanRequest.equipmentSnapshot?.name || 'Unknown'
+        }, 'Admin', rejectionReason);
+      } catch (discordError) {
+        console.warn('Error sending Discord notification for loan rejection (ignored):', discordError);
+      }
 
       return updatedRequest;
     } catch (error) {

@@ -398,10 +398,10 @@ const MyRequests = () => {
                 <div className="flex items-start gap-4">
                   {/* Equipment Image */}
                   <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded-lg overflow-hidden">
-                    {request.equipment?.imageURL || request.equipmentSnapshot?.imageUrl ? (
+                    {request.equipment?.imageURL || request.equipment?.imageUrl || request.equipmentSnapshot?.imageUrl || request.equipmentSnapshot?.imageURL ? (
                       <img
-                        src={request.equipment?.imageURL || request.equipmentSnapshot?.imageUrl}
-                        alt={request.equipment?.name || 'อุปกรณ์'}
+                        src={request.equipment?.imageURL || request.equipment?.imageUrl || request.equipmentSnapshot?.imageUrl || request.equipmentSnapshot?.imageURL}
+                        alt={request.equipment?.name || request.equipmentSnapshot?.name || 'อุปกรณ์'}
                         className="w-full h-full object-cover"
                       />
                     ) : (
