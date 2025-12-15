@@ -193,7 +193,11 @@ export const useLoanHistory = () => {
       setHistory(historyItems);
     } catch (err) {
       console.error('Error loading loan history:', err);
-      setError(err.message || 'เกิดข้อผิดพลาดในการโหลดประวัติการยืม');
+      // Ensure error is always a string, not an object
+      const errorMessage = typeof err === 'string' 
+        ? err 
+        : (err?.message || err?.code || 'เกิดข้อผิดพลาดในการโหลดประวัติการยืม');
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -239,7 +243,13 @@ export const useLoanHistory = () => {
 
   // Calculate statistics from filtered history
   const stats = useMemo(() => {
-    return calculateLoanHistoryStats(filteredHistory);
+    const calculatedStats = calculateLoanHistoryStats(filteredHistory);
+    // Ensure all stats are numbers to prevent React rendering errors
+    return {
+      totalLoans: typeof calculatedStats.totalLoans === 'number' ? calculatedStats.totalLoans : 0,
+      averageDuration: typeof calculatedStats.averageDuration === 'number' ? calculatedStats.averageDuration : 0,
+      onTimeReturnRate: typeof calculatedStats.onTimeReturnRate === 'number' ? calculatedStats.onTimeReturnRate : 0
+    };
   }, [filteredHistory]);
 
   return {

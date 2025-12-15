@@ -28,12 +28,19 @@ import { LOAN_REQUEST_STATUS_LABELS } from '../../types/loanRequest';
  */
 const formatDate = (date) => {
   if (!date) return '-';
-  const d = date?.toDate?.() || new Date(date);
-  return d.toLocaleDateString('th-TH', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
+  try {
+    const d = date?.toDate?.() || new Date(date);
+    // Check if date is valid
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (err) {
+    console.warn('Error formatting date:', err);
+    return '-';
+  }
 };
 
 /**
@@ -41,11 +48,18 @@ const formatDate = (date) => {
  */
 const calculateDuration = (borrowDate, returnDate) => {
   if (!borrowDate) return '-';
-  const borrow = borrowDate?.toDate?.() || new Date(borrowDate);
-  const returnD = returnDate?.toDate?.() || (returnDate ? new Date(returnDate) : new Date());
-  const diffMs = returnD.getTime() - borrow.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  return `${Math.max(1, diffDays)} วัน`;
+  try {
+    const borrow = borrowDate?.toDate?.() || new Date(borrowDate);
+    const returnD = returnDate?.toDate?.() || (returnDate ? new Date(returnDate) : new Date());
+    // Check if dates are valid
+    if (isNaN(borrow.getTime()) || isNaN(returnD.getTime())) return '-';
+    const diffMs = returnD.getTime() - borrow.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    return `${Math.max(1, diffDays)} วัน`;
+  } catch (err) {
+    console.warn('Error calculating duration:', err);
+    return '-';
+  }
 };
 
 /**
@@ -77,10 +91,17 @@ const StatCard = ({ icon: Icon, label, value, color = 'blue' }) => {
  * Loan History Item Component
  */
 const LoanHistoryItem = ({ item }) => {
-  const equipmentName = item.equipmentName || item.equipmentSnapshot?.name || 'ไม่ทราบชื่ออุปกรณ์';
+  // Ensure all values are strings to prevent React error #31
+  const rawEquipmentName = item.equipmentName || item._equipmentName || item.equipmentSnapshot?.name;
+  const equipmentName = typeof rawEquipmentName === 'string' ? rawEquipmentName : 'ไม่ทราบชื่ออุปกรณ์';
   const equipmentImage = item.equipmentSnapshot?.imageUrl || null;
-  const serialNumber = item.equipmentSnapshot?.serialNumber || item.equipmentSnapshot?.equipmentNumber || '-';
-  const category = item.equipmentCategory || item.equipmentSnapshot?.category || '-';
+  const rawSerialNumber = item.equipmentSnapshot?.serialNumber || item.equipmentSnapshot?.equipmentNumber;
+  const serialNumber = typeof rawSerialNumber === 'string' ? rawSerialNumber : '-';
+  // Ensure category is a string, not an object
+  const rawCategory = item.equipmentCategory || item._equipmentCategory || item.equipmentSnapshot?.category;
+  const category = typeof rawCategory === 'object' ? (rawCategory?.name || '-') : (typeof rawCategory === 'string' ? rawCategory : '-');
+  // Ensure status is a string
+  const status = typeof item.status === 'string' ? item.status : 'pending';
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
@@ -111,7 +132,7 @@ const LoanHistoryItem = ({ item }) => {
                 หมายเลข: {serialNumber}
               </p>
             </div>
-            <LoanStatusBadge status={item.status} size="sm" />
+            <LoanStatusBadge status={status} size="sm" />
           </div>
 
           {/* Dates */}
@@ -137,7 +158,7 @@ const LoanHistoryItem = ({ item }) => {
           </div>
 
           {/* Purpose */}
-          {item.purpose && (
+          {item.purpose && typeof item.purpose === 'string' && (
             <p className="mt-2 text-xs text-gray-500 line-clamp-1">
               วัตถุประสงค์: {item.purpose}
             </p>
@@ -200,9 +221,9 @@ const FilterPanel = ({ filters, onFilterChange, onReset, categories }) => {
             className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">ทั้งหมด</option>
-            {categories.map(cat => (
+            {Array.isArray(categories) && categories.map(cat => (
               <option key={cat.id} value={cat.id}>
-                {cat.name}
+                {typeof cat.name === 'string' ? cat.name : String(cat.name || '')}
               </option>
             ))}
           </select>
