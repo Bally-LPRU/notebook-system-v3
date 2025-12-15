@@ -30,15 +30,27 @@ import { th } from 'date-fns/locale';
 
 const NotificationBell = () => {
   const { user, isAdmin } = useAuth();
-  const { notifications: regularNotifications, unreadCount: regularUnreadCount, markAsRead: markRegularAsRead } = useNotificationContext();
+  const { 
+    notifications: regularNotifications, 
+    unreadCount: regularUnreadCount, 
+    markAsRead: markRegularAsRead,
+    showToast 
+  } = useNotificationContext();
   
-  // Use unified notifications for admin users
+  // Callback for new admin notifications - show toast
+  const handleNewAdminNotification = React.useCallback((notification) => {
+    if (showToast) {
+      showToast(notification);
+    }
+  }, [showToast]);
+  
+  // Use unified notifications for admin users with toast callback
   const {
     allNotifications: adminNotifications,
     counts: adminCounts,
     markAsRead: markAdminAsRead,
     loading: adminLoading
-  } = useAdminUnifiedNotifications(user?.uid, isAdmin);
+  } = useAdminUnifiedNotifications(user?.uid, isAdmin, handleNewAdminNotification);
   
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);

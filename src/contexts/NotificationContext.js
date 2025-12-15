@@ -221,35 +221,60 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // Set up real-time listener
+  // Set up real-time listener with toast notifications for new items
   useEffect(() => {
     if (!user?.uid) return;
+
+    let previousNotificationIds = new Set();
+    let isInitialLoad = true;
 
     const unsubscribe = NotificationService.subscribeToUserNotifications(
       user.uid,
       (notifications) => {
+        // Get current notification IDs
+        const currentIds = new Set(notifications.map(n => n.id));
+        
+        // Find new notifications (not in previous set)
+        if (!isInitialLoad) {
+          const newNotifications = notifications.filter(n => !previousNotificationIds.has(n.id));
+          
+          // Show toast for each new notification
+          newNotifications.forEach(notification => {
+            console.log('🔔 New notification received:', notification.title);
+            showToast({
+              title: notification.title,
+              message: notification.message,
+              type: notification.type,
+              priority: notification.priority
+            });
+          });
+        }
+        
+        // Update previous IDs for next comparison
+        previousNotificationIds = currentIds;
+        isInitialLoad = false;
+        
+        // Update state
         dispatch({ type: NOTIFICATION_ACTIONS.SET_NOTIFICATIONS, payload: notifications });
+        
+        // Update unread count
+        const unreadCount = notifications.filter(n => !n.isRead).length;
+        dispatch({ type: NOTIFICATION_ACTIONS.SET_UNREAD_COUNT, payload: unreadCount });
       }
     );
 
-    // Listen for new notifications
+    // Listen for new notifications from window events (for same-tab updates)
     const handleNewNotification = async (event) => {
       if (event.detail.userId === user.uid) {
         const { notification } = event.detail;
         
-        // Add to notifications list
-        dispatch({ type: NOTIFICATION_ACTIONS.ADD_NOTIFICATION, payload: notification });
-        
         // Show toast notification
-        showToast(notification);
-        
-        // Update unread count
-        try {
-          const count = await NotificationService.getUnreadCount(user.uid);
-          dispatch({ type: NOTIFICATION_ACTIONS.SET_UNREAD_COUNT, payload: count });
-        } catch (error) {
-          console.error('Error updating unread count:', error);
-        }
+        showToast({
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          priority: notification.priority
+        });
       }
     };
 

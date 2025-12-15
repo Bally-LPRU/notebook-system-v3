@@ -280,10 +280,10 @@ export const getHistoryBySourceType = async (adminId, sourceType, limitCount = 2
  * @returns {Promise<void>}
  */
 export const approveUser = async (adminId, userId, userData = {}) => {
-  // Import userService dynamically to avoid circular dependencies
-  const { updateUserStatus } = await import('./userService');
+  // Import UserService class (default export)
+  const UserService = (await import('./userService')).default;
   
-  await updateUserStatus(userId, 'approved');
+  await UserService.approveUser(userId, adminId);
   
   // Add to history
   await addToHistory(
@@ -293,6 +293,16 @@ export const approveUser = async (adminId, userId, userData = {}) => {
     userId,
     userData
   );
+  
+  // Send Discord notification (non-blocking)
+  try {
+    const discordService = (await import('./discordWebhookService')).default;
+    discordService.notifyUserApproved(userData, 'Admin').catch(err => {
+      console.warn('Discord notification failed:', err.message);
+    });
+  } catch (err) {
+    console.warn('Could not send Discord notification:', err.message);
+  }
 };
 
 /**
@@ -304,9 +314,10 @@ export const approveUser = async (adminId, userId, userData = {}) => {
  * @returns {Promise<void>}
  */
 export const rejectUser = async (adminId, userId, userData = {}, reason = null) => {
-  const { updateUserStatus } = await import('./userService');
+  // Import UserService class (default export)
+  const UserService = (await import('./userService')).default;
   
-  await updateUserStatus(userId, 'rejected', reason);
+  await UserService.rejectUser(userId, adminId, reason);
   
   await addToHistory(
     adminId,
@@ -316,6 +327,16 @@ export const rejectUser = async (adminId, userId, userData = {}, reason = null) 
     userData,
     reason
   );
+  
+  // Send Discord notification (non-blocking)
+  try {
+    const discordService = (await import('./discordWebhookService')).default;
+    discordService.notifyUserRejected(userData, 'Admin', reason).catch(err => {
+      console.warn('Discord notification failed:', err.message);
+    });
+  } catch (err) {
+    console.warn('Could not send Discord notification:', err.message);
+  }
 };
 
 /**
@@ -326,9 +347,10 @@ export const rejectUser = async (adminId, userId, userData = {}, reason = null) 
  * @returns {Promise<void>}
  */
 export const approveLoan = async (adminId, loanId, loanData = {}) => {
-  const { updateLoanRequestStatus } = await import('./loanRequestService');
+  // Import LoanRequestService class (default export)
+  const LoanRequestService = (await import('./loanRequestService')).default;
   
-  await updateLoanRequestStatus(loanId, 'approved', adminId);
+  await LoanRequestService.updateLoanRequestStatus(loanId, 'approved', adminId);
   
   await addToHistory(
     adminId,
@@ -337,6 +359,16 @@ export const approveLoan = async (adminId, loanId, loanData = {}) => {
     loanId,
     loanData
   );
+  
+  // Send Discord notification (non-blocking)
+  try {
+    const discordService = (await import('./discordWebhookService')).default;
+    discordService.notifyLoanApproved(loanData, 'Admin').catch(err => {
+      console.warn('Discord notification failed:', err.message);
+    });
+  } catch (err) {
+    console.warn('Could not send Discord notification:', err.message);
+  }
 };
 
 /**
@@ -348,9 +380,10 @@ export const approveLoan = async (adminId, loanId, loanData = {}) => {
  * @returns {Promise<void>}
  */
 export const rejectLoan = async (adminId, loanId, loanData = {}, reason = null) => {
-  const { updateLoanRequestStatus } = await import('./loanRequestService');
+  // Import LoanRequestService class (default export)
+  const LoanRequestService = (await import('./loanRequestService')).default;
   
-  await updateLoanRequestStatus(loanId, 'rejected', adminId, reason);
+  await LoanRequestService.updateLoanRequestStatus(loanId, 'rejected', adminId, reason);
   
   await addToHistory(
     adminId,
@@ -360,6 +393,16 @@ export const rejectLoan = async (adminId, loanId, loanData = {}, reason = null) 
     loanData,
     reason
   );
+  
+  // Send Discord notification (non-blocking)
+  try {
+    const discordService = (await import('./discordWebhookService')).default;
+    discordService.notifyLoanRejected(loanData, 'Admin', reason).catch(err => {
+      console.warn('Discord notification failed:', err.message);
+    });
+  } catch (err) {
+    console.warn('Could not send Discord notification:', err.message);
+  }
 };
 
 /**
@@ -370,9 +413,10 @@ export const rejectLoan = async (adminId, loanId, loanData = {}, reason = null) 
  * @returns {Promise<void>}
  */
 export const approveReservation = async (adminId, reservationId, reservationData = {}) => {
-  const { updateReservationStatus } = await import('./reservationService');
+  // Import ReservationService class (default export)
+  const ReservationService = (await import('./reservationService')).default;
   
-  await updateReservationStatus(reservationId, 'approved');
+  await ReservationService.updateReservationStatus(reservationId, 'approved', adminId);
   
   await addToHistory(
     adminId,
@@ -381,6 +425,29 @@ export const approveReservation = async (adminId, reservationId, reservationData
     reservationId,
     reservationData
   );
+  
+  // Send Discord notification (non-blocking)
+  try {
+    const discordService = (await import('./discordWebhookService')).default;
+    // Reuse loan approved notification format for reservations
+    discordService.sendDiscordNotification('การจองอุปกรณ์ได้รับการอนุมัติ', {
+      embeds: [{
+        title: '✅ การจองอุปกรณ์ได้รับการอนุมัติ',
+        color: 0x2ecc71,
+        fields: [
+          { name: 'ผู้จอง', value: reservationData.userName || 'Unknown', inline: true },
+          { name: 'อุปกรณ์', value: reservationData.equipmentName || 'Unknown', inline: true },
+          { name: 'อนุมัติโดย', value: 'Admin', inline: true }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: { text: 'ระบบยืม-คืนอุปกรณ์' }
+      }]
+    }).catch(err => {
+      console.warn('Discord notification failed:', err.message);
+    });
+  } catch (err) {
+    console.warn('Could not send Discord notification:', err.message);
+  }
 };
 
 /**
@@ -392,9 +459,10 @@ export const approveReservation = async (adminId, reservationId, reservationData
  * @returns {Promise<void>}
  */
 export const rejectReservation = async (adminId, reservationId, reservationData = {}, reason = null) => {
-  const { updateReservationStatus } = await import('./reservationService');
+  // Import ReservationService class (default export)
+  const ReservationService = (await import('./reservationService')).default;
   
-  await updateReservationStatus(reservationId, 'rejected', reason);
+  await ReservationService.updateReservationStatus(reservationId, 'rejected', adminId, reason);
   
   await addToHistory(
     adminId,
@@ -404,6 +472,33 @@ export const rejectReservation = async (adminId, reservationId, reservationData 
     reservationData,
     reason
   );
+  
+  // Send Discord notification (non-blocking)
+  try {
+    const discordService = (await import('./discordWebhookService')).default;
+    const fields = [
+      { name: 'ผู้จอง', value: reservationData.userName || 'Unknown', inline: true },
+      { name: 'อุปกรณ์', value: reservationData.equipmentName || 'Unknown', inline: true },
+      { name: 'ปฏิเสธโดย', value: 'Admin', inline: true }
+    ];
+    if (reason) {
+      fields.push({ name: 'เหตุผล', value: reason, inline: false });
+    }
+    
+    discordService.sendDiscordNotification('การจองอุปกรณ์ถูกปฏิเสธ', {
+      embeds: [{
+        title: '❌ การจองอุปกรณ์ถูกปฏิเสธ',
+        color: 0xe74c3c,
+        fields,
+        timestamp: new Date().toISOString(),
+        footer: { text: 'ระบบยืม-คืนอุปกรณ์' }
+      }]
+    }).catch(err => {
+      console.warn('Discord notification failed:', err.message);
+    });
+  } catch (err) {
+    console.warn('Could not send Discord notification:', err.message);
+  }
 };
 
 /**

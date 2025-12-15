@@ -24,14 +24,11 @@ import {
   where, 
   onSnapshot, 
   orderBy, 
-  limit,
-  Timestamp
+  limit
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import {
   SOURCE_TYPES,
-  NOTIFICATION_CATEGORIES,
-  PRIORITY_LEVELS,
   getPriorityForSourceType,
   getCategoryForSourceType,
   createNotificationId,
@@ -186,14 +183,25 @@ const getSourceCollection = (sourceType) => {
 
 /**
  * Main hook for unified admin notifications
+ * @param {string} adminId - Admin user ID
+ * @param {boolean} isAdmin - Whether user is admin
+ * @param {function} onNewNotification - Optional callback when new notification arrives
  */
-const useAdminUnifiedNotifications = (adminId, isAdmin = false) => {
+const useAdminUnifiedNotifications = (adminId, isAdmin = false, onNewNotification = null) => {
   // Raw data from each source
   const [pendingUsers, setPendingUsers] = useState([]);
   const [pendingLoans, setPendingLoans] = useState([]);
   const [overdueLoans, setOverdueLoans] = useState([]);
   const [pendingReservations, setPendingReservations] = useState([]);
   const [personalNotifications, setPersonalNotifications] = useState([]);
+  
+  // Track previous counts for detecting new items
+  const [prevCounts, setPrevCounts] = useState({
+    users: 0,
+    loans: 0,
+    overdue: 0,
+    reservations: 0
+  });
   
   // Read states
   const [readStates, setReadStates] = useState(new Map());
@@ -251,6 +259,10 @@ const useAdminUnifiedNotifications = (adminId, isAdmin = false) => {
         where('status', '==', 'pending')
       );
 
+      // Track if this is initial load
+      let isInitialUsersLoad = true;
+      let isInitialLoansLoad = true;
+
       const unsubUsers = onSnapshot(
         usersQuery,
         (snapshot) => {
@@ -262,6 +274,28 @@ const useAdminUnifiedNotifications = (adminId, isAdmin = false) => {
               return dateB - dateA;
             })
             .slice(0, pageSize);
+          
+          // Notify about new users (not on initial load)
+          if (!isInitialUsersLoad && onNewNotification && users.length > 0) {
+            setPrevCounts(prev => {
+              if (users.length > prev.users) {
+                const newUser = users[0];
+                const userName = `${newUser.firstName || ''} ${newUser.lastName || ''}`.trim() || newUser.email;
+                onNewNotification({
+                  title: 'ผู้ใช้ใหม่รอการอนุมัติ',
+                  message: `${userName} สมัครสมาชิกใหม่`,
+                  type: 'user_registration',
+                  priority: 'medium',
+                  actionUrl: '/admin/users?tab=pending'
+                });
+              }
+              return { ...prev, users: users.length };
+            });
+          } else {
+            setPrevCounts(prev => ({ ...prev, users: users.length }));
+          }
+          isInitialUsersLoad = false;
+          
           setPendingUsers(users);
           console.log('🔔 [Users] Updated:', users.length);
         },
@@ -289,6 +323,29 @@ const useAdminUnifiedNotifications = (adminId, isAdmin = false) => {
               return dateB - dateA;
             })
             .slice(0, pageSize);
+          
+          // Notify about new loan requests (not on initial load)
+          if (!isInitialLoansLoad && onNewNotification && loans.length > 0) {
+            setPrevCounts(prev => {
+              if (loans.length > prev.loans) {
+                const newLoan = loans[0];
+                const userName = newLoan.userName || newLoan._userName || 'ผู้ใช้';
+                const equipmentName = newLoan.equipmentName || newLoan._equipmentName || 'อุปกรณ์';
+                onNewNotification({
+                  title: 'คำขอยืมอุปกรณ์ใหม่',
+                  message: `${userName} ขอยืม ${equipmentName}`,
+                  type: 'loan_request',
+                  priority: 'high',
+                  actionUrl: '/admin/loan-requests'
+                });
+              }
+              return { ...prev, loans: loans.length };
+            });
+          } else {
+            setPrevCounts(prev => ({ ...prev, loans: loans.length }));
+          }
+          isInitialLoansLoad = false;
+          
           setPendingLoans(loans);
           console.log('🔔 [Loans] Updated:', loans.length);
         },
@@ -337,6 +394,8 @@ const useAdminUnifiedNotifications = (adminId, isAdmin = false) => {
         where('status', '==', 'pending')
       );
 
+      let isInitialReservationsLoad = true;
+
       const unsubReservations = onSnapshot(
         reservationsQuery,
         (snapshot) => {
@@ -348,6 +407,29 @@ const useAdminUnifiedNotifications = (adminId, isAdmin = false) => {
               return dateB - dateA;
             })
             .slice(0, pageSize);
+          
+          // Notify about new reservations (not on initial load)
+          if (!isInitialReservationsLoad && onNewNotification && reservations.length > 0) {
+            setPrevCounts(prev => {
+              if (reservations.length > prev.reservations) {
+                const newReservation = reservations[0];
+                const userName = newReservation.userName || 'ผู้ใช้';
+                const equipmentName = newReservation.equipmentName || 'อุปกรณ์';
+                onNewNotification({
+                  title: 'คำขอจองอุปกรณ์ใหม่',
+                  message: `${userName} ขอจอง ${equipmentName}`,
+                  type: 'reservation_request',
+                  priority: 'medium',
+                  actionUrl: '/admin/reservations'
+                });
+              }
+              return { ...prev, reservations: reservations.length };
+            });
+          } else {
+            setPrevCounts(prev => ({ ...prev, reservations: reservations.length }));
+          }
+          isInitialReservationsLoad = false;
+          
           setPendingReservations(reservations);
           console.log('🔔 [Reservations] Updated:', reservations.length);
         },
@@ -359,6 +441,8 @@ const useAdminUnifiedNotifications = (adminId, isAdmin = false) => {
       unsubscribers.push(unsubReservations);
 
       // 5. Personal notifications (for admin)
+      // Filter out notifications that are already shown as action items
+      // (loan_request, user_approval, reservation_request types)
       if (adminId) {
         const notificationsQuery = query(
           collection(db, 'notifications'),
@@ -370,9 +454,23 @@ const useAdminUnifiedNotifications = (adminId, isAdmin = false) => {
         const unsubNotifications = onSnapshot(
           notificationsQuery,
           (snapshot) => {
-            const notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Filter out notification types that are already shown as action items
+            // to prevent duplicate notifications
+            const actionItemTypes = [
+              'loan_request',
+              'user_approval', 
+              'reservation_request',
+              'new_loan_request',
+              'new_user_registration',
+              'new_reservation_request'
+            ];
+            
+            const notifications = snapshot.docs
+              .map(doc => ({ id: doc.id, ...doc.data() }))
+              .filter(notification => !actionItemTypes.includes(notification.type));
+            
             setPersonalNotifications(notifications);
-            console.log('🔔 [Personal] Updated:', notifications.length);
+            console.log('🔔 [Personal] Updated:', notifications.length, '(filtered action item types)');
           },
           (err) => {
             console.error('❌ [Personal] Listener error:', err);
@@ -395,7 +493,8 @@ const useAdminUnifiedNotifications = (adminId, isAdmin = false) => {
       console.log('🔔 [Unified Admin Notifications] Cleaning up listeners');
       unsubscribers.forEach(unsub => unsub());
     };
-  }, [isAdmin, adminId, pageSize]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, adminId, pageSize, onNewNotification]);
 
   // Transform and combine all notifications
   const allNotifications = useMemo(() => {

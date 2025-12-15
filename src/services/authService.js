@@ -485,6 +485,17 @@ class AuthService {
               lastName: data.lastName,
               email: data.email || 'ไม่ระบุ'
             });
+            
+            // Send Discord notification for new user registration
+            const discordService = (await import('./discordWebhookService')).default;
+            discordService.notifyNewUserRegistration({
+              firstName: data.firstName,
+              lastName: data.lastName,
+              email: data.email || 'ไม่ระบุ',
+              department: data.department || 'ไม่ระบุ'
+            }).catch(err => {
+              console.warn('Discord notification failed:', err.message);
+            });
           } catch (notificationError) {
             console.error('Error sending notification to admins:', notificationError);
             // Don't throw error here as profile update was successful

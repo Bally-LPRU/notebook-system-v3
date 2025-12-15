@@ -310,6 +310,386 @@ class DiscordWebhookService {
   }
 
   /**
+   * Send notification when loan request is approved
+   * @param {Object} loanRequest - Loan request data
+   * @param {string} adminName - Admin who approved
+   * @returns {Promise<Object>} Result object
+   */
+  async notifyLoanApproved(loanRequest, adminName = 'Admin') {
+    try {
+      const embed = {
+        title: '✅ คำขอยืมอุปกรณ์ได้รับการอนุมัติ',
+        color: 0x2ecc71, // Green
+        fields: [
+          {
+            name: 'ผู้ขอยืม',
+            value: loanRequest.userName || loanRequest._userName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อุปกรณ์',
+            value: loanRequest.equipmentName || loanRequest._equipmentName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อนุมัติโดย',
+            value: adminName,
+            inline: true
+          },
+          {
+            name: 'วันที่ยืม',
+            value: this._formatDate(loanRequest.borrowDate || loanRequest.startDate),
+            inline: true
+          },
+          {
+            name: 'วันที่คืน',
+            value: this._formatDate(loanRequest.returnDate || loanRequest.expectedReturnDate),
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'ระบบยืม-คืนอุปกรณ์'
+        }
+      };
+
+      return await this.sendDiscordNotification('คำขอยืมอุปกรณ์ได้รับการอนุมัติ', {
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error('Error sending loan approved notification:', error);
+      this._logError(error, 'Loan approved notification');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send notification when loan request is rejected
+   * @param {Object} loanRequest - Loan request data
+   * @param {string} adminName - Admin who rejected
+   * @param {string} reason - Rejection reason
+   * @returns {Promise<Object>} Result object
+   */
+  async notifyLoanRejected(loanRequest, adminName = 'Admin', reason = '') {
+    try {
+      const embed = {
+        title: '❌ คำขอยืมอุปกรณ์ถูกปฏิเสธ',
+        color: 0xe74c3c, // Red
+        fields: [
+          {
+            name: 'ผู้ขอยืม',
+            value: loanRequest.userName || loanRequest._userName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อุปกรณ์',
+            value: loanRequest.equipmentName || loanRequest._equipmentName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'ปฏิเสธโดย',
+            value: adminName,
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'ระบบยืม-คืนอุปกรณ์'
+        }
+      };
+
+      if (reason) {
+        embed.fields.push({
+          name: 'เหตุผล',
+          value: reason,
+          inline: false
+        });
+      }
+
+      return await this.sendDiscordNotification('คำขอยืมอุปกรณ์ถูกปฏิเสธ', {
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error('Error sending loan rejected notification:', error);
+      this._logError(error, 'Loan rejected notification');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send notification when equipment is returned
+   * @param {Object} loanRequest - Loan request data
+   * @param {string} adminName - Admin who processed return
+   * @returns {Promise<Object>} Result object
+   */
+  async notifyEquipmentReturned(loanRequest, adminName = 'Admin') {
+    try {
+      const embed = {
+        title: '📦 อุปกรณ์ถูกคืนแล้ว',
+        color: 0x9b59b6, // Purple
+        fields: [
+          {
+            name: 'ผู้คืน',
+            value: loanRequest.userName || loanRequest._userName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อุปกรณ์',
+            value: loanRequest.equipmentName || loanRequest._equipmentName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'รับคืนโดย',
+            value: adminName,
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'ระบบยืม-คืนอุปกรณ์'
+        }
+      };
+
+      return await this.sendDiscordNotification('อุปกรณ์ถูกคืนแล้ว', {
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error('Error sending equipment returned notification:', error);
+      this._logError(error, 'Equipment returned notification');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send notification for new user registration
+   * @param {Object} user - User data
+   * @returns {Promise<Object>} Result object
+   */
+  async notifyNewUserRegistration(user) {
+    try {
+      const embed = {
+        title: '👤 ผู้ใช้ใหม่สมัครสมาชิก',
+        color: 0x1abc9c, // Teal
+        fields: [
+          {
+            name: 'ชื่อ',
+            value: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.displayName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อีเมล',
+            value: user.email || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'แผนก',
+            value: user.department || 'ไม่ระบุ',
+            inline: true
+          },
+          {
+            name: 'สถานะ',
+            value: 'รอการอนุมัติ',
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'ระบบยืม-คืนอุปกรณ์'
+        }
+      };
+
+      return await this.sendDiscordNotification('มีผู้ใช้ใหม่รอการอนุมัติ', {
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error('Error sending new user registration notification:', error);
+      this._logError(error, 'New user registration notification');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send notification when user is approved
+   * @param {Object} user - User data
+   * @param {string} adminName - Admin who approved
+   * @returns {Promise<Object>} Result object
+   */
+  async notifyUserApproved(user, adminName = 'Admin') {
+    try {
+      const embed = {
+        title: '✅ ผู้ใช้ได้รับการอนุมัติ',
+        color: 0x2ecc71, // Green
+        fields: [
+          {
+            name: 'ชื่อ',
+            value: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.displayName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อีเมล',
+            value: user.email || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อนุมัติโดย',
+            value: adminName,
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'ระบบยืม-คืนอุปกรณ์'
+        }
+      };
+
+      return await this.sendDiscordNotification('ผู้ใช้ได้รับการอนุมัติ', {
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error('Error sending user approved notification:', error);
+      this._logError(error, 'User approved notification');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send notification when user is rejected
+   * @param {Object} user - User data
+   * @param {string} adminName - Admin who rejected
+   * @param {string} reason - Rejection reason
+   * @returns {Promise<Object>} Result object
+   */
+  async notifyUserRejected(user, adminName = 'Admin', reason = '') {
+    try {
+      const embed = {
+        title: '❌ ผู้ใช้ถูกปฏิเสธ',
+        color: 0xe74c3c, // Red
+        fields: [
+          {
+            name: 'ชื่อ',
+            value: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.displayName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อีเมล',
+            value: user.email || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'ปฏิเสธโดย',
+            value: adminName,
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'ระบบยืม-คืนอุปกรณ์'
+        }
+      };
+
+      if (reason) {
+        embed.fields.push({
+          name: 'เหตุผล',
+          value: reason,
+          inline: false
+        });
+      }
+
+      return await this.sendDiscordNotification('ผู้ใช้ถูกปฏิเสธ', {
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error('Error sending user rejected notification:', error);
+      this._logError(error, 'User rejected notification');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send notification for new reservation request
+   * @param {Object} reservation - Reservation data
+   * @returns {Promise<Object>} Result object
+   */
+  async notifyNewReservation(reservation) {
+    try {
+      const embed = {
+        title: '📅 คำขอจองอุปกรณ์ใหม่',
+        color: 0x9b59b6, // Purple
+        fields: [
+          {
+            name: 'ผู้จอง',
+            value: reservation.userName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อุปกรณ์',
+            value: reservation.equipmentName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'วันที่จอง',
+            value: this._formatDate(reservation.startTime),
+            inline: true
+          },
+          {
+            name: 'สถานะ',
+            value: 'รอการอนุมัติ',
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'ระบบยืม-คืนอุปกรณ์'
+        }
+      };
+
+      if (reservation.purpose) {
+        embed.fields.push({
+          name: 'วัตถุประสงค์',
+          value: reservation.purpose,
+          inline: false
+        });
+      }
+
+      return await this.sendDiscordNotification('มีคำขอจองอุปกรณ์ใหม่', {
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error('Error sending new reservation notification:', error);
+      this._logError(error, 'New reservation notification');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Format date for display
+   * @private
+   * @param {*} date - Date to format
+   * @returns {string} Formatted date
+   */
+  _formatDate(date) {
+    if (!date) return 'N/A';
+    
+    try {
+      const d = date.toDate ? date.toDate() : new Date(date);
+      return d.toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return 'N/A';
+    }
+  }
+
+  /**
    * Send notification for critical setting changes
    * @param {Object} changeInfo - Setting change information
    * @returns {Promise<Object>} Result object
