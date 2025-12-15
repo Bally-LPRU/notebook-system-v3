@@ -9,6 +9,8 @@ const LoanRequestCard = ({
   request, 
   onApprove, 
   onReject,
+  onMarkAsPickedUp,
+  onMarkAsReturned,
   isSelectable = false,
   isSelected = false,
   onSelect,
@@ -91,6 +93,30 @@ const LoanRequestCard = ({
     }
   };
 
+  const handleMarkAsPickedUp = async (e) => {
+    e.stopPropagation();
+    if (window.confirm('ยืนยันว่าผู้ใช้ได้รับอุปกรณ์แล้ว?')) {
+      setIsProcessing(true);
+      try {
+        await onMarkAsPickedUp(request.id);
+      } finally {
+        setIsProcessing(false);
+      }
+    }
+  };
+
+  const handleMarkAsReturned = async (e) => {
+    e.stopPropagation();
+    if (window.confirm('ยืนยันว่าได้รับคืนอุปกรณ์แล้ว?')) {
+      setIsProcessing(true);
+      try {
+        await onMarkAsReturned(request.id);
+      } finally {
+        setIsProcessing(false);
+      }
+    }
+  };
+
   const handleReject = async () => {
     if (!rejectionReason.trim()) {
       alert('กรุณาระบุเหตุผลในการปฏิเสธ');
@@ -119,6 +145,9 @@ const LoanRequestCard = ({
   };
 
   const isPending = request.status === LOAN_REQUEST_STATUS.PENDING;
+  const isApproved = request.status === LOAN_REQUEST_STATUS.APPROVED;
+  const isBorrowed = request.status === LOAN_REQUEST_STATUS.BORROWED;
+  const isOverdue = request.status === LOAN_REQUEST_STATUS.OVERDUE;
   const equipmentName = request.equipment?.name || request._equipmentName || 'ไม่ทราบชื่ออุปกรณ์';
   const userName = request.user?.displayName || request.user?.firstName 
     ? `${request.user?.firstName || ''} ${request.user?.lastName || ''}`.trim() 
@@ -231,6 +260,42 @@ const LoanRequestCard = ({
                   </button>
                 </>
               )}
+              {isApproved && onMarkAsPickedUp && (
+                <button
+                  onClick={handleMarkAsPickedUp}
+                  disabled={isProcessing}
+                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isProcessing ? (
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                      </svg>
+                      บันทึกรับอุปกรณ์
+                    </>
+                  )}
+                </button>
+              )}
+              {(isBorrowed || isOverdue) && onMarkAsReturned && (
+                <button
+                  onClick={handleMarkAsReturned}
+                  disabled={isProcessing}
+                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isProcessing ? (
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      บันทึกคืนอุปกรณ์
+                    </>
+                  )}
+                </button>
+              )}
               <button
                 onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
                 className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
@@ -277,6 +342,46 @@ const LoanRequestCard = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
                 ปฏิเสธ
+              </button>
+            </div>
+          )}
+          {isApproved && onMarkAsPickedUp && (
+            <div className="sm:hidden flex gap-2 mt-3 pt-3 border-t border-gray-100">
+              <button
+                onClick={handleMarkAsPickedUp}
+                disabled={isProcessing}
+                className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isProcessing ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                    บันทึกรับอุปกรณ์
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+          {(isBorrowed || isOverdue) && onMarkAsReturned && (
+            <div className="sm:hidden flex gap-2 mt-3 pt-3 border-t border-gray-100">
+              <button
+                onClick={handleMarkAsReturned}
+                disabled={isProcessing}
+                className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isProcessing ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    บันทึกคืนอุปกรณ์
+                  </>
+                )}
               </button>
             </div>
           )}

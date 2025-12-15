@@ -144,11 +144,13 @@ service cloud.firestore {
                        request.resource.data.expectedReturnDate is timestamp &&
                        request.resource.data.borrowDate < request.resource.data.expectedReturnDate;
       
+      // Allow user to update their own pending requests
+      // Allow admin to update any request (but cannot change userId, equipmentId, createdAt)
       allow update: if (isApprovedUser() && 
                        request.auth.uid == resource.data.userId &&
                        resource.data.status == 'pending') ||
                        (isAdmin() && 
-                       !request.resource.data.keys().hasAny(['userId', 'equipmentId', 'createdAt']));
+                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'equipmentId', 'createdAt']));
       
       // Allow user to delete their own pending loan requests
       allow delete: if (isApprovedUser() && 
@@ -200,7 +202,9 @@ service cloud.firestore {
     
     // Notification settings collection rules
     match /notificationSettings/{userId} {
-      allow read, write: if isOwner(userId);
+      // Allow owner to read/write their own settings, admin can read for notifications
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId);
     }
     
     // Activity logs collection rules

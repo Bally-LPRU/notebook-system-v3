@@ -47,10 +47,16 @@ class LoanRequestService {
         throw new Error('อุปกรณ์นี้ไม่พร้อมใช้งานในขณะนี้');
       }
 
-      // Check for existing pending requests for the same equipment
+      // Check for existing pending requests for the same equipment by this user
       const existingRequest = await this.getExistingPendingRequest(loanRequestData.equipmentId, userId);
       if (existingRequest) {
         throw new Error('มีคำขอยืมอุปกรณ์นี้รอการอนุมัติอยู่แล้ว');
+      }
+
+      // Check if equipment is currently being borrowed (any user)
+      const activeLoanForEquipment = await this.getActiveLoanForEquipment(loanRequestData.equipmentId);
+      if (activeLoanForEquipment) {
+        throw new Error('อุปกรณ์นี้กำลังถูกยืมอยู่ กรุณารอจนกว่าจะมีการคืนอุปกรณ์');
       }
 
       // Validate dates
@@ -491,8 +497,10 @@ class LoanRequestService {
         throw new Error('ไม่พบคำขอยืม');
       }
 
-      if (loanRequest.status !== LOAN_REQUEST_STATUS.BORROWED) {
-        throw new Error('คำขอยืมต้องอยู่ในสถานะกำลังยืม');
+      // Allow return from borrowed or overdue status
+      if (loanRequest.status !== LOAN_REQUEST_STATUS.BORROWED && 
+          loanRequest.status !== LOAN_REQUEST_STATUS.OVERDUE) {
+        throw new Error('คำขอยืมต้องอยู่ในสถานะกำลังยืมหรือเกินกำหนด');
       }
 
       const batch = writeBatch(db);
@@ -527,6 +535,21 @@ class LoanRequestService {
         returnedBy,
         updatedAt: new Date()
       };
+
+      // Notify user about equipment return
+      try {
+        const equipment = await EquipmentService.getEquipmentById(loanRequest.equipmentId);
+        const returnedByUser = await getDoc(doc(db, 'users', returnedBy));
+        const returnedByData = returnedByUser.exists() ? returnedByUser.data() : { displayName: 'Admin' };
+        
+        await NotificationService.notifyEquipmentReturned(
+          updatedRequest, 
+          equipment || { name: loanRequest.equipmentSnapshot?.name || 'อุปกรณ์' },
+          returnedByData
+        );
+      } catch (notifyError) {
+        console.warn('Failed to notify user about equipment return:', notifyError);
+      }
 
       return updatedRequest;
     } catch (error) {
@@ -708,6 +731,45 @@ class LoanRequestService {
       return null;
     } catch (error) {
       console.error('Error checking existing pending request:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if equipment has an active loan (approved, borrowed, or overdue)
+   * @param {string} equipmentId - Equipment ID
+   * @returns {Promise<Object|null>} Active loan request or null
+   */
+  static async getActiveLoanForEquipment(equipmentId) {
+    try {
+      const loanRequestRef = collection(db, this.COLLECTION_NAME);
+      // Check for approved, borrowed, or overdue status
+      const activeStatuses = [
+        LOAN_REQUEST_STATUS.APPROVED, 
+        LOAN_REQUEST_STATUS.BORROWED, 
+        LOAN_REQUEST_STATUS.OVERDUE
+      ];
+      
+      const q = query(
+        loanRequestRef,
+        where('equipmentId', '==', equipmentId),
+        where('status', 'in', activeStatuses),
+        firestoreLimit(1)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
+        return {
+          id: doc.id,
+          ...doc.data()
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error checking active loan for equipment:', error);
       throw error;
     }
   }

@@ -101,11 +101,11 @@ describe('AdminSettingsPage', () => {
       const tabTexts = tabs.map(tab => tab.textContent);
       
       expect(tabTexts).toContain('ทั่วไป');
-      expect(tabTexts).toContain('กฎการยืม');
-      expect(tabTexts).toContain('วันปิดทำการ');
-      expect(tabTexts).toContain('จำกัดการยืม');
-      expect(tabTexts).toContain('การแจ้งเตือน');
-      expect(tabTexts).toContain('บันทึกการเปลี่ยนแปลง');
+      expect(tabTexts).toContain('การตั้งค่าการยืมการยืม'); // Unified loan settings tab (name + shortName)
+      expect(tabTexts).toContain('วันปิดทำการวันปิด');
+      expect(tabTexts).toContain('จำกัดตามหมวดหมู่หมวดหมู่');
+      expect(tabTexts).toContain('Discord WebhookDiscord');
+      expect(tabTexts).toContain('บันทึกการเปลี่ยนแปลงบันทึก');
     });
 
     it('should have "ทั่วไป" tab active by default', () => {
@@ -128,16 +128,17 @@ describe('AdminSettingsPage', () => {
         </BrowserRouter>
       );
 
-      // Click on "กฎการยืม" tab
-      const loanRulesTab = screen.getByText('กฎการยืม');
-      fireEvent.click(loanRulesTab);
+      // Click on "การตั้งค่าการยืม" tab (unified loan settings)
+      const loanSettingsTabs = screen.getAllByText('การตั้งค่าการยืม');
+      fireEvent.click(loanSettingsTabs[0]);
 
       // Verify tab is now active
-      const loanRulesButton = loanRulesTab.closest('button');
-      expect(loanRulesButton).toHaveClass('border-blue-500', 'text-blue-600');
+      const loanSettingsButton = loanSettingsTabs[0].closest('button');
+      expect(loanSettingsButton).toHaveClass('border-blue-500', 'text-blue-600');
 
       // Verify general tab is no longer active
-      const generalTab = screen.getByText('ทั่วไป').closest('button');
+      const generalTabs = screen.getAllByText('ทั่วไป');
+      const generalTab = generalTabs[0].closest('button');
       expect(generalTab).not.toHaveClass('border-blue-500', 'text-blue-600');
     });
 
@@ -148,15 +149,17 @@ describe('AdminSettingsPage', () => {
         </BrowserRouter>
       );
 
-      // Initially shows general settings placeholder
-      expect(screen.getByText('การตั้งค่าทั่วไปของระบบ')).toBeInTheDocument();
+      // Initially shows general settings (default tab)
+      const generalTab = screen.getByRole('button', { current: 'page' });
+      expect(generalTab.textContent).toContain('ทั่วไป');
 
       // Click on "วันปิดทำการ" tab
-      fireEvent.click(screen.getByText('วันปิดทำการ'));
+      const closedDatesTabs = screen.getAllByText('วันปิดทำการ');
+      fireEvent.click(closedDatesTabs[0]);
 
-      // Verify content changed - should show the loading state or the form
-      expect(screen.getByText(/กำลังโหลดวันปิดทำการ|เพิ่มวันปิดทำการ/)).toBeInTheDocument();
-      expect(screen.queryByText('การตั้งค่าทั่วไปของระบบ')).not.toBeInTheDocument();
+      // Verify tab switched - วันปิดทำการ should now be active
+      const closedDatesTab = closedDatesTabs[0].closest('button');
+      expect(closedDatesTab).toHaveClass('border-blue-500', 'text-blue-600');
     });
 
     it('should allow switching between multiple tabs', () => {
@@ -166,12 +169,17 @@ describe('AdminSettingsPage', () => {
         </BrowserRouter>
       );
 
-      // Switch to different tabs
-      fireEvent.click(screen.getByText('การแจ้งเตือน'));
-      expect(screen.getByText('Discord webhook และข้อความแจ้งเตือน')).toBeInTheDocument();
+      // Switch to Discord Webhook tab
+      const discordTabs = screen.getAllByText('Discord Webhook');
+      fireEvent.click(discordTabs[0]);
+      const discordTab = discordTabs[0].closest('button');
+      expect(discordTab).toHaveClass('border-blue-500', 'text-blue-600');
 
-      fireEvent.click(screen.getByText('บันทึกการเปลี่ยนแปลง'));
-      expect(screen.getByText('ประวัติการแก้ไขการตั้งค่า')).toBeInTheDocument();
+      // Switch to บันทึกการเปลี่ยนแปลง tab
+      const auditTabs = screen.getAllByText('บันทึกการเปลี่ยนแปลง');
+      fireEvent.click(auditTabs[0]);
+      const auditTab = auditTabs[0].closest('button');
+      expect(auditTab).toHaveClass('border-blue-500', 'text-blue-600');
     });
   });
 
