@@ -76,9 +76,9 @@ const LoanRequestList = () => {
     }
   };
 
-  const handleMarkAsReturned = async (requestId) => {
+  const handleMarkAsReturned = async (requestId, returnData = {}) => {
     try {
-      await markAsReturned(requestId, user.uid);
+      await markAsReturned(requestId, user.uid, returnData);
       alert('บันทึกการคืนอุปกรณ์เรียบร้อยแล้ว');
     } catch (err) {
       alert('เกิดข้อผิดพลาด: ' + err.message);

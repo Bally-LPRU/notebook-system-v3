@@ -632,21 +632,34 @@ class NotificationService {
       
       const adminSnapshot = await getDocs(adminQuery);
       const notificationPromises = [];
+      const notifiedAdminIds = new Set(); // Track notified admins to prevent duplicates
       
       adminSnapshot.forEach((adminDoc) => {
-        const admin = adminDoc.data();
+        const adminId = adminDoc.id; // Use document ID instead of admin.uid
+        
+        // Skip if already notified (prevent duplicates)
+        if (notifiedAdminIds.has(adminId)) {
+          return;
+        }
+        notifiedAdminIds.add(adminId);
+        
+        const userName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'ผู้ใช้';
+        const equipmentInfo = equipment.brand && equipment.model 
+          ? `${equipment.name} (${equipment.brand} ${equipment.model})`
+          : equipment.name;
+        
         notificationPromises.push(
           this.createNotification(
-            admin.uid,
+            adminId,
             'loan_request',
             'คำขอยืมอุปกรณ์ใหม่',
-            `${user.firstName} ${user.lastName} ขอยืม ${equipment.name} (${equipment.brand} ${equipment.model})`,
+            `${userName} ขอยืม ${equipmentInfo}`,
             {
               loanRequestId: loanRequest.id,
               equipmentId: equipment.id,
               equipmentName: equipment.name,
-              userId: user.uid,
-              userName: `${user.firstName} ${user.lastName}`,
+              userId: user.uid || loanRequest.userId,
+              userName: userName,
               actionUrl: '/admin/loan-requests'
             }
           )

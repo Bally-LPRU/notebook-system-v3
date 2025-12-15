@@ -236,37 +236,58 @@ const EquipmentCard = ({
           {/* User Actions */}
           {!isAdmin && (
             <div className={isListMode ? 'flex space-x-1' : 'flex space-x-2'}>
-              <button
-                onClick={handleBorrow}
-                disabled={isBorrowDisabled}
-                className={`${isListMode ? 'px-2 py-1' : 'flex-1 px-3 py-2'} text-sm font-medium rounded-md transition-colors ${
-                  !isBorrowDisabled
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }`}
-                title={borrowDisableReason || 'ขอยืมอุปกรณ์'}
-              >
-                <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                {!isListMode && 'ขอยืม'}
-              </button>
-              
-              <button
-                onClick={handleReserve}
-                disabled={isBorrowDisabled}
-                className={`${isListMode ? 'px-2 py-1' : 'flex-1 px-3 py-2'} text-sm font-medium rounded-md transition-colors ${
-                  !isBorrowDisabled
-                    ? 'bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }`}
-                title={borrowDisableReason || 'จองล่วงหน้า'}
-              >
-                <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                {!isListMode && 'จอง'}
-              </button>
+              {/* Show "ไม่ว่าง" button when equipment is borrowed/maintenance/retired */}
+              {equipment.status !== EQUIPMENT_STATUS.AVAILABLE ? (
+                <button
+                  disabled
+                  className={`${isListMode ? 'px-2 py-1' : 'flex-1 px-3 py-2'} text-sm font-medium rounded-md bg-gray-200 text-gray-500 cursor-not-allowed`}
+                  title={
+                    equipment.status === EQUIPMENT_STATUS.BORROWED ? 'อุปกรณ์กำลังถูกยืม' :
+                    equipment.status === EQUIPMENT_STATUS.MAINTENANCE ? 'อุปกรณ์อยู่ระหว่างซ่อมบำรุง' :
+                    equipment.status === EQUIPMENT_STATUS.RETIRED ? 'อุปกรณ์ถูกปลดระวาง' :
+                    'อุปกรณ์ไม่พร้อมใช้งาน'
+                  }
+                >
+                  <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                  {!isListMode && 'ไม่ว่าง'}
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleBorrow}
+                    disabled={isBorrowDisabled}
+                    className={`${isListMode ? 'px-2 py-1' : 'flex-1 px-3 py-2'} text-sm font-medium rounded-md transition-colors ${
+                      !isBorrowDisabled
+                        ? 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    }`}
+                    title={borrowDisableReason || 'ขอยืมอุปกรณ์'}
+                  >
+                    <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    {!isListMode && 'ขอยืม'}
+                  </button>
+                  
+                  <button
+                    onClick={handleReserve}
+                    disabled={isBorrowDisabled}
+                    className={`${isListMode ? 'px-2 py-1' : 'flex-1 px-3 py-2'} text-sm font-medium rounded-md transition-colors ${
+                      !isBorrowDisabled
+                        ? 'bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    }`}
+                    title={borrowDisableReason || 'จองล่วงหน้า'}
+                  >
+                    <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    {!isListMode && 'จอง'}
+                  </button>
+                </>
+              )}
             </div>
           )}
 

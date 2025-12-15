@@ -176,15 +176,9 @@ const NotificationHistoryPage = () => {
     );
   };
 
-  // Handle notification click
-  const handleNotificationClick = async (notification) => {
-    if (!notification.isRead) {
-      await markAsRead(notification.id);
-    }
-    
-    if (notification.actionUrl) {
-      window.location.href = notification.actionUrl;
-    }
+  // Handle marking notification as read
+  const handleMarkAsRead = async (notificationId) => {
+    await markAsRead(notificationId);
   };
 
   // Check if any filters are active
@@ -388,10 +382,15 @@ const NotificationHistoryPage = () => {
                   {groupedByDate[dateKey].map((notification) => (
                     <div
                       key={notification.id}
-                      className={`px-6 py-4 hover:bg-gray-50 transition-colors duration-200 cursor-pointer ${
+                      className={`px-6 py-4 hover:bg-gray-50 transition-colors duration-200 ${
                         !notification.isRead ? 'bg-blue-50/50' : ''
                       }`}
-                      onClick={() => handleNotificationClick(notification)}
+                      onClick={() => {
+                        // Mark as read when clicked, but don't navigate
+                        if (!notification.isRead) {
+                          handleMarkAsRead(notification.id);
+                        }
+                      }}
                     >
                       <div className="flex items-start space-x-4">
                         {/* Read Status Icon */}
@@ -429,9 +428,33 @@ const NotificationHistoryPage = () => {
                           }`}>
                             {notification.message}
                           </p>
+
+                          {/* Additional Data - Show full details */}
+                          {notification.data && (
+                            <div className="mt-2 text-sm text-gray-600 space-y-1">
+                              {notification.data.equipmentName && (
+                                <p><span className="font-medium">อุปกรณ์:</span> {notification.data.equipmentName}</p>
+                              )}
+                              {notification.data.userName && (
+                                <p><span className="font-medium">ผู้ใช้:</span> {notification.data.userName}</p>
+                              )}
+                              {notification.data.borrowDate && (
+                                <p><span className="font-medium">วันที่ยืม:</span> {notification.data.borrowDate}</p>
+                              )}
+                              {notification.data.dueDate && (
+                                <p><span className="font-medium">กำหนดคืน:</span> {notification.data.dueDate}</p>
+                              )}
+                              {notification.data.reservationDate && (
+                                <p><span className="font-medium">วันที่จอง:</span> {notification.data.reservationDate}</p>
+                              )}
+                              {notification.data.rejectionReason && (
+                                <p className="text-red-600"><span className="font-medium">เหตุผล:</span> {notification.data.rejectionReason}</p>
+                              )}
+                            </div>
+                          )}
                           
                           {/* Tags */}
-                          <div className="flex items-center space-x-2 mt-2">
+                          <div className="flex items-center flex-wrap gap-2 mt-2">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getTypeCategoryColor(notification.type)}`}>
                               {getTypeCategoryLabel(notification.type)}
                             </span>
@@ -442,15 +465,6 @@ const NotificationHistoryPage = () => {
                               getPriorityBadge(notification.priority)
                             )}
                           </div>
-                          
-                          {/* Action Button */}
-                          {notification.actionText && notification.actionUrl && (
-                            <div className="mt-2">
-                              <span className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                                {notification.actionText} →
-                              </span>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>

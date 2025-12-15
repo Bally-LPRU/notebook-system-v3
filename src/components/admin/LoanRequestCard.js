@@ -17,7 +17,10 @@ const LoanRequestCard = ({
   compact = false
 }) => {
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [returnCondition, setReturnCondition] = useState('good');
+  const [returnNotes, setReturnNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -107,13 +110,21 @@ const LoanRequestCard = ({
 
   const handleMarkAsReturned = async (e) => {
     e.stopPropagation();
-    if (window.confirm('ยืนยันว่าได้รับคืนอุปกรณ์แล้ว?')) {
-      setIsProcessing(true);
-      try {
-        await onMarkAsReturned(request.id);
-      } finally {
-        setIsProcessing(false);
-      }
+    setShowReturnModal(true);
+  };
+
+  const handleConfirmReturn = async () => {
+    setIsProcessing(true);
+    try {
+      await onMarkAsReturned(request.id, {
+        condition: returnCondition,
+        notes: returnNotes.trim()
+      });
+      setShowReturnModal(false);
+      setReturnCondition('good');
+      setReturnNotes('');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -464,7 +475,7 @@ const LoanRequestCard = ({
                 <span className="font-medium text-gray-900">{formatDate(request.borrowDate)}</span>
               </div>
               <div className="bg-gray-50 rounded-lg p-2.5">
-                <span className="block text-xs text-gray-500">วันที่คืน</span>
+                <span className="block text-xs text-gray-500">กำหนดคืน</span>
                 <span className="font-medium text-gray-900">{formatDate(request.expectedReturnDate)}</span>
               </div>
               <div className="bg-gray-50 rounded-lg p-2.5">
@@ -472,6 +483,32 @@ const LoanRequestCard = ({
                 <span className="font-medium text-gray-900">{calculateLoanDuration()} วัน</span>
               </div>
             </div>
+
+            {/* Actual Return Date - Show when returned */}
+            {request.actualReturnDate && (
+              <div className="mt-3 p-3 bg-green-50 rounded-lg">
+                <div className="flex items-center gap-2 text-sm">
+                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="font-medium text-green-700">คืนอุปกรณ์เมื่อ:</span>
+                  <span className="text-green-600">{formatDateTime(request.actualReturnDate)}</span>
+                </div>
+                {request.returnCondition && (
+                  <div className="mt-2 text-sm text-green-700">
+                    <span className="font-medium">สภาพอุปกรณ์:</span>{' '}
+                    {request.returnCondition === 'good' ? 'ปกติ' : 
+                     request.returnCondition === 'damaged' ? 'ชำรุด' : 
+                     request.returnCondition === 'needs_repair' ? 'ต้องซ่อม' : request.returnCondition}
+                  </div>
+                )}
+                {request.returnNotes && (
+                  <div className="mt-1 text-sm text-green-600">
+                    <span className="font-medium">หมายเหตุการคืน:</span> {request.returnNotes}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Purpose */}
             <div className="mt-3">
@@ -565,6 +602,135 @@ const LoanRequestCard = ({
                     </span>
                   ) : (
                     'ปฏิเสธคำขอ'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Return Equipment Modal */}
+      {showReturnModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+          <div className="relative w-full max-w-md bg-white rounded-lg shadow-xl">
+            <div className="p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">บันทึกการคืนอุปกรณ์</h3>
+                <button
+                  onClick={() => { setShowReturnModal(false); setReturnCondition('good'); setReturnNotes(''); }}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                  disabled={isProcessing}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Equipment Info */}
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-900">{equipmentName}</p>
+                <p className="text-xs text-gray-500">ผู้ยืม: {userName}</p>
+                <p className="text-xs text-gray-500">กำหนดคืน: {formatDate(request.expectedReturnDate)}</p>
+              </div>
+              
+              {/* Condition Selection */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  สภาพอุปกรณ์ <span className="text-red-500">*</span>
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input
+                      type="radio"
+                      name="returnCondition"
+                      value="good"
+                      checked={returnCondition === 'good'}
+                      onChange={(e) => setReturnCondition(e.target.value)}
+                      className="h-4 w-4 text-green-600 focus:ring-green-500"
+                    />
+                    <span className="ml-3 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-900">ปกติ</span>
+                      <span className="text-xs text-gray-500">- อุปกรณ์อยู่ในสภาพดี พร้อมใช้งาน</span>
+                    </span>
+                  </label>
+                  <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input
+                      type="radio"
+                      name="returnCondition"
+                      value="needs_repair"
+                      checked={returnCondition === 'needs_repair'}
+                      onChange={(e) => setReturnCondition(e.target.value)}
+                      className="h-4 w-4 text-yellow-600 focus:ring-yellow-500"
+                    />
+                    <span className="ml-3 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-900">ต้องซ่อม</span>
+                      <span className="text-xs text-gray-500">- ต้องส่งซ่อมก่อนใช้งานต่อ</span>
+                    </span>
+                  </label>
+                  <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input
+                      type="radio"
+                      name="returnCondition"
+                      value="damaged"
+                      checked={returnCondition === 'damaged'}
+                      onChange={(e) => setReturnCondition(e.target.value)}
+                      className="h-4 w-4 text-red-600 focus:ring-red-500"
+                    />
+                    <span className="ml-3 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-900">ชำรุด</span>
+                      <span className="text-xs text-gray-500">- อุปกรณ์เสียหาย ใช้งานไม่ได้</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="mb-4">
+                <label htmlFor="returnNotes" className="block text-sm font-medium text-gray-700 mb-2">
+                  หมายเหตุการคืน
+                </label>
+                <textarea
+                  id="returnNotes"
+                  value={returnNotes}
+                  onChange={(e) => setReturnNotes(e.target.value)}
+                  rows={2}
+                  placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                  disabled={isProcessing}
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowReturnModal(false); setReturnCondition('good'); setReturnNotes(''); }}
+                  disabled={isProcessing}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={handleConfirmReturn}
+                  disabled={isProcessing}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isProcessing ? (
+                    <span className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      กำลังบันทึก...
+                    </span>
+                  ) : (
+                    'บันทึกการคืน'
                   )}
                 </button>
               </div>

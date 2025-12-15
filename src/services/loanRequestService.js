@@ -43,8 +43,18 @@ class LoanRequestService {
         throw new Error('ไม่พบอุปกรณ์ที่ต้องการยืม');
       }
       
+      // Check equipment status directly (more reliable than querying loanRequests)
+      // This avoids Firestore permission issues for regular users
       if (equipment.status !== EQUIPMENT_STATUS.AVAILABLE) {
-        throw new Error('อุปกรณ์นี้ไม่พร้อมใช้งานในขณะนี้');
+        if (equipment.status === EQUIPMENT_STATUS.BORROWED) {
+          throw new Error('อุปกรณ์นี้กำลังถูกยืมอยู่ กรุณารอจนกว่าจะมีการคืนอุปกรณ์');
+        } else if (equipment.status === EQUIPMENT_STATUS.MAINTENANCE) {
+          throw new Error('อุปกรณ์นี้อยู่ระหว่างการซ่อมบำรุง');
+        } else if (equipment.status === EQUIPMENT_STATUS.RETIRED) {
+          throw new Error('อุปกรณ์นี้ถูกปลดระวางแล้ว');
+        } else {
+          throw new Error('อุปกรณ์นี้ไม่พร้อมใช้งานในขณะนี้');
+        }
       }
 
       // Check for existing pending requests for the same equipment by this user
@@ -53,11 +63,10 @@ class LoanRequestService {
         throw new Error('มีคำขอยืมอุปกรณ์นี้รอการอนุมัติอยู่แล้ว');
       }
 
-      // Check if equipment is currently being borrowed (any user)
-      const activeLoanForEquipment = await this.getActiveLoanForEquipment(loanRequestData.equipmentId);
-      if (activeLoanForEquipment) {
-        throw new Error('อุปกรณ์นี้กำลังถูกยืมอยู่ กรุณารอจนกว่าจะมีการคืนอุปกรณ์');
-      }
+      // Note: We no longer call getActiveLoanForEquipment here because:
+      // 1. equipment.status already tells us if it's borrowed
+      // 2. Regular users don't have permission to query all loanRequests
+      // The equipment status is updated when loans are approved/returned
 
       // Validate dates
       const borrowDate = new Date(loanRequestData.borrowDate);
@@ -430,10 +439,18 @@ class LoanRequestService {
    */
   static async markAsPickedUp(loanRequestId, pickedUpBy) {
     try {
+      console.log('markAsPickedUp called:', { loanRequestId, pickedUpBy });
+      
       const loanRequest = await this.getLoanRequestById(loanRequestId);
       if (!loanRequest) {
         throw new Error('ไม่พบคำขอยืม');
       }
+
+      console.log('Loan request found:', { 
+        id: loanRequest.id, 
+        status: loanRequest.status, 
+        equipmentId: loanRequest.equipmentId 
+      });
 
       if (loanRequest.status !== LOAN_REQUEST_STATUS.APPROVED) {
         throw new Error('คำขอยืมต้องได้รับการอนุมัติก่อน');
@@ -441,8 +458,14 @@ class LoanRequestService {
 
       // Check equipment availability
       const equipment = await EquipmentService.getEquipmentById(loanRequest.equipmentId);
-      if (!equipment || equipment.status !== EQUIPMENT_STATUS.AVAILABLE) {
-        throw new Error('อุปกรณ์ไม่พร้อมใช้งาน');
+      console.log('Equipment found:', equipment ? { id: equipment.id, status: equipment.status } : 'NOT FOUND');
+      
+      if (!equipment) {
+        throw new Error('ไม่พบอุปกรณ์ในระบบ');
+      }
+      
+      if (equipment.status !== EQUIPMENT_STATUS.AVAILABLE) {
+        throw new Error(`อุปกรณ์ไม่พร้อมใช้งาน (สถานะปัจจุบัน: ${equipment.status})`);
       }
 
       const batch = writeBatch(db);
@@ -467,7 +490,9 @@ class LoanRequestService {
       });
 
       // Commit batch
+      console.log('Committing batch...');
       await batch.commit();
+      console.log('Batch committed successfully');
 
       const updatedRequest = {
         ...loanRequest,
@@ -488,14 +513,23 @@ class LoanRequestService {
    * Mark loan as returned (บันทึกการคืนอุปกรณ์)
    * @param {string} loanRequestId - Loan request ID
    * @param {string} returnedBy - UID of person marking return
+   * @param {Object} returnData - Optional return data (condition, notes)
    * @returns {Promise<Object>} Updated loan request
    */
-  static async markAsReturned(loanRequestId, returnedBy) {
+  static async markAsReturned(loanRequestId, returnedBy, returnData = {}) {
     try {
+      console.log('markAsReturned called:', { loanRequestId, returnedBy, returnData });
+      
       const loanRequest = await this.getLoanRequestById(loanRequestId);
       if (!loanRequest) {
         throw new Error('ไม่พบคำขอยืม');
       }
+
+      console.log('Loan request found:', { 
+        id: loanRequest.id, 
+        status: loanRequest.status, 
+        equipmentId: loanRequest.equipmentId 
+      });
 
       // Allow return from borrowed or overdue status
       if (loanRequest.status !== LOAN_REQUEST_STATUS.BORROWED && 
@@ -503,42 +537,63 @@ class LoanRequestService {
         throw new Error('คำขอยืมต้องอยู่ในสถานะกำลังยืมหรือเกินกำหนด');
       }
 
+      // Verify equipment exists before batch update
+      const equipment = await EquipmentService.getEquipmentById(loanRequest.equipmentId);
+      console.log('Equipment found:', equipment ? { id: equipment.id, status: equipment.status } : 'NOT FOUND');
+
       const batch = writeBatch(db);
 
-      // อัปเดตสถานะคำขอเป็น returned
+      // อัปเดตสถานะคำขอเป็น returned พร้อมข้อมูลสภาพอุปกรณ์
       const loanRequestRef = doc(db, this.COLLECTION_NAME, loanRequestId);
       batch.update(loanRequestRef, {
         status: LOAN_REQUEST_STATUS.RETURNED,
         actualReturnDate: serverTimestamp(),
         returnedBy,
+        returnCondition: returnData.condition || 'good',
+        returnNotes: returnData.notes || '',
         updatedAt: serverTimestamp()
       });
 
-      // อัปเดตสถานะอุปกรณ์เป็น available
-      const equipmentRef = doc(db, 'equipmentManagement', loanRequest.equipmentId);
-      batch.update(equipmentRef, {
-        status: EQUIPMENT_STATUS.AVAILABLE,
-        currentBorrowerId: null,
-        borrowedAt: null,
-        returnedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        updatedBy: returnedBy
-      });
+      // กำหนดสถานะอุปกรณ์ตามสภาพที่คืน
+      let newEquipmentStatus = EQUIPMENT_STATUS.AVAILABLE;
+      if (returnData.condition === 'needs_repair' || returnData.condition === 'damaged') {
+        newEquipmentStatus = EQUIPMENT_STATUS.MAINTENANCE;
+      }
+
+      // อัปเดตสถานะอุปกรณ์ (only if equipment exists)
+      if (equipment) {
+        const equipmentRef = doc(db, 'equipmentManagement', loanRequest.equipmentId);
+        batch.update(equipmentRef, {
+          status: newEquipmentStatus,
+          currentBorrowerId: null,
+          borrowedAt: null,
+          returnedAt: serverTimestamp(),
+          lastReturnCondition: returnData.condition || 'good',
+          lastReturnNotes: returnData.notes || '',
+          updatedAt: serverTimestamp(),
+          updatedBy: returnedBy
+        });
+      } else {
+        console.warn('Equipment not found, skipping equipment status update');
+      }
 
       // Commit batch
+      console.log('Committing batch...');
       await batch.commit();
+      console.log('Batch committed successfully');
 
       const updatedRequest = {
         ...loanRequest,
         status: LOAN_REQUEST_STATUS.RETURNED,
         actualReturnDate: new Date(),
         returnedBy,
+        returnCondition: returnData.condition || 'good',
+        returnNotes: returnData.notes || '',
         updatedAt: new Date()
       };
 
       // Notify user about equipment return
       try {
-        const equipment = await EquipmentService.getEquipmentById(loanRequest.equipmentId);
         const returnedByUser = await getDoc(doc(db, 'users', returnedBy));
         const returnedByData = returnedByUser.exists() ? returnedByUser.data() : { displayName: 'Admin' };
         

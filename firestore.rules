@@ -136,7 +136,12 @@ service cloud.firestore {
     
     // Loan requests collection rules
     match /loanRequests/{requestId} {
-      allow read: if (isApprovedUser() && request.auth.uid == resource.data.userId) || isAdmin();
+      // Allow user to read their own requests
+      // Allow admin to read all requests
+      // Allow approved users to query by equipmentId (for checking active loans before borrowing)
+      allow read: if isAdmin() || 
+                     (isApprovedUser() && request.auth.uid == resource.data.userId) ||
+                     (isApprovedUser() && resource.data.equipmentId != null);
       
       allow create: if isApprovedUser() && 
                        request.auth.uid == request.resource.data.userId &&

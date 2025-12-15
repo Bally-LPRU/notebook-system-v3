@@ -196,14 +196,20 @@ export const useLoanRequests = (initialFilters = {}) => {
    */
   const markAsPickedUp = useCallback(async (loanRequestId, pickedUpBy) => {
     try {
+      console.log('useLoanRequests.markAsPickedUp called:', { loanRequestId, pickedUpBy });
       const updatedRequest = await LoanRequestService.markAsPickedUp(loanRequestId, pickedUpBy);
+      console.log('markAsPickedUp success:', updatedRequest);
       
-      // Update the request in the list
-      setLoanRequests(prev => 
-        prev.map(request => 
-          request.id === loanRequestId ? { ...request, ...updatedRequest } : request
-        )
-      );
+      // Update the request in the list with the new status
+      setLoanRequests(prev => {
+        const updated = prev.map(request => 
+          request.id === loanRequestId 
+            ? { ...request, ...updatedRequest, status: updatedRequest.status } 
+            : request
+        );
+        console.log('Updated loan requests state:', updated.find(r => r.id === loanRequestId)?.status);
+        return updated;
+      });
       
       return updatedRequest;
     } catch (error) {
@@ -214,17 +220,26 @@ export const useLoanRequests = (initialFilters = {}) => {
 
   /**
    * Mark loan as returned
+   * @param {string} loanRequestId - Loan request ID
+   * @param {string} returnedBy - UID of person marking return
+   * @param {Object} returnData - Optional return data (condition, notes)
    */
-  const markAsReturned = useCallback(async (loanRequestId, returnedBy) => {
+  const markAsReturned = useCallback(async (loanRequestId, returnedBy, returnData = {}) => {
     try {
-      const updatedRequest = await LoanRequestService.markAsReturned(loanRequestId, returnedBy);
+      console.log('useLoanRequests.markAsReturned called:', { loanRequestId, returnedBy, returnData });
+      const updatedRequest = await LoanRequestService.markAsReturned(loanRequestId, returnedBy, returnData);
+      console.log('markAsReturned success:', updatedRequest);
       
-      // Update the request in the list
-      setLoanRequests(prev => 
-        prev.map(request => 
-          request.id === loanRequestId ? { ...request, ...updatedRequest } : request
-        )
-      );
+      // Update the request in the list with the new status
+      setLoanRequests(prev => {
+        const updated = prev.map(request => 
+          request.id === loanRequestId 
+            ? { ...request, ...updatedRequest, status: updatedRequest.status } 
+            : request
+        );
+        console.log('Updated loan requests state:', updated.find(r => r.id === loanRequestId)?.status);
+        return updated;
+      });
       
       return updatedRequest;
     } catch (error) {
