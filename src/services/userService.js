@@ -91,6 +91,17 @@ class UserService {
         // Don't throw - notification failure shouldn't fail the approval
       }
       
+      // Send Discord notification (non-blocking)
+      try {
+        const userDoc = await getDoc(userDocRef);
+        const userData = userDoc.exists() ? userDoc.data() : {};
+        const { default: discordWebhookService } = await import('./discordWebhookService');
+        await discordWebhookService.notifyUserApproved(userData, approvedBy);
+        console.log('✅ Discord approval notification sent');
+      } catch (discordError) {
+        console.error('⚠️ Error sending Discord notification (non-critical):', discordError);
+      }
+      
       return { success: true, message: 'อนุมัติผู้ใช้สำเร็จ' };
     } catch (error) {
       console.error('❌ Error approving user:', error);
@@ -122,6 +133,18 @@ class UserService {
       } catch (notificationError) {
         console.error('⚠️ Error sending rejection notification (non-critical):', notificationError);
         // Don't throw - notification failure shouldn't fail the rejection
+      }
+      
+      // Send Discord notification (non-blocking)
+      try {
+        const userDocRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userDocRef);
+        const userData = userDoc.exists() ? userDoc.data() : {};
+        const { default: discordWebhookService } = await import('./discordWebhookService');
+        await discordWebhookService.notifyUserRejected(userData, rejectedBy, reason);
+        console.log('✅ Discord rejection notification sent');
+      } catch (discordError) {
+        console.error('⚠️ Error sending Discord notification (non-critical):', discordError);
       }
       
       return { success: true, message: 'ปฏิเสธผู้ใช้สำเร็จ' };

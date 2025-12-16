@@ -1,16 +1,21 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import NotificationBell from '../notifications/NotificationBell';
 import PendingUsersBadge from '../admin/PendingUsersBadge';
 import { useNotificationContext } from '../../contexts/NotificationContext';
 
 const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
   const { user, userProfile, signOut, isAdmin } = useAuth();
+  const { settings } = useSettings();
   const { showToast } = useNotificationContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const location = useLocation();
+  
+  // Check if reservation system is enabled
+  const isReservationEnabled = settings?.reservationSystemEnabled !== false;
 
   const handleSignOut = async () => {
     try {
@@ -34,16 +39,19 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
   ];
 
   const handleReservationClick = (e) => {
-    // Prevent default navigation when using anchor-like elements
-    if (e && typeof e.preventDefault === 'function') e.preventDefault();
-
-    showToast({
-      type: 'info',
-      title: 'ฟีเจอร์กำลังพัฒนา',
-      message: 'หน้าจองอุปกรณ์จะพัฒนาในอนาคต ขอบคุณสำหรับความอดทนของคุณ',
-      icon: 'clock',
-      duration: 6000
-    });
+    // If reservation system is disabled, show toast message
+    if (!isReservationEnabled) {
+      if (e && typeof e.preventDefault === 'function') e.preventDefault();
+      showToast({
+        type: 'warning',
+        title: 'ระบบจองปิดใช้งาน',
+        message: 'ระบบจองอุปกรณ์ล่วงหน้าถูกปิดใช้งานชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+        icon: 'warning',
+        duration: 5000
+      });
+      return false;
+    }
+    return true;
   };
 
   const getIcon = (iconName) => {
@@ -142,19 +150,27 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
             <div className="hidden md:flex items-center space-x-1">
               {navigationItems.map((item) => (
                 item.href === '/reservations' ? (
-                  <button
+                  <Link
                     key={item.name}
-                    onClick={handleReservationClick}
+                    to={item.href}
+                    onClick={(e) => {
+                      if (!handleReservationClick(e)) {
+                        e.preventDefault();
+                      }
+                    }}
                     className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
                       isActivePath(item.href)
                         ? 'bg-blue-100 text-blue-700'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
+                    } ${!isReservationEnabled ? 'opacity-60' : ''}`}
                     aria-label={item.name}
                   >
                     {getIcon(item.icon)}
                     <span className="ml-2">{item.name}</span>
-                  </button>
+                    {!isReservationEnabled && (
+                      <span className="ml-1 text-xs text-gray-400">(ปิด)</span>
+                    )}
+                  </Link>
                 ) : (
                   <Link
                     key={item.name}
@@ -280,21 +296,28 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-50 border-t border-gray-200">
             {navigationItems.map((item) => (
               item.href === '/reservations' ? (
-                <button
+                <Link
                   key={item.name}
+                  to={item.href}
                   onClick={(e) => {
-                    handleReservationClick(e);
-                    setIsMenuOpen(false);
+                    if (!handleReservationClick(e)) {
+                      e.preventDefault();
+                    } else {
+                      setIsMenuOpen(false);
+                    }
                   }}
                   className={`flex items-center px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
                     isActivePath(item.href)
                       ? 'bg-blue-100 text-blue-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
+                  } ${!isReservationEnabled ? 'opacity-60' : ''}`}
                 >
                   {getIcon(item.icon)}
                   <span className="ml-3">{item.name}</span>
-                </button>
+                  {!isReservationEnabled && (
+                    <span className="ml-1 text-xs text-gray-400">(ปิด)</span>
+                  )}
+                </Link>
               ) : (
                 <Link
                   key={item.name}

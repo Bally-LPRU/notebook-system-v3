@@ -243,5 +243,6 @@ export const DEFAULT_SETTINGS = {
   discordWebhookUrl: null,
   discordEnabled: false,
   userTypeLimitsEnabled: false,
+  reservationSystemEnabled: true, // ระบบจองอุปกรณ์ล่วงหน้า
   version: 1
 };

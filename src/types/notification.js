@@ -19,6 +19,8 @@ export const NOTIFICATION_TYPES = {
   RESERVATION_REMINDER: 'reservation_reminder',
   RESERVATION_READY: 'reservation_ready',
   RESERVATION_EXPIRED: 'reservation_expired',
+  RESERVATION_CANCELLED: 'reservation_cancelled',
+  RESERVATION_COMPLETED: 'reservation_completed',
   SYSTEM_UPDATE: 'system_update',
   EQUIPMENT_MAINTENANCE: 'equipment_maintenance'
 };
@@ -206,5 +208,26 @@ export const NOTIFICATION_TEMPLATES = {
     priority: NOTIFICATION_PRIORITIES.MEDIUM,
     actionText: 'จองใหม่',
     actionUrl: '/equipment'
+  },
+  [NOTIFICATION_TYPES.RESERVATION_REJECTED]: {
+    title: 'การจองถูกปฏิเสธ',
+    message: 'การจอง {equipmentName} สำหรับวันที่ {reservationDate} ถูกปฏิเสธ{rejectionReason}',
+    priority: NOTIFICATION_PRIORITIES.HIGH,
+    actionText: 'ดูรายละเอียด',
+    actionUrl: '/reservations?highlight={reservationId}'
+  },
+  [NOTIFICATION_TYPES.RESERVATION_CANCELLED]: {
+    title: 'การจองถูกยกเลิก',
+    message: 'การจอง {equipmentName} ถูกยกเลิกโดยผู้ดูแลระบบ{reason}',
+    priority: NOTIFICATION_PRIORITIES.HIGH,
+    actionText: 'ดูรายละเอียด',
+    actionUrl: '/reservations'
+  },
+  [NOTIFICATION_TYPES.RESERVATION_COMPLETED]: {
+    title: 'การจองเสร็จสิ้น',
+    message: 'การจอง {equipmentName} เสร็จสิ้นแล้ว ขอบคุณที่ใช้บริการ',
+    priority: NOTIFICATION_PRIORITIES.LOW,
+    actionText: 'ดูประวัติ',
+    actionUrl: '/reservations'
   }
 };

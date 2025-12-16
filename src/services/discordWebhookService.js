@@ -634,7 +634,7 @@ class DiscordWebhookService {
           },
           {
             name: 'วันที่จอง',
-            value: this._formatDate(reservation.startTime),
+            value: this._formatDate(reservation.startTime || reservation.reservationDate),
             inline: true
           },
           {
@@ -669,6 +669,338 @@ class DiscordWebhookService {
   }
 
   /**
+   * Send notification when reservation is approved
+   * @param {Object} reservation - Reservation data
+   * @param {string} adminName - Admin who approved
+   * @returns {Promise<Object>} Result object
+   */
+  async notifyReservationApproved(reservation, adminName = 'Admin') {
+    try {
+      const embed = {
+        title: '✅ การจองได้รับการอนุมัติ',
+        color: 0x2ecc71, // Green
+        fields: [
+          {
+            name: 'ผู้จอง',
+            value: reservation.userName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อุปกรณ์',
+            value: reservation.equipmentName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อนุมัติโดย',
+            value: adminName,
+            inline: true
+          },
+          {
+            name: 'วันที่จอง',
+            value: this._formatDate(reservation.startTime || reservation.reservationDate),
+            inline: true
+          },
+          {
+            name: 'เวลา',
+            value: this._formatTime(reservation.startTime) + ' - ' + this._formatTime(reservation.endTime),
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'ระบบยืม-คืนอุปกรณ์'
+        }
+      };
+
+      return await this.sendDiscordNotification('การจองได้รับการอนุมัติ', {
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error('Error sending reservation approved notification:', error);
+      this._logError(error, 'Reservation approved notification');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send notification when reservation is rejected
+   * @param {Object} reservation - Reservation data
+   * @param {string} adminName - Admin who rejected
+   * @param {string} reason - Rejection reason
+   * @returns {Promise<Object>} Result object
+   */
+  async notifyReservationRejected(reservation, adminName = 'Admin', reason = '') {
+    try {
+      const embed = {
+        title: '❌ การจองถูกปฏิเสธ',
+        color: 0xe74c3c, // Red
+        fields: [
+          {
+            name: 'ผู้จอง',
+            value: reservation.userName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อุปกรณ์',
+            value: reservation.equipmentName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'ปฏิเสธโดย',
+            value: adminName,
+            inline: true
+          },
+          {
+            name: 'วันที่จอง',
+            value: this._formatDate(reservation.startTime || reservation.reservationDate),
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'ระบบยืม-คืนอุปกรณ์'
+        }
+      };
+
+      if (reason) {
+        embed.fields.push({
+          name: 'เหตุผล',
+          value: reason,
+          inline: false
+        });
+      }
+
+      return await this.sendDiscordNotification('การจองถูกปฏิเสธ', {
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error('Error sending reservation rejected notification:', error);
+      this._logError(error, 'Reservation rejected notification');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send notification when reservation is cancelled by admin
+   * @param {Object} reservation - Reservation data
+   * @param {string} adminName - Admin who cancelled
+   * @param {string} reason - Cancellation reason
+   * @returns {Promise<Object>} Result object
+   */
+  async notifyReservationCancelled(reservation, adminName = 'Admin', reason = '') {
+    try {
+      const embed = {
+        title: '🚫 การจองถูกยกเลิก',
+        color: 0xe67e22, // Orange
+        fields: [
+          {
+            name: 'ผู้จอง',
+            value: reservation.userName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อุปกรณ์',
+            value: reservation.equipmentName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'ยกเลิกโดย',
+            value: adminName,
+            inline: true
+          },
+          {
+            name: 'วันที่จอง',
+            value: this._formatDate(reservation.startTime || reservation.reservationDate),
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'ระบบยืม-คืนอุปกรณ์'
+        }
+      };
+
+      if (reason) {
+        embed.fields.push({
+          name: 'เหตุผล',
+          value: reason,
+          inline: false
+        });
+      }
+
+      return await this.sendDiscordNotification('การจองถูกยกเลิก', {
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error('Error sending reservation cancelled notification:', error);
+      this._logError(error, 'Reservation cancelled notification');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send notification when reservation is completed
+   * @param {Object} reservation - Reservation data
+   * @param {string} adminName - Admin who marked as completed
+   * @returns {Promise<Object>} Result object
+   */
+  async notifyReservationCompleted(reservation, adminName = 'Admin') {
+    try {
+      const embed = {
+        title: '✔️ การจองเสร็จสิ้น',
+        color: 0x95a5a6, // Gray
+        fields: [
+          {
+            name: 'ผู้จอง',
+            value: reservation.userName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อุปกรณ์',
+            value: reservation.equipmentName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'ดำเนินการโดย',
+            value: adminName,
+            inline: true
+          },
+          {
+            name: 'วันที่จอง',
+            value: this._formatDate(reservation.startTime || reservation.reservationDate),
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'ระบบยืม-คืนอุปกรณ์'
+        }
+      };
+
+      return await this.sendDiscordNotification('การจองเสร็จสิ้น', {
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error('Error sending reservation completed notification:', error);
+      this._logError(error, 'Reservation completed notification');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send notification when reservation expires (no-show)
+   * @param {Object} reservation - Reservation data
+   * @returns {Promise<Object>} Result object
+   */
+  async notifyReservationExpired(reservation) {
+    try {
+      const embed = {
+        title: '⏰ การจองหมดอายุ (ไม่มารับ)',
+        color: 0xe74c3c, // Red
+        fields: [
+          {
+            name: 'ผู้จอง',
+            value: reservation.userName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อุปกรณ์',
+            value: reservation.equipmentName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'วันที่จอง',
+            value: this._formatDate(reservation.startTime || reservation.reservationDate),
+            inline: true
+          },
+          {
+            name: 'เวลา',
+            value: this._formatTime(reservation.startTime) + ' - ' + this._formatTime(reservation.endTime),
+            inline: true
+          },
+          {
+            name: 'สถานะ',
+            value: 'หมดอายุ - ผู้ใช้ไม่มารับอุปกรณ์',
+            inline: false
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'ระบบยืม-คืนอุปกรณ์'
+        }
+      };
+
+      return await this.sendDiscordNotification('การจองหมดอายุ (ไม่มารับ)', {
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error('Error sending reservation expired notification:', error);
+      this._logError(error, 'Reservation expired notification');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send notification when equipment is ready for pickup
+   * @param {Object} reservation - Reservation data
+   * @param {string} adminName - Admin who marked as ready
+   * @returns {Promise<Object>} Result object
+   */
+  async notifyReservationReady(reservation, adminName = 'Admin') {
+    try {
+      const embed = {
+        title: '📦 อุปกรณ์พร้อมรับ',
+        color: 0x3498db, // Blue
+        fields: [
+          {
+            name: 'ผู้จอง',
+            value: reservation.userName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'อุปกรณ์',
+            value: reservation.equipmentName || 'Unknown',
+            inline: true
+          },
+          {
+            name: 'เตรียมโดย',
+            value: adminName,
+            inline: true
+          },
+          {
+            name: 'วันที่จอง',
+            value: this._formatDate(reservation.startTime || reservation.reservationDate),
+            inline: true
+          },
+          {
+            name: 'เวลา',
+            value: this._formatTime(reservation.startTime) + ' - ' + this._formatTime(reservation.endTime),
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'ระบบยืม-คืนอุปกรณ์'
+        }
+      };
+
+      return await this.sendDiscordNotification('อุปกรณ์พร้อมรับ', {
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error('Error sending reservation ready notification:', error);
+      this._logError(error, 'Reservation ready notification');
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Format date for display
    * @private
    * @param {*} date - Date to format
@@ -683,6 +1015,26 @@ class DiscordWebhookService {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
+      });
+    } catch {
+      return 'N/A';
+    }
+  }
+
+  /**
+   * Format time for display
+   * @private
+   * @param {*} date - Date to format
+   * @returns {string} Formatted time
+   */
+  _formatTime(date) {
+    if (!date) return 'N/A';
+    
+    try {
+      const d = date.toDate ? date.toDate() : new Date(date);
+      return d.toLocaleTimeString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit'
       });
     } catch {
       return 'N/A';

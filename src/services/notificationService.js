@@ -930,6 +930,161 @@ class NotificationService {
     }
   }
 
+  // Notify user about reservation expiration (no-show)
+  static async notifyUserReservationExpired(reservation, equipment) {
+    try {
+      await this.createNotification(
+        reservation.userId,
+        NOTIFICATION_TYPES.RESERVATION_EXPIRED,
+        null, // Use template title
+        null, // Use template message
+        {
+          reservationId: reservation.id,
+          equipmentId: equipment.id,
+          equipmentName: equipment.name,
+          reservationDate: reservation.reservationDate?.toDate?.()?.toLocaleDateString('th-TH') || 
+                          new Date(reservation.reservationDate).toLocaleDateString('th-TH')
+        }
+      );
+
+      // Cancel any pending reminders for this reservation
+      await this.cancelReservationReminders(reservation.id);
+    } catch (error) {
+      console.error('Error notifying user about reservation expiration:', error);
+      throw error;
+    }
+  }
+
+  // Notify user about reservation cancellation by admin
+  static async notifyUserReservationCancelled(reservation, equipment, cancelledBy, reason = '') {
+    try {
+      await this.createNotification(
+        reservation.userId,
+        NOTIFICATION_TYPES.RESERVATION_CANCELLED,
+        null, // Use template title
+        null, // Use template message
+        {
+          reservationId: reservation.id,
+          equipmentId: equipment.id,
+          equipmentName: equipment.name,
+          cancelledBy: cancelledBy,
+          reason: reason ? `: ${reason}` : '',
+          reservationDate: reservation.reservationDate?.toDate?.()?.toLocaleDateString('th-TH') || 
+                          new Date(reservation.reservationDate).toLocaleDateString('th-TH')
+        }
+      );
+
+      // Cancel any pending reminders for this reservation
+      await this.cancelReservationReminders(reservation.id);
+    } catch (error) {
+      console.error('Error notifying user about reservation cancellation:', error);
+      throw error;
+    }
+  }
+
+  // Notify user about reservation completion
+  static async notifyUserReservationCompleted(reservation, equipment) {
+    try {
+      await this.createNotification(
+        reservation.userId,
+        NOTIFICATION_TYPES.RESERVATION_COMPLETED,
+        null, // Use template title
+        null, // Use template message
+        {
+          reservationId: reservation.id,
+          equipmentId: equipment.id,
+          equipmentName: equipment.name
+        }
+      );
+
+      // Cancel any pending reminders for this reservation
+      await this.cancelReservationReminders(reservation.id);
+    } catch (error) {
+      console.error('Error notifying user about reservation completion:', error);
+      throw error;
+    }
+  }
+
+  // Cancel reservation reminders
+  static async cancelReservationReminders(reservationId) {
+    try {
+      const scheduledRef = collection(db, 'scheduledNotifications');
+      const q = query(
+        scheduledRef,
+        where('relatedId', '==', reservationId),
+        where('relatedType', '==', 'reservation'),
+        where('status', '==', 'scheduled')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const cancelPromises = [];
+      
+      querySnapshot.forEach((doc) => {
+        cancelPromises.push(this.cancelScheduledNotification(doc.id));
+      });
+      
+      await Promise.all(cancelPromises);
+    } catch (error) {
+      console.error('Error cancelling reservation reminders:', error);
+      throw error;
+    }
+  }
+
+  // Notify admins about reservation status change
+  static async notifyAdminsReservationStatusChange(reservation, equipment, user, newStatus, changedBy) {
+    try {
+      const usersRef = collection(db, 'users');
+      const adminQuery = query(
+        usersRef,
+        where('role', '==', 'admin'),
+        where('status', '==', 'approved')
+      );
+      
+      const adminSnapshot = await getDocs(adminQuery);
+      const notificationPromises = [];
+      
+      const statusLabels = {
+        'approved': 'อนุมัติแล้ว',
+        'ready': 'พร้อมรับ',
+        'completed': 'เสร็จสิ้น',
+        'cancelled': 'ยกเลิก',
+        'expired': 'หมดอายุ'
+      };
+      
+      const userName = user?.displayName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'ผู้ใช้';
+      
+      adminSnapshot.forEach((adminDoc) => {
+        const admin = adminDoc.data();
+        // Don't notify the admin who made the change
+        if (admin.uid === changedBy) return;
+        
+        notificationPromises.push(
+          this.createNotification(
+            admin.uid,
+            'reservation_status_change',
+            'สถานะการจองเปลี่ยนแปลง',
+            `การจอง ${equipment.name} ของ ${userName} เปลี่ยนเป็น "${statusLabels[newStatus] || newStatus}"`,
+            {
+              reservationId: reservation.id,
+              equipmentId: equipment.id,
+              equipmentName: equipment.name,
+              userId: user?.uid,
+              userName: userName,
+              newStatus: newStatus,
+              changedBy: changedBy,
+              actionUrl: '/admin/reservations'
+            }
+          )
+        );
+      });
+      
+      await Promise.all(notificationPromises);
+    } catch (error) {
+      console.error('Error notifying admins about reservation status change:', error);
+      // Don't throw - this is a non-critical notification
+    }
+  }
+
   // Clean up expired notifications
   static async cleanupExpiredNotifications() {
     try {

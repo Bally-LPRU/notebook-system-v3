@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSettings } from '../../../contexts/SettingsContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import settingsService from '../../../services/settingsService';
 import { USER_TYPE_NAMES } from '../../../types/settings';
@@ -15,12 +16,14 @@ import { USER_TYPE_NAMES } from '../../../types/settings';
  * GeneralTab Component
  */
 const GeneralTab = () => {
-  const { settings } = useSettings();
+  const { settings, updateSetting } = useSettings();
+  const { userProfile } = useAuth();
   const [userTypeLimits, setUserTypeLimits] = useState({});
   const [closedDatesCount, setClosedDatesCount] = useState(0);
   const [categoryLimitsCount, setCategoryLimitsCount] = useState(0);
   const [conflicts, setConflicts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [toggleLoading, setToggleLoading] = useState(null);
 
   // Load additional data
   useEffect(() => {
@@ -149,6 +152,79 @@ const GeneralTab = () => {
 
   return (
     <div className="space-y-6">
+      {/* System Toggle Controls */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          ควบคุมระบบ
+        </h3>
+        <div className="space-y-4">
+          {/* Reservation System Toggle */}
+          <SystemToggle
+            label="ระบบจองอุปกรณ์ล่วงหน้า"
+            description="เปิด/ปิดระบบจองอุปกรณ์ล่วงหน้าสำหรับผู้ใช้ทั่วไป"
+            enabled={settings.reservationSystemEnabled !== false}
+            loading={toggleLoading === 'reservationSystemEnabled'}
+            onToggle={async () => {
+              setToggleLoading('reservationSystemEnabled');
+              try {
+                const newValue = settings.reservationSystemEnabled === false ? true : false;
+                await updateSetting('reservationSystemEnabled', newValue, userProfile?.uid, userProfile?.displayName);
+              } catch (error) {
+                console.error('Error toggling reservation system:', error);
+                alert('เกิดข้อผิดพลาดในการเปลี่ยนสถานะ');
+              } finally {
+                setToggleLoading(null);
+              }
+            }}
+          />
+          
+          {/* User Type Limits Toggle */}
+          <SystemToggle
+            label="ยืมตามประเภทผู้ใช้"
+            description="เปิด/ปิดการจำกัดการยืมตามประเภทผู้ใช้ (อาจารย์, เจ้าหน้าที่, นักศึกษา)"
+            enabled={settings.userTypeLimitsEnabled === true}
+            loading={toggleLoading === 'userTypeLimitsEnabled'}
+            onToggle={async () => {
+              setToggleLoading('userTypeLimitsEnabled');
+              try {
+                const newValue = !settings.userTypeLimitsEnabled;
+                await updateSetting('userTypeLimitsEnabled', newValue, userProfile?.uid, userProfile?.displayName);
+              } catch (error) {
+                console.error('Error toggling user type limits:', error);
+                alert('เกิดข้อผิดพลาดในการเปลี่ยนสถานะ');
+              } finally {
+                setToggleLoading(null);
+              }
+            }}
+          />
+          
+          {/* Discord Notifications Toggle */}
+          <SystemToggle
+            label="การแจ้งเตือน Discord"
+            description="เปิด/ปิดการส่งการแจ้งเตือนไปยัง Discord Webhook"
+            enabled={settings.discordEnabled === true}
+            loading={toggleLoading === 'discordEnabled'}
+            onToggle={async () => {
+              setToggleLoading('discordEnabled');
+              try {
+                const newValue = !settings.discordEnabled;
+                await updateSetting('discordEnabled', newValue, userProfile?.uid, userProfile?.displayName);
+              } catch (error) {
+                console.error('Error toggling Discord:', error);
+                alert('เกิดข้อผิดพลาดในการเปลี่ยนสถานะ');
+              } finally {
+                setToggleLoading(null);
+              }
+            }}
+            warning={settings.discordEnabled && !settings.discordWebhookUrl ? 'ยังไม่ได้ตั้งค่า Webhook URL' : null}
+          />
+        </div>
+      </div>
+
       {/* Conflicts Alert */}
       {conflicts.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -224,6 +300,26 @@ const GeneralTab = () => {
             }
           ]}
           tabId="user-type-limits"
+        />
+
+        {/* Reservation System Card */}
+        <SettingsCard
+          title="ระบบจองอุปกรณ์"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          }
+          color="purple"
+          items={[
+            { 
+              label: 'สถานะ', 
+              value: settings.reservationSystemEnabled !== false ? 'เปิดใช้งาน' : 'ปิดใช้งาน',
+              status: settings.reservationSystemEnabled !== false ? 'success' : 'neutral'
+            },
+            { label: 'จองล่วงหน้าสูงสุด', value: `${settings.maxAdvanceBookingDays} วัน` }
+          ]}
+          tabId="general"
         />
 
         {/* Closed Dates Card */}
@@ -400,6 +496,65 @@ const QuickLink = ({ to, icon, label }) => (
     <span className="text-gray-500">{icon}</span>
     <span className="text-sm font-medium text-gray-700">{label}</span>
   </Link>
+);
+
+/**
+ * System Toggle Component
+ */
+const SystemToggle = ({ label, description, enabled, loading, onToggle, warning }) => (
+  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+    <div className="flex-1">
+      <div className="flex items-center gap-2">
+        <span className="font-medium text-gray-900">{label}</span>
+        {enabled ? (
+          <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+            เปิดใช้งาน
+          </span>
+        ) : (
+          <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+            ปิดใช้งาน
+          </span>
+        )}
+      </div>
+      <p className="text-sm text-gray-600 mt-1">{description}</p>
+      {warning && (
+        <p className="text-sm text-yellow-600 mt-1 flex items-center gap-1">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          {warning}
+        </p>
+      )}
+    </div>
+    <button
+      onClick={onToggle}
+      disabled={loading}
+      className={`
+        relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent 
+        transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+        ${loading ? 'opacity-50 cursor-not-allowed' : ''}
+        ${enabled ? 'bg-blue-600' : 'bg-gray-200'}
+      `}
+      role="switch"
+      aria-checked={enabled}
+      aria-label={label}
+    >
+      <span
+        className={`
+          pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 
+          transition duration-200 ease-in-out
+          ${enabled ? 'translate-x-5' : 'translate-x-0'}
+        `}
+      >
+        {loading && (
+          <svg className="animate-spin h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        )}
+      </span>
+    </button>
+  </div>
 );
 
 export default GeneralTab;

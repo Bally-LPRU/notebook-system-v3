@@ -79,6 +79,18 @@ class ReservationService {
 
         if (equipment && user) {
           await NotificationService.notifyAdminsNewReservationRequest(createdReservation, equipment, user);
+          
+          // Send Discord notification for new reservation
+          try {
+            const discordWebhookService = (await import('./discordWebhookService.js')).default;
+            await discordWebhookService.notifyNewReservation({
+              ...createdReservation,
+              userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.displayName || user.email || 'Unknown',
+              equipmentName: equipment.name || 'Unknown'
+            });
+          } catch (discordError) {
+            console.error('Error sending Discord notification:', discordError);
+          }
         }
       } catch (notificationError) {
         console.error('Error sending reservation notification:', notificationError);
@@ -123,10 +135,45 @@ class ReservationService {
       try {
         const equipment = await EquipmentService.getEquipmentById(updatedReservation.equipmentId);
         
-        if (newStatus === RESERVATION_STATUS.APPROVED) {
-          await NotificationService.notifyUserReservationStatus(updatedReservation, equipment, true);
-        } else if (newStatus === RESERVATION_STATUS.REJECTED) {
-          await NotificationService.notifyUserReservationStatus(updatedReservation, equipment, false, 'ไม่ระบุเหตุผล');
+        switch (newStatus) {
+          case RESERVATION_STATUS.APPROVED:
+            await NotificationService.notifyUserReservationStatus(updatedReservation, equipment, true);
+            break;
+          case RESERVATION_STATUS.REJECTED:
+            await NotificationService.notifyUserReservationStatus(updatedReservation, equipment, false, 'ไม่ระบุเหตุผล');
+            break;
+          case RESERVATION_STATUS.READY:
+            // Notification for ready status is handled by scheduled notification
+            // But we can send an immediate notification too
+            await NotificationService.createNotification(
+              updatedReservation.userId,
+              'reservation_ready',
+              'อุปกรณ์พร้อมรับ',
+              `${equipment.name} พร้อมให้รับแล้ว กรุณามารับภายในเวลาที่กำหนด`,
+              { 
+                reservationId, 
+                equipmentId: equipment.id, 
+                equipmentName: equipment.name 
+              }
+            );
+            break;
+          case RESERVATION_STATUS.COMPLETED:
+            await NotificationService.notifyUserReservationCompleted(updatedReservation, equipment);
+            break;
+          case RESERVATION_STATUS.EXPIRED:
+            await NotificationService.notifyUserReservationExpired(updatedReservation, equipment);
+            break;
+          case RESERVATION_STATUS.CANCELLED:
+            await NotificationService.notifyUserReservationCancelled(
+              updatedReservation, 
+              equipment, 
+              updatedBy,
+              ''
+            );
+            break;
+          default:
+            // No notification for other statuses
+            break;
         }
       } catch (notificationError) {
         console.error('Error sending reservation status notification:', notificationError);

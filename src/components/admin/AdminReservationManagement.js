@@ -15,6 +15,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { Layout } from '../layout';
 import ReservationService from '../../services/reservationService';
 import NotificationService from '../../services/notificationService';
+import discordWebhookService from '../../services/discordWebhookService';
 import { 
   RESERVATION_STATUS,
   RESERVATION_STATUS_LABELS
@@ -121,24 +122,82 @@ const AdminReservationManagement = () => {
         userProfile.uid
       );
       
-      // Send notification
+      // Send appropriate notification based on status
       const reservation = reservations.find(r => r.id === reservationId);
       if (reservation) {
-        const statusMessages = {
-          [RESERVATION_STATUS.APPROVED]: 'การจองของคุณได้รับการอนุมัติแล้ว',
-          [RESERVATION_STATUS.READY]: 'อุปกรณ์พร้อมให้รับแล้ว กรุณามารับภายในเวลาที่กำหนด',
-          [RESERVATION_STATUS.COMPLETED]: 'การจองเสร็จสิ้น ขอบคุณที่ใช้บริการ',
-          [RESERVATION_STATUS.CANCELLED]: `การจองถูกยกเลิก${reason ? `: ${reason}` : ''}`,
-          [RESERVATION_STATUS.EXPIRED]: 'การจองหมดอายุเนื่องจากไม่มารับอุปกรณ์ตามเวลาที่กำหนด'
+        // Get equipment info for notification
+        const EquipmentService = (await import('../../services/equipmentService')).default;
+        let equipment = { id: reservation.equipmentId, name: 'อุปกรณ์' };
+        try {
+          equipment = await EquipmentService.getEquipmentById(reservation.equipmentId) || equipment;
+        } catch (e) {
+          console.warn('Could not fetch equipment details:', e);
+        }
+
+        // Prepare reservation data for Discord notification
+        const reservationForDiscord = {
+          ...reservation,
+          equipmentName: equipment.name,
+          userName: reservation.userName || 'ผู้ใช้'
         };
-        
-        await NotificationService.createNotification(
-          reservation.userId,
-          'reservation_status',
-          'สถานะการจองเปลี่ยนแปลง',
-          statusMessages[newStatus] || 'สถานะการจองมีการเปลี่ยนแปลง',
-          { reservationId, newStatus }
-        );
+        const adminName = userProfile.displayName || userProfile.email || 'Admin';
+
+        // Send notification based on new status
+        switch (newStatus) {
+          case RESERVATION_STATUS.APPROVED:
+            await NotificationService.notifyUserReservationStatus(
+              reservation, 
+              equipment, 
+              true,
+              reason
+            );
+            // Send Discord notification
+            await discordWebhookService.notifyReservationApproved(reservationForDiscord, adminName);
+            break;
+          case RESERVATION_STATUS.REJECTED:
+            await NotificationService.notifyUserReservationStatus(
+              reservation, 
+              equipment, 
+              false,
+              reason
+            );
+            // Send Discord notification
+            await discordWebhookService.notifyReservationRejected(reservationForDiscord, adminName, reason);
+            break;
+          case RESERVATION_STATUS.CANCELLED:
+            await NotificationService.notifyUserReservationCancelled(
+              reservation,
+              equipment,
+              adminName,
+              reason
+            );
+            // Send Discord notification
+            await discordWebhookService.notifyReservationCancelled(reservationForDiscord, adminName, reason);
+            break;
+          case RESERVATION_STATUS.COMPLETED:
+            await NotificationService.notifyUserReservationCompleted(reservation, equipment);
+            // Send Discord notification
+            await discordWebhookService.notifyReservationCompleted(reservationForDiscord, adminName);
+            break;
+          case RESERVATION_STATUS.EXPIRED:
+            await NotificationService.notifyUserReservationExpired(reservation, equipment);
+            // Send Discord notification
+            await discordWebhookService.notifyReservationExpired(reservationForDiscord);
+            break;
+          case RESERVATION_STATUS.READY:
+            // Send Discord notification for ready status
+            await discordWebhookService.notifyReservationReady(reservationForDiscord, adminName);
+            break;
+          default:
+            // Generic notification for other status changes
+            await NotificationService.createNotification(
+              reservation.userId,
+              'reservation_status',
+              'สถานะการจองเปลี่ยนแปลง',
+              `สถานะการจอง ${equipment.name} เปลี่ยนเป็น "${RESERVATION_STATUS_LABELS[newStatus]}"`,
+              { reservationId, newStatus, equipmentName: equipment.name }
+            );
+        }
       }
       
       setSuccessMessage(`อัปเดตสถานะเป็น "${RESERVATION_STATUS_LABELS[newStatus]}" สำเร็จ`);
@@ -168,13 +227,17 @@ const AdminReservationManagement = () => {
       
       const reservation = reservations.find(r => r.id === reservationId);
       if (reservation) {
-        await NotificationService.createNotification(
-          reservation.userId,
-          'reservation_no_show',
-          'การจองหมดอายุ',
-          'การจองของคุณถูกยกเลิกเนื่องจากไม่มารับอุปกรณ์ตามเวลาที่กำหนด',
-          { reservationId }
-        );
+        // Get equipment info for notification
+        const EquipmentService = (await import('../../services/equipmentService')).default;
+        let equipment = { id: reservation.equipmentId, name: 'อุปกรณ์' };
+        try {
+          equipment = await EquipmentService.getEquipmentById(reservation.equipmentId) || equipment;
+        } catch (e) {
+          console.warn('Could not fetch equipment details:', e);
+        }
+        
+        // Use the proper notification method for expired reservations
+        await NotificationService.notifyUserReservationExpired(reservation, equipment);
       }
       
       setSuccessMessage('บันทึกว่าผู้ใช้ไม่มารับอุปกรณ์แล้ว');
@@ -247,11 +310,48 @@ const AdminReservationManagement = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">จัดการการจองอุปกรณ์</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            อนุมัติ ปฏิเสธ และติดตามการจองอุปกรณ์ทั้งหมด
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">จัดการการจองอุปกรณ์</h1>
+              <p className="mt-1 text-sm text-gray-600">
+                อนุมัติ ปฏิเสธ และติดตามการจองอุปกรณ์ทั้งหมด
+              </p>
+            </div>
+            {/* Reservation System Status Badge */}
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border ${
+              settings?.reservationSystemEnabled !== false 
+                ? 'bg-green-50 border-green-200 text-green-800' 
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${
+                settings?.reservationSystemEnabled !== false ? 'bg-green-500' : 'bg-red-500'
+              }`}></span>
+              <span className="text-sm font-medium">
+                ระบบจอง: {settings?.reservationSystemEnabled !== false ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+              </span>
+            </div>
+          </div>
         </div>
+
+        {/* System Disabled Warning */}
+        {settings?.reservationSystemEnabled === false && (
+          <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <svg className="w-6 h-6 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <h3 className="font-semibold text-yellow-800">ระบบจองปิดใช้งานอยู่</h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  ผู้ใช้ทั่วไปไม่สามารถสร้างการจองใหม่ได้ในขณะนี้ คุณยังสามารถจัดการการจองที่มีอยู่ได้ตามปกติ
+                </p>
+                <p className="text-sm text-yellow-600 mt-2">
+                  ไปที่ <a href="/admin/settings" className="underline font-medium">การตั้งค่าระบบ</a> เพื่อเปิดใช้งานระบบจอง
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Success Message */}
         {successMessage && (
