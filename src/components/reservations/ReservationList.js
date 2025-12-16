@@ -195,10 +195,10 @@ const ReservationList = ({
                     <div>
                       <p className="text-sm font-medium text-gray-500">วันที่และเวลา</p>
                       <p className="text-sm text-gray-900">
-                        {formatReservationDate(new Date(reservation.reservationDate))}
+                        {formatReservationDate(reservation.reservationDate)}
                       </p>
                       <p className="text-sm text-gray-900">
-                        {formatReservationTime(new Date(reservation.startTime))} - {formatReservationTime(new Date(reservation.endTime))}
+                        {formatReservationTime(reservation.startTime)} - {formatReservationTime(reservation.endTime)}
                       </p>
                     </div>
                     <div>
@@ -225,9 +225,15 @@ const ReservationList = ({
 
                   {/* Timestamps */}
                   <div className="text-xs text-gray-500">
-                    <p>สร้างเมื่อ: {new Date(reservation.createdAt).toLocaleString('th-TH')}</p>
+                    <p>สร้างเมื่อ: {(() => {
+                      const date = reservation.createdAt?.toDate?.() || new Date(reservation.createdAt);
+                      return date instanceof Date && !isNaN(date) ? date.toLocaleString('th-TH') : 'ไม่ระบุ';
+                    })()}</p>
                     {reservation.approvedAt && (
-                      <p>อนุมัติเมื่อ: {new Date(reservation.approvedAt).toLocaleString('th-TH')}</p>
+                      <p>อนุมัติเมื่อ: {(() => {
+                        const date = reservation.approvedAt?.toDate?.() || new Date(reservation.approvedAt);
+                        return date instanceof Date && !isNaN(date) ? date.toLocaleString('th-TH') : 'ไม่ระบุ';
+                      })()}</p>
                     )}
                   </div>
                 </div>

@@ -194,28 +194,77 @@ export const calculateDuration = (startTime, endTime) => {
 };
 
 /**
+ * Convert various date formats to Date object
+ * Handles: Date, Firestore Timestamp, string, number (milliseconds)
+ * @param {Date|Object|string|number} value - Value to convert
+ * @returns {Date|null} Date object or null if invalid
+ */
+export const toDate = (value) => {
+  if (!value) return null;
+  
+  // Already a Date object
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value;
+  }
+  
+  // Firestore Timestamp (has toDate method)
+  if (value && typeof value.toDate === 'function') {
+    return value.toDate();
+  }
+  
+  // Firestore Timestamp object with seconds and nanoseconds
+  if (value && typeof value.seconds === 'number') {
+    return new Date(value.seconds * 1000);
+  }
+  
+  // String or number
+  if (typeof value === 'string' || typeof value === 'number') {
+    const date = new Date(value);
+    return isNaN(date.getTime()) ? null : date;
+  }
+  
+  return null;
+};
+
+/**
  * Format date for display
- * @param {Date} date - Date to format
+ * @param {Date|Object|string|number} dateValue - Date to format (supports Date, Firestore Timestamp, string)
  * @returns {string} Formatted date string
  */
-export const formatReservationDate = (date) => {
-  return new Intl.DateTimeFormat('th-TH', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long'
-  }).format(date);
+export const formatReservationDate = (dateValue) => {
+  try {
+    const date = toDate(dateValue);
+    if (!date) return 'ไม่ระบุวันที่';
+    
+    return new Intl.DateTimeFormat('th-TH', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long'
+    }).format(date);
+  } catch (error) {
+    console.error('Error formatting reservation date:', error, dateValue);
+    return 'ไม่ระบุวันที่';
+  }
 };
 
 /**
  * Format time for display
- * @param {Date} date - Date to format
+ * @param {Date|Object|string|number} dateValue - Date to format (supports Date, Firestore Timestamp, string)
  * @returns {string} Formatted time string
  */
-export const formatReservationTime = (date) => {
-  return new Intl.DateTimeFormat('th-TH', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  }).format(date);
+export const formatReservationTime = (dateValue) => {
+  try {
+    const date = toDate(dateValue);
+    if (!date) return '--:--';
+    
+    return new Intl.DateTimeFormat('th-TH', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(date);
+  } catch (error) {
+    console.error('Error formatting reservation time:', error, dateValue);
+    return '--:--';
+  }
 };
