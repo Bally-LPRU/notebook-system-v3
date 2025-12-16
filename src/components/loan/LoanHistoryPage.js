@@ -44,6 +44,28 @@ const formatDate = (date) => {
 };
 
 /**
+ * Format date and time for display
+ */
+const formatDateTime = (date) => {
+  if (!date) return '-';
+  try {
+    const d = date?.toDate?.() || new Date(date);
+    // Check if date is valid
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleString('th-TH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (err) {
+    console.warn('Error formatting datetime:', err);
+    return '-';
+  }
+};
+
+/**
  * Calculate loan duration in days
  */
 const calculateDuration = (borrowDate, returnDate) => {
@@ -94,7 +116,6 @@ const LoanHistoryItem = ({ item }) => {
   // Ensure all values are strings to prevent React error #31
   const rawEquipmentName = item.equipmentName || item._equipmentName || item.equipmentSnapshot?.name;
   const equipmentName = typeof rawEquipmentName === 'string' ? rawEquipmentName : 'ไม่ทราบชื่ออุปกรณ์';
-  const equipmentImage = item.equipmentSnapshot?.imageUrl || item.equipmentSnapshot?.imageURL || item.equipment?.imageUrl || item.equipment?.imageURL || null;
   const rawSerialNumber = item.equipmentSnapshot?.serialNumber || item.equipmentSnapshot?.equipmentNumber;
   const serialNumber = typeof rawSerialNumber === 'string' ? rawSerialNumber : '-';
   // Ensure category is a string, not an object
@@ -105,65 +126,65 @@ const LoanHistoryItem = ({ item }) => {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
-      <div className="flex items-start gap-4">
-        {/* Equipment Image */}
-        <div className="flex-shrink-0">
-          {equipmentImage ? (
-            <img
-              src={equipmentImage}
-              alt={equipmentName}
-              className="w-16 h-16 object-cover rounded-lg"
-            />
-          ) : (
-            <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-              <CalendarDaysIcon className="w-8 h-8 text-gray-400" />
-            </div>
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-gray-900 truncate">
-                {equipmentName}
-              </h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                หมายเลข: {serialNumber}
-              </p>
-            </div>
-            <LoanStatusBadge status={status} size="sm" />
-          </div>
-
-          {/* Dates */}
-          <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-600">
-            <div>
-              <span className="text-gray-400">วันที่ยืม:</span>{' '}
-              {formatDate(item.borrowDate)}
-            </div>
-            <div>
-              <span className="text-gray-400">วันที่คืน:</span>{' '}
-              {item.actualReturnDate ? formatDate(item.actualReturnDate) : formatDate(item.expectedReturnDate)}
-            </div>
-          </div>
-
-          {/* Duration and Category */}
-          <div className="mt-2 flex items-center gap-4 text-xs">
-            <span className="inline-flex items-center text-gray-500">
-              <ClockIcon className="w-3.5 h-3.5 mr-1" />
-              {calculateDuration(item.borrowDate, item.actualReturnDate || item.expectedReturnDate)}
-            </span>
-            <span className="text-gray-400">|</span>
-            <span className="text-gray-500">{category}</span>
-          </div>
-
-          {/* Purpose */}
-          {item.purpose && typeof item.purpose === 'string' && (
-            <p className="mt-2 text-xs text-gray-500 line-clamp-1">
-              วัตถุประสงค์: {item.purpose}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-sm font-medium text-gray-900 truncate">
+              {equipmentName}
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              หมายเลข: {serialNumber}
             </p>
+          </div>
+          <LoanStatusBadge status={status} size="sm" />
+        </div>
+
+        {/* Dates */}
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-600">
+          <div>
+            <span className="text-gray-400">วันที่ยืม:</span>{' '}
+            {formatDate(item.borrowDate)}
+          </div>
+          <div>
+            <span className="text-gray-400">กำหนดคืน:</span>{' '}
+            {formatDate(item.expectedReturnDate)}
+          </div>
+        </div>
+
+        {/* Pickup and Return Times */}
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          {item.pickedUpAt && (
+            <div className="flex items-center text-blue-600">
+              <ClockIcon className="w-3.5 h-3.5 mr-1" />
+              <span className="text-gray-400 mr-1">รับอุปกรณ์:</span>
+              {formatDateTime(item.pickedUpAt)}
+            </div>
+          )}
+          {item.actualReturnDate && (
+            <div className="flex items-center text-green-600">
+              <CheckCircleIcon className="w-3.5 h-3.5 mr-1" />
+              <span className="text-gray-400 mr-1">คืนอุปกรณ์:</span>
+              {formatDateTime(item.actualReturnDate)}
+            </div>
           )}
         </div>
+
+        {/* Duration and Category */}
+        <div className="mt-2 flex items-center gap-4 text-xs">
+          <span className="inline-flex items-center text-gray-500">
+            <ClockIcon className="w-3.5 h-3.5 mr-1" />
+            {calculateDuration(item.borrowDate, item.actualReturnDate || item.expectedReturnDate)}
+          </span>
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-500">{category}</span>
+        </div>
+
+        {/* Purpose */}
+        {item.purpose && typeof item.purpose === 'string' && (
+          <p className="mt-2 text-xs text-gray-500 line-clamp-1">
+            วัตถุประสงค์: {item.purpose}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -250,6 +271,9 @@ const FilterPanel = ({ filters, onFilterChange, onReset, categories }) => {
   );
 };
 
+// จำนวนรายการต่อหน้า
+const ITEMS_PER_PAGE = 5;
+
 /**
  * LoanHistoryPage Component
  */
@@ -269,6 +293,20 @@ const LoanHistoryPage = () => {
   const { categories } = useEquipmentCategories();
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset page when filters change
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    setCurrentPage(1);
+  };
+
+  // Pagination
+  const totalPages = Math.ceil(history.length / ITEMS_PER_PAGE);
+  const paginatedHistory = history.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -366,8 +404,8 @@ const LoanHistoryPage = () => {
       {showFilters && (
         <FilterPanel
           filters={filters}
-          onFilterChange={setFilters}
-          onReset={resetFilters}
+          onFilterChange={handleFilterChange}
+          onReset={() => { resetFilters(); setCurrentPage(1); }}
           categories={categories}
         />
       )}
@@ -400,16 +438,74 @@ const LoanHistoryPage = () => {
       )}
 
       {/* History List */}
-      {!loading && history.length > 0 && (
+      {!loading && paginatedHistory.length > 0 && (
         <div className="space-y-3">
-          {history.map(item => (
+          {paginatedHistory.map(item => (
             <LoanHistoryItem key={item.id} item={item} />
           ))}
         </div>
       )}
 
-      {/* Results Count */}
-      {!loading && history.length > 0 && (
+      {/* Pagination */}
+      {history.length > ITEMS_PER_PAGE && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-gray-500">
+            แสดง {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, history.length)} จาก {history.length} รายการ
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-blue-600 text-white'
+                        : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Results Summary for small lists */}
+      {history.length > 0 && history.length <= ITEMS_PER_PAGE && (
         <div className="mt-4 text-center text-sm text-gray-500">
           แสดง {history.length} รายการ
         </div>

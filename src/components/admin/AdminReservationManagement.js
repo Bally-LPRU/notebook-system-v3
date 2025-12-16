@@ -37,6 +37,9 @@ const AdminReservationManagement = () => {
   const { userProfile } = useAuth();
   const { settings } = useSettings();
   
+  // จำนวนรายการต่อหน้า
+  const ITEMS_PER_PAGE = 5;
+
   // State
   const [reservations, setReservations] = useState([]);
   const [stats, setStats] = useState({
@@ -51,6 +54,7 @@ const AdminReservationManagement = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Load reservations
   const loadReservations = useCallback(async () => {
@@ -196,6 +200,18 @@ const AdminReservationManagement = () => {
       r.userId?.toLowerCase().includes(search)
     );
   });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredReservations.length / ITEMS_PER_PAGE);
+  const paginatedReservations = filteredReservations.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm, dateFilter]);
 
   // Format date for display
   const formatDate = (date) => {
@@ -379,7 +395,7 @@ const AdminReservationManagement = () => {
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {filteredReservations.map((reservation) => (
+              {paginatedReservations.map((reservation) => (
                 <ReservationCard
                   key={reservation.id}
                   reservation={reservation}
@@ -395,6 +411,71 @@ const AdminReservationManagement = () => {
                   formatTime={formatTime}
                 />
               ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {filteredReservations.length > ITEMS_PER_PAGE && (
+            <div className="p-4 border-t border-gray-200 flex items-center justify-between">
+              <div className="text-sm text-gray-500">
+                แสดง {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredReservations.length)} จาก {filteredReservations.length} รายการ
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white'
+                            : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Results Summary for small lists */}
+          {filteredReservations.length > 0 && filteredReservations.length <= ITEMS_PER_PAGE && (
+            <div className="p-4 border-t border-gray-200 text-center text-sm text-gray-500">
+              แสดง {filteredReservations.length} รายการ
             </div>
           )}
         </div>

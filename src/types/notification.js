@@ -134,8 +134,8 @@ export const NOTIFICATION_TEMPLATES = {
     title: 'บัญชีถูกปฏิเสธ',
     message: 'บัญชีของคุณถูกปฏิเสธ{rejectionReason}',
     priority: NOTIFICATION_PRIORITIES.HIGH,
-    actionText: 'ติดต่อผู้ดูแลระบบ',
-    actionUrl: '/contact'
+    actionText: 'ดูรายละเอียด',
+    actionUrl: '/login'
   },
   [NOTIFICATION_TYPES.LOAN_REQUEST]: {
     title: 'คำขอยืมอุปกรณ์ใหม่',
@@ -149,28 +149,28 @@ export const NOTIFICATION_TEMPLATES = {
     message: 'คำขอยืม {equipmentName} ของคุณได้รับการอนุมัติแล้ว กรุณามารับอุปกรณ์ตามวันที่กำหนด',
     priority: NOTIFICATION_PRIORITIES.HIGH,
     actionText: 'ดูรายละเอียด',
-    actionUrl: '/my-requests/{requestId}'
+    actionUrl: '/my-requests?highlight={requestId}'
   },
   [NOTIFICATION_TYPES.LOAN_REJECTED]: {
     title: 'คำขอยืมถูกปฏิเสธ',
     message: 'คำขอยืม {equipmentName} ถูกปฏิเสธ{rejectionReason}',
     priority: NOTIFICATION_PRIORITIES.HIGH,
     actionText: 'ดูรายละเอียด',
-    actionUrl: '/my-requests/{requestId}'
+    actionUrl: '/my-requests?highlight={requestId}'
   },
   [NOTIFICATION_TYPES.LOAN_REMINDER]: {
     title: 'แจ้งเตือนคืนอุปกรณ์',
     message: 'กรุณาคืน {equipmentName} ภายในวันที่ {dueDate}',
     priority: NOTIFICATION_PRIORITIES.HIGH,
     actionText: 'ดูรายละเอียด',
-    actionUrl: '/my-loans/{loanId}'
+    actionUrl: '/my-requests?highlight={loanId}'
   },
   [NOTIFICATION_TYPES.LOAN_OVERDUE]: {
     title: 'อุปกรณ์เกินกำหนดคืน',
     message: '{equipmentName} เกินกำหนดคืนแล้ว กรุณาคืนโดยเร็วที่สุด',
     priority: NOTIFICATION_PRIORITIES.URGENT,
     actionText: 'ดูรายละเอียด',
-    actionUrl: '/my-loans/{loanId}'
+    actionUrl: '/my-requests?highlight={loanId}'
   },
   [NOTIFICATION_TYPES.RESERVATION_REQUEST]: {
     title: 'คำขอจองอุปกรณ์ใหม่',
@@ -184,27 +184,27 @@ export const NOTIFICATION_TEMPLATES = {
     message: 'การจอง {equipmentName} สำหรับวันที่ {reservationDate} ได้รับการอนุมัติแล้ว',
     priority: NOTIFICATION_PRIORITIES.HIGH,
     actionText: 'ดูรายละเอียด',
-    actionUrl: '/my-reservations/{reservationId}'
+    actionUrl: '/reservations?highlight={reservationId}'
   },
   [NOTIFICATION_TYPES.RESERVATION_REMINDER]: {
     title: 'แจ้งเตือนการจอง',
     message: 'การจอง {equipmentName} ของคุณจะเริ่มในอีก {hours} ชั่วโมง',
     priority: NOTIFICATION_PRIORITIES.MEDIUM,
     actionText: 'ดูรายละเอียด',
-    actionUrl: '/my-reservations/{reservationId}'
+    actionUrl: '/reservations?highlight={reservationId}'
   },
   [NOTIFICATION_TYPES.RESERVATION_READY]: {
     title: 'อุปกรณ์พร้อมรับ',
     message: '{equipmentName} พร้อมให้รับแล้ว กรุณามารับภายใน 2 ชั่วโมง',
     priority: NOTIFICATION_PRIORITIES.HIGH,
     actionText: 'ดูรายละเอียด',
-    actionUrl: '/my-reservations/{reservationId}'
+    actionUrl: '/reservations?highlight={reservationId}'
   },
   [NOTIFICATION_TYPES.RESERVATION_EXPIRED]: {
     title: 'การจองหมดอายุ',
     message: 'การจอง {equipmentName} หมดอายุแล้วเนื่องจากไม่มารับตามเวลา',
     priority: NOTIFICATION_PRIORITIES.MEDIUM,
     actionText: 'จองใหม่',
-    actionUrl: '/equipment/{equipmentId}'
+    actionUrl: '/equipment'
   }
 };

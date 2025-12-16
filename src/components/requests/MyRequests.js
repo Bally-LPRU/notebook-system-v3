@@ -1,23 +1,26 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import { Layout } from '../layout';
 import { useUserLoanRequests } from '../../hooks/useLoanRequests';
 import { useUserTypeLimits } from '../../hooks/useUserTypeLimits';
 import { 
   LOAN_REQUEST_STATUS_LABELS, 
-  LOAN_REQUEST_STATUS_COLORS,
   LOAN_REQUEST_STATUS 
 } from '../../types/loanRequest';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmptyState from '../common/EmptyState';
 
 // จำนวนรายการต่อหน้า
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 5;
 
 const MyRequests = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [highlightedId, setHighlightedId] = useState(null);
+  const highlightedRef = useRef(null);
   
   const {
     loanRequests,
@@ -46,11 +49,63 @@ const MyRequests = () => {
     setCurrentPage(1); // Reset page when filter changes
   }, [statusFilter, updateFilters]);
 
+  // Handle highlight parameter from notification click
+  useEffect(() => {
+    const highlightParam = searchParams.get('highlight');
+    if (highlightParam && loanRequests.length > 0) {
+      setHighlightedId(highlightParam);
+      
+      // Find the page containing the highlighted item
+      const itemIndex = loanRequests.findIndex(r => r.id === highlightParam);
+      if (itemIndex !== -1) {
+        const targetPage = Math.floor(itemIndex / ITEMS_PER_PAGE) + 1;
+        setCurrentPage(targetPage);
+        setStatusFilter(''); // Clear filter to show all items
+      }
+      
+      // Clear the highlight param from URL after processing
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('highlight');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, loanRequests, setSearchParams]);
+
+  // Scroll to highlighted item
+  useEffect(() => {
+    if (highlightedId && highlightedRef.current) {
+      highlightedRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // Remove highlight after 5 seconds
+      const timer = setTimeout(() => {
+        setHighlightedId(null);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedId, currentPage]);
+
+  // Sort loan requests: BORROWED status first, then by createdAt desc
+  const sortedLoanRequests = useMemo(() => {
+    return [...loanRequests].sort((a, b) => {
+      // BORROWED and OVERDUE status should be at the top
+      const aIsBorrowing = a.status === LOAN_REQUEST_STATUS.BORROWED || a.status === LOAN_REQUEST_STATUS.OVERDUE;
+      const bIsBorrowing = b.status === LOAN_REQUEST_STATUS.BORROWED || b.status === LOAN_REQUEST_STATUS.OVERDUE;
+      
+      if (aIsBorrowing && !bIsBorrowing) return -1;
+      if (!aIsBorrowing && bIsBorrowing) return 1;
+      
+      // Then sort by createdAt desc
+      const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+      const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+      return bDate - aDate;
+    });
+  }, [loanRequests]);
+
   // Filter and paginate loan requests
   const filteredRequests = useMemo(() => {
-    if (!statusFilter) return loanRequests;
-    return loanRequests.filter(r => r.status === statusFilter);
-  }, [loanRequests, statusFilter]);
+    if (!statusFilter) return sortedLoanRequests;
+    return sortedLoanRequests.filter(r => r.status === statusFilter);
+  }, [sortedLoanRequests, statusFilter]);
 
   const totalPages = Math.ceil(filteredRequests.length / ITEMS_PER_PAGE);
   const paginatedRequests = useMemo(() => {
@@ -394,25 +449,16 @@ const MyRequests = () => {
         {!loading && paginatedRequests.length > 0 && (
           <div className="space-y-3">
             {paginatedRequests.map((request) => (
-              <div key={request.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div 
+                key={request.id} 
+                ref={request.id === highlightedId ? highlightedRef : null}
+                className={`bg-white rounded-lg shadow-sm border p-4 transition-all duration-500 ${
+                  request.id === highlightedId 
+                    ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50' 
+                    : 'border-gray-200'
+                }`}
+              >
                 <div className="flex items-start gap-4">
-                  {/* Equipment Image */}
-                  <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded-lg overflow-hidden">
-                    {request.equipment?.imageURL || request.equipment?.imageUrl || request.equipmentSnapshot?.imageUrl || request.equipmentSnapshot?.imageURL ? (
-                      <img
-                        src={request.equipment?.imageURL || request.equipment?.imageUrl || request.equipmentSnapshot?.imageUrl || request.equipmentSnapshot?.imageURL}
-                        alt={request.equipment?.name || request.equipmentSnapshot?.name || 'อุปกรณ์'}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-
                   {/* Main Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -450,7 +496,7 @@ const MyRequests = () => {
                       )}
                       {request.status === LOAN_REQUEST_STATUS.BORROWED && (
                         <p className="text-blue-700">
-                          กำหนดคืน: {formatDate(request.expectedReturnDate)}
+                          กำหนดคืน: {formatDateTime(request.expectedReturnDate)}
                         </p>
                       )}
                       {request.status === LOAN_REQUEST_STATUS.RETURNED && request.actualReturnDate && (
@@ -460,7 +506,7 @@ const MyRequests = () => {
                       )}
                       {request.status === LOAN_REQUEST_STATUS.OVERDUE && (
                         <p className="text-red-700 font-medium">
-                          เกินกำหนดคืน! กรุณาติดต่อผู้ดูแลระบบ
+                          เกินกำหนดคืน: {formatDateTime(request.expectedReturnDate)} - กรุณาติดต่อผู้ดูแลระบบ
                         </p>
                       )}
                       {request.status === LOAN_REQUEST_STATUS.REJECTED && request.rejectionReason && (

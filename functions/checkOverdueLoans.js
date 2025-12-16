@@ -77,7 +77,7 @@ exports.checkOverdueLoans = functions.pubsub
           },
           isRead: false,
           priority: 'high',
-          actionUrl: `/my-loans/${loanId}`,
+          actionUrl: `/my-requests?highlight=${loanId}`,
           actionText: 'ดูรายละเอียด',
           createdAt: now
         });
@@ -323,7 +323,7 @@ exports.sendLoanReminders = functions.pubsub
           },
           isRead: false,
           priority: 'high',
-          actionUrl: `/my-loans/${loanId}`,
+          actionUrl: `/my-requests?highlight=${loanId}`,
           actionText: 'ดูรายละเอียด',
           createdAt: now
         });

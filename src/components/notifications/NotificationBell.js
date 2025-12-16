@@ -19,7 +19,7 @@
  * <NotificationBell />
  */
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { BellIcon as BellSolidIcon } from '@heroicons/react/24/solid';
 import { useNotificationContext } from '../../contexts/NotificationContext';
@@ -30,6 +30,7 @@ import { th } from 'date-fns/locale';
 
 const NotificationBell = () => {
   const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const { 
     notifications: regularNotifications, 
     unreadCount: regularUnreadCount, 
@@ -88,7 +89,12 @@ const NotificationBell = () => {
     // Navigate to action URL or link if available
     const targetUrl = notification.actionUrl || notification.link;
     if (targetUrl && targetUrl !== '#') {
-      window.location.href = targetUrl;
+      // Use react-router navigate for internal links to avoid page reload
+      if (targetUrl.startsWith('/')) {
+        navigate(targetUrl);
+      } else {
+        window.location.href = targetUrl;
+      }
     }
     
     setIsOpen(false);

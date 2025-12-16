@@ -39,7 +39,7 @@ const LoanRequestList = () => {
   } = useLoanRequests({
     sortBy: 'createdAt',
     sortOrder: 'desc',
-    limit: 10
+    limit: 5
   });
 
   useEffect(() => {

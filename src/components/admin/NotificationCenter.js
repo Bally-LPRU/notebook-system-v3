@@ -101,6 +101,9 @@ const getPriorityBadge = (priority) => {
   return badges[priority] || badges.low;
 };
 
+// จำนวนรายการต่อหน้า
+const ITEMS_PER_PAGE = 5;
+
 const NotificationCenter = () => {
   const { userProfile } = useAuth();
   const { settings } = useSettings();
@@ -114,6 +117,7 @@ const NotificationCenter = () => {
   const [showDiscordSettings, setShowDiscordSettings] = useState(false);
   const [discordEvents, setDiscordEvents] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (settings?.discordEventTypes) {
@@ -139,6 +143,18 @@ const NotificationCenter = () => {
     }
     return filtered;
   }, [allNotifications, activeTab, priorityFilter, searchTerm]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredNotifications.length / ITEMS_PER_PAGE);
+  const paginatedNotifications = filteredNotifications.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, priorityFilter, searchTerm]);
 
 
   const sendTestDiscord = async () => {
@@ -296,7 +312,7 @@ const NotificationCenter = () => {
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
-              {filteredNotifications.map((notification) => {
+              {paginatedNotifications.map((notification) => {
                 const content = getNotificationContent(notification);
                 const badge = getPriorityBadge(notification.priority);
                 return (
@@ -327,7 +343,68 @@ const NotificationCenter = () => {
           )}
         </div>
 
-        {filteredNotifications.length > 0 && <div className="text-center text-sm text-gray-500 mt-4">แสดง {filteredNotifications.length} จาก {counts.total} รายการ</div>}
+        {/* Pagination */}
+        {filteredNotifications.length > ITEMS_PER_PAGE && (
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-gray-500">
+              แสดง {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredNotifications.length)} จาก {filteredNotifications.length} รายการ
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 text-white'
+                          : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Results Summary for small lists */}
+        {filteredNotifications.length > 0 && filteredNotifications.length <= ITEMS_PER_PAGE && (
+          <div className="text-center text-sm text-gray-500 mt-4">แสดง {filteredNotifications.length} จาก {counts.total} รายการ</div>
+        )}
 
         {/* Quick Actions */}
         <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">

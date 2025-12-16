@@ -49,69 +49,24 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {userProfile && (
-              <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-                <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2 sm:mb-3">
-                  สถานะบัญชี
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="flex items-center flex-wrap">
-                    <span className="text-xs sm:text-sm font-medium text-gray-500">บทบาท:</span>
-                    <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      userProfile.role === 'admin' 
-                        ? 'bg-purple-100 text-purple-800' 
-                        : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {userProfile.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'}
-                    </span>
-                  </div>
-                  <div className="flex items-center flex-wrap">
-                    <span className="text-xs sm:text-sm font-medium text-gray-500">สถานะ:</span>
-                    <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      userProfile.status === 'approved' 
-                        ? 'bg-green-100 text-green-800' 
-                        : userProfile.status === 'pending'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {userProfile.status === 'approved' 
-                        ? 'อนุมัติแล้ว' 
-                        : userProfile.status === 'pending'
-                        ? 'รอการอนุมัติ'
-                        : 'ถูกระงับ'
-                      }
-                    </span>
-                  </div>
-                </div>
-
-                {userProfile.status === 'approved' && (
-                  <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-green-50 border border-green-200 rounded-md">
-                    <p className="text-xs sm:text-sm text-green-800">
-                      ยินดีต้อนรับ! คุณสามารถใช้งานระบบได้แล้ว
+            {isAdmin && (
+              <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-purple-50 border border-purple-200 rounded-md">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+                  <div>
+                    <p className="text-xs sm:text-sm font-medium text-purple-800">
+                      เมนูผู้ดูแลระบบ
+                    </p>
+                    <p className="text-xs text-purple-600">
+                      จัดการผู้ใช้และระบบ
                     </p>
                   </div>
-                )}
-
-                {isAdmin && (
-                  <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-purple-50 border border-purple-200 rounded-md">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
-                      <div>
-                        <p className="text-xs sm:text-sm font-medium text-purple-800">
-                          เมนูผู้ดูแลระบบ
-                        </p>
-                        <p className="text-xs text-purple-600">
-                          จัดการผู้ใช้และระบบ
-                        </p>
-                      </div>
-                      <Link
-                        to="/admin"
-                        className="inline-flex items-center justify-center px-3 py-1.5 sm:py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 w-full sm:w-auto"
-                      >
-                        แดชบอร์ดผู้ดูแล
-                      </Link>
-                    </div>
-                  </div>
-                )}
+                  <Link
+                    to="/admin"
+                    className="inline-flex items-center justify-center px-3 py-1.5 sm:py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 w-full sm:w-auto"
+                  >
+                    แดชบอร์ดผู้ดูแล
+                  </Link>
+                </div>
               </div>
             )}
           </div>

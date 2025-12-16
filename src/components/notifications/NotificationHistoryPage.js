@@ -13,6 +13,9 @@ import { th } from 'date-fns/locale';
 import Layout from '../layout/Layout';
 import { useNotificationHistory, formatDateKeyThai } from '../../hooks/useNotificationHistory';
 
+// จำนวนรายการต่อหน้า
+const ITEMS_PER_PAGE = 5;
+
 /**
  * NotificationHistoryPage - แสดงประวัติการแจ้งเตือนทั้งหมด
  * Requirements: 10.1, 10.2, 10.3, 10.4, 10.5
@@ -33,6 +36,38 @@ const NotificationHistoryPage = () => {
   } = useNotificationHistory();
 
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Pagination
+  const totalPages = Math.ceil(notifications.length / ITEMS_PER_PAGE);
+  const paginatedNotifications = notifications.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  // Group paginated notifications by date
+  const paginatedGroupedByDate = useMemo(() => {
+    const grouped = {};
+    paginatedNotifications.forEach(notification => {
+      const dateKey = notification.createdAt 
+        ? format(notification.createdAt.toDate ? notification.createdAt.toDate() : new Date(notification.createdAt), 'yyyy-MM-dd')
+        : 'unknown';
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey].push(notification);
+    });
+    return grouped;
+  }, [paginatedNotifications]);
+
+  // Get sorted date keys for paginated data
+  const paginatedSortedDateKeys = useMemo(() => {
+    return Object.keys(paginatedGroupedByDate).sort((a, b) => {
+      if (a === 'unknown') return 1;
+      if (b === 'unknown') return -1;
+      return b.localeCompare(a);
+    });
+  }, [paginatedGroupedByDate]);
 
   // Type filter options
   const typeFilterOptions = [
@@ -53,10 +88,12 @@ const NotificationHistoryPage = () => {
   // Handle filter changes
   const handleTypeFilterChange = (value) => {
     setFilters(prev => ({ ...prev, type: value }));
+    setCurrentPage(1);
   };
 
   const handleReadStatusChange = (value) => {
     setFilters(prev => ({ ...prev, readStatus: value }));
+    setCurrentPage(1);
   };
 
   const handleDateRangeChange = (field, value) => {
@@ -67,6 +104,7 @@ const NotificationHistoryPage = () => {
         [field]: value ? new Date(value) : null
       }
     }));
+    setCurrentPage(1);
   };
 
   const clearFilters = () => {
@@ -75,6 +113,7 @@ const NotificationHistoryPage = () => {
       dateRange: null,
       readStatus: null
     });
+    setCurrentPage(1);
   };
 
   // Get sorted date keys (newest first)
@@ -362,7 +401,7 @@ const NotificationHistoryPage = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {sortedDateKeys.map(dateKey => (
+            {paginatedSortedDateKeys.map(dateKey => (
               <div key={dateKey} className="bg-white shadow rounded-lg overflow-hidden">
                 {/* Date Header */}
                 <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
@@ -372,14 +411,14 @@ const NotificationHistoryPage = () => {
                       {formatDateKeyThai(dateKey)}
                     </h2>
                     <span className="ml-2 text-xs text-gray-500">
-                      ({groupedByDate[dateKey].length} รายการ)
+                      ({paginatedGroupedByDate[dateKey].length} รายการ)
                     </span>
                   </div>
                 </div>
 
                 {/* Notifications for this date */}
                 <div className="divide-y divide-gray-100">
-                  {groupedByDate[dateKey].map((notification) => (
+                  {paginatedGroupedByDate[dateKey].map((notification) => (
                     <div
                       key={notification.id}
                       className={`px-6 py-4 hover:bg-gray-50 transition-colors duration-200 ${
@@ -475,8 +514,66 @@ const NotificationHistoryPage = () => {
           </div>
         )}
 
-        {/* Summary Footer */}
-        {notifications.length > 0 && (
+        {/* Pagination */}
+        {notifications.length > ITEMS_PER_PAGE && (
+          <div className="mt-6 flex items-center justify-between">
+            <div className="text-sm text-gray-500">
+              แสดง {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, notifications.length)} จาก {notifications.length} รายการ
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 text-white'
+                          : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Summary Footer for small lists */}
+        {notifications.length > 0 && notifications.length <= ITEMS_PER_PAGE && (
           <div className="mt-6 text-center text-sm text-gray-500">
             แสดง {notifications.length} รายการ จากทั้งหมด {totalCount} รายการ
           </div>

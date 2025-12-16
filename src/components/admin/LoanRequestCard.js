@@ -476,13 +476,26 @@ const LoanRequestCard = ({
               </div>
               <div className="bg-gray-50 rounded-lg p-2.5">
                 <span className="block text-xs text-gray-500">กำหนดคืน</span>
-                <span className="font-medium text-gray-900">{formatDate(request.expectedReturnDate)}</span>
+                <span className="font-medium text-gray-900">{formatDateTime(request.expectedReturnDate)}</span>
               </div>
               <div className="bg-gray-50 rounded-lg p-2.5">
                 <span className="block text-xs text-gray-500">ระยะเวลา</span>
                 <span className="font-medium text-gray-900">{calculateLoanDuration()} วัน</span>
               </div>
             </div>
+
+            {/* Picked Up Info - Show when borrowed */}
+            {request.pickedUpAt && (isBorrowed || isOverdue || request.status === LOAN_REQUEST_STATUS.RETURNED) && (
+              <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center gap-2 text-sm">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  <span className="font-medium text-blue-700">รับอุปกรณ์เมื่อ:</span>
+                  <span className="text-blue-600">{formatDateTime(request.pickedUpAt)}</span>
+                </div>
+              </div>
+            )}
 
             {/* Actual Return Date - Show when returned */}
             {request.actualReturnDate && (
