@@ -103,13 +103,13 @@ const EquipmentCard = ({
     <div className={`bg-white rounded-lg shadow-sm border transition-all duration-200 ${
       isSelected 
         ? 'border-blue-500 shadow-md ring-2 ring-blue-200' 
-        : 'border-gray-200 hover:shadow-md'
-    } ${isListMode ? 'flex items-center p-4' : ''}`}>
-      {/* Equipment Image */}
+        : 'border-gray-200 hover:shadow-md active:shadow-lg'
+    } ${isListMode ? 'flex items-center p-3 sm:p-4' : ''}`}>
+      {/* Equipment Image - Mobile Optimized */}
       <div className={`relative bg-gray-100 overflow-hidden ${
         isListMode 
-          ? 'w-16 h-16 rounded-lg flex-shrink-0' 
-          : 'h-48 rounded-t-lg'
+          ? 'w-14 h-14 sm:w-16 sm:h-16 rounded-lg flex-shrink-0' 
+          : 'h-32 xs:h-36 sm:h-40 md:h-48 rounded-t-lg'
       }`}>
         {equipment.imageURL && !imageError ? (
           <>
@@ -178,69 +178,71 @@ const EquipmentCard = ({
         </div>
       )}
 
-      {/* Equipment Info */}
-      <div className={isListMode ? 'flex-1 ml-4' : 'p-4'}>
-        <div className={isListMode ? 'flex items-center justify-between' : 'mb-2'}>
-          <div className={isListMode ? 'flex-1' : ''}>
+      {/* Equipment Info - Mobile Optimized */}
+      <div className={isListMode ? 'flex-1 ml-3 sm:ml-4' : 'p-2.5 sm:p-3 md:p-4'}>
+        <div className={isListMode ? 'flex items-center justify-between' : 'mb-1.5 sm:mb-2'}>
+          <div className={isListMode ? 'flex-1 min-w-0' : ''}>
             <h3 className={`font-semibold text-gray-900 line-clamp-2 ${
-              isListMode ? 'text-base mb-1' : 'text-lg mb-1'
+              isListMode ? 'text-sm sm:text-base mb-0.5 sm:mb-1' : 'text-sm sm:text-base md:text-lg mb-0.5 sm:mb-1'
             }`}>
               {equipment.name}
             </h3>
-            <p className="text-sm text-gray-600">
+            <p className="text-xs sm:text-sm text-gray-600 truncate">
               {getCategoryName(equipment.category)}
             </p>
           </div>
           
           {/* Status Badge for List Mode */}
           {isListMode && (
-            <div className="ml-4">
+            <div className="ml-2 sm:ml-4 flex-shrink-0">
               <EquipmentStatusBadge status={equipment.status} size="sm" />
             </div>
           )}
         </div>
 
-        <div className={`space-y-1 ${isListMode ? 'mb-2' : 'mb-4'} ${isListMode ? 'grid grid-cols-2 gap-x-4 gap-y-1' : ''}`}>
-          <div className="flex justify-between text-sm">
+        {/* Equipment Details - Mobile: Show less, Desktop: Show more */}
+        <div className={`space-y-0.5 sm:space-y-1 ${isListMode ? 'mb-1.5 sm:mb-2' : 'mb-2 sm:mb-3 md:mb-4'} ${isListMode ? 'hidden sm:grid sm:grid-cols-2 sm:gap-x-4 sm:gap-y-1' : ''}`}>
+          <div className="flex justify-between text-xs sm:text-sm">
             <span className="text-gray-500">ยี่ห้อ:</span>
-            <span className="text-gray-900 font-medium">{equipment.brand}</span>
+            <span className="text-gray-900 font-medium truncate ml-2">{equipment.brand}</span>
           </div>
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between text-xs sm:text-sm">
             <span className="text-gray-500">รุ่น:</span>
-            <span className="text-gray-900 font-medium">{equipment.model}</span>
+            <span className="text-gray-900 font-medium truncate ml-2">{equipment.model}</span>
           </div>
-          <div className="flex justify-between text-sm">
+          {/* Hide serial and location on mobile for grid view */}
+          <div className={`flex justify-between text-xs sm:text-sm ${!isListMode ? 'hidden sm:flex' : ''}`}>
             <span className="text-gray-500">รหัส:</span>
-            <span className="text-gray-900 font-medium font-mono text-xs">
+            <span className="text-gray-900 font-medium font-mono text-xs truncate ml-2">
               {equipment.serialNumber}
             </span>
           </div>
-          <div className="flex justify-between text-sm">
+          <div className={`flex justify-between text-xs sm:text-sm ${!isListMode ? 'hidden sm:flex' : ''}`}>
             <span className="text-gray-500">สถานที่:</span>
-            <span className="text-gray-900 font-medium">{equipment.location}</span>
+            <span className="text-gray-900 font-medium truncate ml-2">{equipment.location}</span>
           </div>
         </div>
 
-        {/* Description */}
+        {/* Description - Hidden on mobile */}
         {equipment.description && !isListMode && (
-          <div className="mb-4">
-            <p className="text-sm text-gray-600 line-clamp-2">
+          <div className="mb-2 sm:mb-3 md:mb-4 hidden sm:block">
+            <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">
               {equipment.description}
             </p>
           </div>
         )}
 
-      {/* Action Buttons */}
-      <div className={isListMode ? 'ml-4 flex items-center space-x-2' : ''}>
-        <div className={isListMode ? 'flex space-x-2' : 'flex flex-col space-y-2'}>
+      {/* Action Buttons - Mobile Optimized */}
+      <div className={isListMode ? 'ml-2 sm:ml-4 flex items-center space-x-1 sm:space-x-2' : ''}>
+        <div className={isListMode ? 'flex space-x-1 sm:space-x-2' : 'flex flex-col space-y-1.5 sm:space-y-2'}>
           {/* User Actions */}
           {!isAdmin && (
-            <div className={isListMode ? 'flex space-x-1' : 'flex space-x-2'}>
+            <div className={isListMode ? 'flex space-x-1' : 'flex space-x-1.5 sm:space-x-2'}>
               {/* Show "ไม่ว่าง" button when equipment is borrowed/maintenance/retired */}
               {equipment.status !== EQUIPMENT_STATUS.AVAILABLE ? (
                 <button
                   disabled
-                  className={`${isListMode ? 'px-2 py-1' : 'flex-1 px-3 py-2'} text-sm font-medium rounded-md bg-gray-200 text-gray-500 cursor-not-allowed`}
+                  className={`${isListMode ? 'px-1.5 sm:px-2 py-1' : 'flex-1 px-2 sm:px-3 py-1.5 sm:py-2'} text-xs sm:text-sm font-medium rounded-md bg-gray-200 text-gray-500 cursor-not-allowed`}
                   title={
                     equipment.status === EQUIPMENT_STATUS.BORROWED ? 'อุปกรณ์กำลังถูกยืม' :
                     equipment.status === EQUIPMENT_STATUS.MAINTENANCE ? 'อุปกรณ์อยู่ระหว่างซ่อมบำรุง' :
@@ -248,43 +250,43 @@ const EquipmentCard = ({
                     'อุปกรณ์ไม่พร้อมใช้งาน'
                   }
                 >
-                  <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 inline mr-0.5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                   </svg>
-                  {!isListMode && 'ไม่ว่าง'}
+                  {!isListMode && <span className="hidden xs:inline">ไม่ว่าง</span>}
                 </button>
               ) : (
                 <>
                   <button
                     onClick={handleBorrow}
                     disabled={isBorrowDisabled}
-                    className={`${isListMode ? 'px-2 py-1' : 'flex-1 px-3 py-2'} text-sm font-medium rounded-md transition-colors ${
+                    className={`${isListMode ? 'px-1.5 sm:px-2 py-1' : 'flex-1 px-2 sm:px-3 py-1.5 sm:py-2'} text-xs sm:text-sm font-medium rounded-md transition-colors ${
                       !isBorrowDisabled
-                        ? 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+                        ? 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
                         : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     }`}
                     title={borrowDisableReason || 'ขอยืมทันที - ส่งคำขอยืมและรอ admin อนุมัติ'}
                   >
-                    <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 inline mr-0.5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    {!isListMode && 'ยืมทันที'}
+                    {!isListMode && <span className="hidden xs:inline">ยืม</span>}
                   </button>
                   
                   <button
                     onClick={handleReserve}
                     disabled={isBorrowDisabled}
-                    className={`${isListMode ? 'px-2 py-1' : 'flex-1 px-3 py-2'} text-sm font-medium rounded-md transition-colors ${
+                    className={`${isListMode ? 'px-1.5 sm:px-2 py-1' : 'flex-1 px-2 sm:px-3 py-1.5 sm:py-2'} text-xs sm:text-sm font-medium rounded-md transition-colors ${
                       !isBorrowDisabled
-                        ? 'bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2'
+                        ? 'bg-yellow-500 text-white hover:bg-yellow-600 active:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2'
                         : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     }`}
                     title={borrowDisableReason || 'จองล่วงหน้า - เลือกวันและเวลาที่ต้องการในอนาคต'}
                   >
-                    <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 inline mr-0.5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    {!isListMode && 'จองล่วงหน้า'}
+                    {!isListMode && <span className="hidden xs:inline">จอง</span>}
                   </button>
                 </>
               )}
@@ -293,47 +295,48 @@ const EquipmentCard = ({
 
           {/* Admin Actions */}
           {isAdmin && (
-            <div className={isListMode ? 'flex space-x-1' : 'flex space-x-2'}>
+            <div className={isListMode ? 'flex space-x-1' : 'flex space-x-1.5 sm:space-x-2'}>
               <button
                 onClick={handleEdit}
-                className={`${isListMode ? 'px-2 py-1' : 'flex-1 px-3 py-2'} text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors`}
+                className={`${isListMode ? 'px-1.5 sm:px-2 py-1' : 'flex-1 px-2 sm:px-3 py-1.5 sm:py-2'} text-xs sm:text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 active:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors`}
                 title="แก้ไข"
               >
-                <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 inline mr-0.5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
-                {!isListMode && 'แก้ไข'}
+                {!isListMode && <span className="hidden xs:inline">แก้ไข</span>}
               </button>
               
               <button
                 onClick={handleDelete}
                 disabled={equipment.status === EQUIPMENT_STATUS.BORROWED}
-                className={`${isListMode ? 'px-2 py-1' : 'flex-1 px-3 py-2'} text-sm font-medium rounded-md transition-colors ${
+                className={`${isListMode ? 'px-1.5 sm:px-2 py-1' : 'flex-1 px-2 sm:px-3 py-1.5 sm:py-2'} text-xs sm:text-sm font-medium rounded-md transition-colors ${
                   equipment.status === EQUIPMENT_STATUS.BORROWED
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'text-red-600 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
+                    : 'text-red-600 bg-red-50 hover:bg-red-100 active:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
                 }`}
                 title={equipment.status === EQUIPMENT_STATUS.BORROWED ? 'ไม่สามารถลบอุปกรณ์ที่กำลังถูกยืมได้' : 'ลบอุปกรณ์'}
               >
-                <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 inline mr-0.5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
-                {!isListMode && 'ลบ'}
+                {!isListMode && <span className="hidden xs:inline">ลบ</span>}
               </button>
             </div>
           )}
 
-          {/* View Detail Button */}
+          {/* View Detail Button - Mobile: Icon only */}
           {!isListMode && (
             <button
               onClick={handleViewDetail}
-              className="w-full px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 rounded-md hover:bg-gray-100 active:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
             >
-              <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 inline mr-0.5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
-              ดูรายละเอียด
+              <span className="hidden xs:inline">ดูรายละเอียด</span>
+              <span className="xs:hidden">ดู</span>
             </button>
           )}
 
@@ -341,10 +344,10 @@ const EquipmentCard = ({
           {isListMode && (
             <button
               onClick={handleViewDetail}
-              className="px-2 py-1 text-sm font-medium text-gray-700 bg-gray-50 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+              className="px-1.5 sm:px-2 py-1 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 rounded-md hover:bg-gray-100 active:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
               title="ดูรายละเอียด"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>

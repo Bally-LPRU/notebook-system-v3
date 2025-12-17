@@ -5,10 +5,18 @@ import { EQUIPMENT_PAGINATION } from '../types/equipment';
 
 /**
  * Custom hook for equipment management
- * @param {Object} initialFilters - Initial filter parameters
+ * @param {Object} options - Hook options
+ * @param {Object} options.filters - Initial filter parameters
+ * @param {boolean} options.skipInitialLoad - Skip initial data load (for lazy loading)
+ * @param {number} options.limit - Items per page
  * @returns {Object} Equipment state and methods
  */
-export const useEquipment = (initialFilters = {}) => {
+export const useEquipment = (options = {}) => {
+  // Support both old format (initialFilters) and new format (options object)
+  const initialFilters = options.filters || options;
+  const skipInitialLoad = options.skipInitialLoad || false;
+  const limit = options.limit || EQUIPMENT_PAGINATION.DEFAULT_LIMIT;
+
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -16,10 +24,11 @@ export const useEquipment = (initialFilters = {}) => {
     currentPage: EQUIPMENT_PAGINATION.DEFAULT_PAGE,
     hasNextPage: false,
     totalItems: 0,
-    limit: EQUIPMENT_PAGINATION.DEFAULT_LIMIT
+    limit: limit
   });
   const [filters, setFilters] = useState(initialFilters);
   const [lastDoc, setLastDoc] = useState(null);
+  const [initialized, setInitialized] = useState(false);
 
   /**
    * Load equipment list
@@ -126,6 +135,11 @@ export const useEquipment = (initialFilters = {}) => {
 
   // Load equipment on mount and when filters change
   useEffect(() => {
+    // Skip initial load if skipInitialLoad is true and not yet initialized
+    if (skipInitialLoad && !initialized) {
+      return;
+    }
+
     const loadData = async () => {
       try {
         setLoading(true);
@@ -161,7 +175,14 @@ export const useEquipment = (initialFilters = {}) => {
     };
 
     loadData();
-  }, [filters]);
+  }, [filters, skipInitialLoad, initialized]);
+
+  /**
+   * Trigger initial load (for lazy loading mode)
+   */
+  const triggerLoad = useCallback(() => {
+    setInitialized(true);
+  }, []);
 
   return {
     equipment,
@@ -169,6 +190,7 @@ export const useEquipment = (initialFilters = {}) => {
     error,
     pagination,
     filters,
+    initialized,
     loadEquipment,
     refreshEquipment,
     loadMore,
@@ -176,7 +198,8 @@ export const useEquipment = (initialFilters = {}) => {
     resetFilters,
     addEquipment,
     updateEquipment,
-    removeEquipment
+    removeEquipment,
+    triggerLoad
   };
 };
 
