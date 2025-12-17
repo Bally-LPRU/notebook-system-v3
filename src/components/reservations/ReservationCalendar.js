@@ -291,7 +291,7 @@ const ReservationCalendar = ({
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-medium">
-                            {formatReservationTime(reservation.startTime.toDate())} - {formatReservationTime(reservation.endTime.toDate())}
+                            {formatReservationTime(reservation.startTime)} - {formatReservationTime(reservation.endTime)}
                           </p>
                           <p className="text-xs opacity-75 mt-1">
                             {reservation.purpose}

@@ -43,6 +43,11 @@ class ReservationService {
       const startTime = this.createDateTime(reservationDate, reservationData.startTime);
       const endTime = this.createDateTime(reservationDate, reservationData.endTime);
 
+      // Calculate expected return date (default: same day as reservation if not provided)
+      const expectedReturnDate = reservationData.expectedReturnDate 
+        ? new Date(reservationData.expectedReturnDate)
+        : new Date(reservationDate);
+
       // Prepare reservation data
       const reservation = {
         equipmentId: reservationData.equipmentId,
@@ -50,12 +55,15 @@ class ReservationService {
         reservationDate: reservationDate,
         startTime: startTime,
         endTime: endTime,
+        expectedReturnDate: expectedReturnDate,
         purpose: reservationData.purpose.trim(),
         notes: reservationData.notes?.trim() || '',
         status: RESERVATION_STATUS.PENDING,
         approvedBy: null,
         approvedAt: null,
         notificationSent: false,
+        convertedToLoanId: null,
+        convertedAt: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
@@ -826,6 +834,155 @@ class ReservationService {
       console.error('Error getting user active reservations count:', error);
       return 0;
     }
+  }
+
+  /**
+   * Convert reservation to loan request
+   * เมื่อผู้ใช้มารับอุปกรณ์ตามวันเวลาที่จองไว้ admin สามารถแปลงการจองเป็นคำขอยืมได้
+   * @param {string} reservationId - Reservation ID
+   * @param {string} convertedBy - UID of admin who converts
+   * @returns {Promise<Object>} Created loan request
+   */
+  static async convertToLoanRequest(reservationId, convertedBy) {
+    try {
+      // Get reservation data
+      const reservation = await this.getReservationById(reservationId);
+      if (!reservation) {
+        throw new Error('ไม่พบการจองที่ต้องการแปลง');
+      }
+
+      // Validate reservation status - only approved or ready can be converted
+      if (reservation.status !== RESERVATION_STATUS.APPROVED && 
+          reservation.status !== RESERVATION_STATUS.READY) {
+        throw new Error('สามารถแปลงได้เฉพาะการจองที่อนุมัติแล้วหรือพร้อมรับเท่านั้น');
+      }
+
+      // Check if already converted
+      if (reservation.convertedToLoanId) {
+        throw new Error('การจองนี้ถูกแปลงเป็นคำขอยืมแล้ว');
+      }
+
+      // Import LoanRequestService dynamically to avoid circular dependency
+      const { default: LoanRequestService } = await import('./loanRequestService');
+
+      // Get equipment info
+      const equipment = await EquipmentService.getEquipmentById(reservation.equipmentId);
+      if (!equipment) {
+        throw new Error('ไม่พบอุปกรณ์ในระบบ');
+      }
+
+      // Prepare borrow date from reservation
+      const borrowDate = reservation.startTime?.toDate 
+        ? reservation.startTime.toDate() 
+        : new Date(reservation.startTime);
+
+      // Get expected return date from reservation or default to 7 days
+      let expectedReturnDate;
+      if (reservation.expectedReturnDate) {
+        expectedReturnDate = reservation.expectedReturnDate?.toDate 
+          ? reservation.expectedReturnDate.toDate() 
+          : new Date(reservation.expectedReturnDate);
+      } else {
+        // Default: 7 days from borrow date
+        expectedReturnDate = new Date(borrowDate);
+        expectedReturnDate.setDate(expectedReturnDate.getDate() + 7);
+      }
+
+      // Create loan request data
+      const loanRequestData = {
+        equipmentId: reservation.equipmentId,
+        borrowDate: borrowDate,
+        expectedReturnDate: expectedReturnDate,
+        purpose: reservation.purpose || 'แปลงจากการจอง',
+        notes: `แปลงจากการจอง #${reservationId.slice(-8)}${reservation.notes ? ` - ${reservation.notes}` : ''}`
+      };
+
+      // Create loan request using the service
+      const loanRequest = await LoanRequestService.createLoanRequest(loanRequestData, reservation.userId);
+
+      // Auto-approve the loan request since it came from an approved reservation
+      const approvedLoanRequest = await LoanRequestService.approveLoanRequest(loanRequest.id, convertedBy);
+
+      // Update reservation status to completed and link to loan request
+      const reservationRef = doc(db, this.COLLECTION_NAME, reservationId);
+      await updateDoc(reservationRef, {
+        status: RESERVATION_STATUS.COMPLETED,
+        convertedToLoanId: loanRequest.id,
+        convertedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        updatedBy: convertedBy
+      });
+
+      // Send notification to user
+      try {
+        await NotificationService.createNotification(
+          reservation.userId,
+          'reservation_converted',
+          'การจองถูกแปลงเป็นคำขอยืม',
+          `การจอง ${equipment.name} ถูกแปลงเป็นคำขอยืมเรียบร้อยแล้ว กรุณารับอุปกรณ์`,
+          { 
+            reservationId, 
+            loanRequestId: loanRequest.id,
+            equipmentId: equipment.id, 
+            equipmentName: equipment.name 
+          }
+        );
+
+        // Send Discord notification
+        try {
+          const discordWebhookService = (await import('./discordWebhookService.js')).default;
+          await discordWebhookService.sendNotification({
+            title: '🔄 การจองถูกแปลงเป็นคำขอยืม',
+            description: `การจอง #${reservationId.slice(-8)} ถูกแปลงเป็นคำขอยืม #${loanRequest.id.slice(-8)}`,
+            color: 0x3498db,
+            fields: [
+              { name: 'อุปกรณ์', value: equipment.name, inline: true },
+              { name: 'วันที่ยืม', value: borrowDate.toLocaleDateString('th-TH'), inline: true },
+              { name: 'กำหนดคืน', value: expectedReturnDate.toLocaleDateString('th-TH'), inline: true }
+            ]
+          });
+        } catch (discordError) {
+          console.warn('Error sending Discord notification:', discordError);
+        }
+      } catch (notificationError) {
+        console.error('Error sending conversion notification:', notificationError);
+      }
+
+      return {
+        reservation: {
+          ...reservation,
+          status: RESERVATION_STATUS.COMPLETED,
+          convertedToLoanId: loanRequest.id,
+          convertedAt: new Date()
+        },
+        loanRequest: approvedLoanRequest
+      };
+    } catch (error) {
+      console.error('Error converting reservation to loan request:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if reservation can be converted to loan request
+   * @param {Object} reservation - Reservation object
+   * @returns {Object} { canConvert: boolean, reason?: string }
+   */
+  static canConvertToLoan(reservation) {
+    if (!reservation) {
+      return { canConvert: false, reason: 'ไม่พบข้อมูลการจอง' };
+    }
+
+    if (reservation.convertedToLoanId) {
+      return { canConvert: false, reason: 'การจองนี้ถูกแปลงเป็นคำขอยืมแล้ว' };
+    }
+
+    if (reservation.status !== RESERVATION_STATUS.APPROVED && 
+        reservation.status !== RESERVATION_STATUS.READY) {
+      return { canConvert: false, reason: 'สถานะการจองไม่ถูกต้อง' };
+    }
+
+    return { canConvert: true };
   }
 }
 

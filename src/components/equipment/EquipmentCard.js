@@ -263,12 +263,12 @@ const EquipmentCard = ({
                         ? 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
                         : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     }`}
-                    title={borrowDisableReason || 'ขอยืมอุปกรณ์'}
+                    title={borrowDisableReason || 'ขอยืมทันที - ส่งคำขอยืมและรอ admin อนุมัติ'}
                   >
                     <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    {!isListMode && 'ขอยืม'}
+                    {!isListMode && 'ยืมทันที'}
                   </button>
                   
                   <button
@@ -276,15 +276,15 @@ const EquipmentCard = ({
                     disabled={isBorrowDisabled}
                     className={`${isListMode ? 'px-2 py-1' : 'flex-1 px-3 py-2'} text-sm font-medium rounded-md transition-colors ${
                       !isBorrowDisabled
-                        ? 'bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2'
+                        ? 'bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2'
                         : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     }`}
-                    title={borrowDisableReason || 'จองล่วงหน้า'}
+                    title={borrowDisableReason || 'จองล่วงหน้า - เลือกวันและเวลาที่ต้องการในอนาคต'}
                   >
                     <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    {!isListMode && 'จอง'}
+                    {!isListMode && 'จองล่วงหน้า'}
                   </button>
                 </>
               )}

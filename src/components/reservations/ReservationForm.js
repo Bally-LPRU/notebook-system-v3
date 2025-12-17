@@ -33,7 +33,8 @@ const ReservationForm = ({
     reservationDate: selectedDate ? selectedDate.toISOString().split('T')[0] : '',
     startTime: selectedTimeSlot?.time || '',
     endTime: selectedTimeSlot ? 
-      `${(parseInt(selectedTimeSlot.time.split(':')[0]) + 1).toString().padStart(2, '0')}:00` : ''
+      `${(parseInt(selectedTimeSlot.time.split(':')[0]) + 1).toString().padStart(2, '0')}:00` : '',
+    expectedReturnDate: selectedDate ? selectedDate.toISOString().split('T')[0] : ''
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -131,6 +132,25 @@ const ReservationForm = ({
       }
     }
 
+    // Expected return date validation
+    if (!formData.expectedReturnDate) {
+      newErrors.expectedReturnDate = 'กรุณาเลือกวันที่คาดว่าจะคืนอุปกรณ์';
+    } else if (formData.reservationDate) {
+      const reservationDate = new Date(formData.reservationDate);
+      const expectedReturnDate = new Date(formData.expectedReturnDate);
+      
+      if (expectedReturnDate < reservationDate) {
+        newErrors.expectedReturnDate = 'วันที่คืนต้องไม่ก่อนวันที่จอง';
+      }
+      
+      // Check max loan duration (30 days)
+      const maxReturnDate = new Date(reservationDate);
+      maxReturnDate.setDate(maxReturnDate.getDate() + 30);
+      if (expectedReturnDate > maxReturnDate) {
+        newErrors.expectedReturnDate = 'ระยะเวลายืมต้องไม่เกิน 30 วัน';
+      }
+    }
+
     // Purpose validation
     if (!formData.purpose.trim()) {
       newErrors.purpose = 'กรุณาระบุวัตถุประสงค์';
@@ -175,6 +195,7 @@ const ReservationForm = ({
         reservationDate: reservationDate,
         startTime: startTime,
         endTime: endTime,
+        expectedReturnDate: new Date(formData.expectedReturnDate),
         purpose: formData.purpose.trim(),
         notes: formData.notes.trim()
       };
@@ -200,7 +221,8 @@ const ReservationForm = ({
         reservationDate: selectedDate ? selectedDate.toISOString().split('T')[0] : '',
         startTime: selectedTimeSlot?.time || '',
         endTime: selectedTimeSlot ? 
-          `${(parseInt(selectedTimeSlot.time.split(':')[0]) + 1).toString().padStart(2, '0')}:00` : ''
+          `${(parseInt(selectedTimeSlot.time.split(':')[0]) + 1).toString().padStart(2, '0')}:00` : '',
+        expectedReturnDate: selectedDate ? selectedDate.toISOString().split('T')[0] : ''
       });
 
     } catch (error) {
@@ -398,6 +420,55 @@ const ReservationForm = ({
               </p>
             </div>
           )}
+
+          {/* Expected Return Date - สำหรับแปลงเป็นคำขอยืม */}
+          <div>
+            <label htmlFor="expectedReturnDate" className="block text-sm font-medium text-gray-700 mb-2">
+              วันที่คาดว่าจะคืนอุปกรณ์ *
+            </label>
+            <input
+              type="date"
+              id="expectedReturnDate"
+              name="expectedReturnDate"
+              value={formData.expectedReturnDate}
+              onChange={handleInputChange}
+              min={formData.reservationDate || new Date().toISOString().split('T')[0]}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.expectedReturnDate ? 'border-red-500' : 'border-gray-300'
+              }`}
+              required
+            />
+            {errors.expectedReturnDate && (
+              <p className="mt-1 text-sm text-red-600">{errors.expectedReturnDate}</p>
+            )}
+            {!errors.expectedReturnDate && (
+              <p className="mt-1 text-sm text-gray-500">
+                ระบุวันที่คาดว่าจะคืนอุปกรณ์ (สูงสุด 30 วันจากวันที่จอง)
+              </p>
+            )}
+            
+            {/* Loan Duration Info */}
+            {formData.reservationDate && formData.expectedReturnDate && (
+              <div className="mt-2 bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="flex items-start space-x-2">
+                  <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="text-sm text-green-800">
+                    <p className="font-medium">ระยะเวลายืมอุปกรณ์</p>
+                    <p>
+                      {(() => {
+                        const start = new Date(formData.reservationDate);
+                        const end = new Date(formData.expectedReturnDate);
+                        const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+                        return `${days} วัน (${formatReservationDate(start)} - ${formatReservationDate(end)})`;
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Purpose */}
           <div>

@@ -252,6 +252,48 @@ const AdminReservationManagement = () => {
     }
   };
 
+  // Convert reservation to loan request
+  const handleConvertToLoan = async (reservationId) => {
+    const reservation = reservations.find(r => r.id === reservationId);
+    if (!reservation) return;
+
+    // Check if can convert
+    const canConvert = ReservationService.canConvertToLoan(reservation);
+    if (!canConvert.canConvert) {
+      alert(canConvert.reason);
+      return;
+    }
+
+    // Confirm conversion
+    const confirmMessage = `ยืนยันการแปลงการจองเป็นคำขอยืม?\n\n` +
+      `การจอง: #${reservationId.slice(-8)}\n` +
+      `อุปกรณ์: ${reservation.equipmentId?.slice(-8)}\n` +
+      `วันที่คาดว่าจะคืน: ${reservation.expectedReturnDate ? 
+        (reservation.expectedReturnDate.toDate ? 
+          reservation.expectedReturnDate.toDate().toLocaleDateString('th-TH') : 
+          new Date(reservation.expectedReturnDate).toLocaleDateString('th-TH')) : 
+        'ไม่ระบุ (จะใช้ค่าเริ่มต้น 7 วัน)'}\n\n` +
+      `หมายเหตุ: คำขอยืมจะถูกอนุมัติโดยอัตโนมัติ`;
+
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      setActionLoading(reservationId);
+      
+      const result = await ReservationService.convertToLoanRequest(reservationId, userProfile.uid);
+      
+      setSuccessMessage(`แปลงการจองเป็นคำขอยืมสำเร็จ! (คำขอยืม #${result.loanRequest.id.slice(-8)})`);
+      setTimeout(() => setSuccessMessage(''), 5000);
+      
+      loadReservations();
+    } catch (error) {
+      console.error('Error converting to loan:', error);
+      alert(`เกิดข้อผิดพลาด: ${error.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Filter reservations by search term
   const filteredReservations = reservations.filter(r => {
     if (!searchTerm) return true;
@@ -501,6 +543,7 @@ const AdminReservationManagement = () => {
                   reservation={reservation}
                   onStatusChange={handleStatusChange}
                   onNoShow={handleNoShow}
+                  onConvertToLoan={handleConvertToLoan}
                   onViewDetail={() => {
                     setSelectedReservation(reservation);
                     setShowDetailModal(true);
@@ -589,6 +632,7 @@ const AdminReservationManagement = () => {
               setSelectedReservation(null);
             }}
             onStatusChange={handleStatusChange}
+            onConvertToLoan={handleConvertToLoan}
             formatDate={formatDate}
             formatTime={formatTime}
             settings={settings}
@@ -657,6 +701,7 @@ const ReservationCard = ({
   onStatusChange, 
   onNoShow, 
   onViewDetail,
+  onConvertToLoan,
   isOverdue,
   actionLoading,
   formatDate,
@@ -761,6 +806,30 @@ const ReservationCard = ({
               )}
             </>
           )}
+          
+          {/* Convert to Loan Request Button - for approved or ready reservations */}
+          {(reservation.status === RESERVATION_STATUS.APPROVED || 
+            reservation.status === RESERVATION_STATUS.READY) && 
+            !reservation.convertedToLoanId && (
+            <button
+              onClick={() => onConvertToLoan && onConvertToLoan(reservation.id)}
+              disabled={actionLoading}
+              className="px-3 py-1.5 text-sm text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1"
+              title="แปลงการจองเป็นคำขอยืมเมื่อผู้ใช้มารับอุปกรณ์"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              แปลงเป็นคำขอยืม
+            </button>
+          )}
+          
+          {/* Show converted badge if already converted */}
+          {reservation.convertedToLoanId && (
+            <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+              แปลงแล้ว
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -774,6 +843,7 @@ const ReservationDetailModal = ({
   reservation, 
   onClose, 
   onStatusChange,
+  onConvertToLoan,
   formatDate,
   formatTime,
   settings
@@ -785,6 +855,29 @@ const ReservationDetailModal = ({
     onStatusChange(reservation.id, RESERVATION_STATUS.CANCELLED, cancelReason);
     onClose();
   };
+
+  const handleConvert = () => {
+    if (onConvertToLoan) {
+      onConvertToLoan(reservation.id);
+      onClose();
+    }
+  };
+
+  // Format expected return date
+  const formatExpectedReturnDate = () => {
+    if (!reservation.expectedReturnDate) return 'ไม่ระบุ';
+    const date = reservation.expectedReturnDate?.toDate 
+      ? reservation.expectedReturnDate.toDate() 
+      : new Date(reservation.expectedReturnDate);
+    return date.toLocaleDateString('th-TH', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  // Check if can convert
+  const canConvert = ReservationService.canConvertToLoan(reservation);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -810,6 +903,11 @@ const ReservationDetailModal = ({
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_BADGE_CLASSES[reservation.status]}`}>
                 {RESERVATION_STATUS_LABELS[reservation.status]}
               </span>
+              {reservation.convertedToLoanId && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                  แปลงเป็นคำขอยืมแล้ว
+                </span>
+              )}
             </div>
             
             {/* Details Grid */}
@@ -822,13 +920,51 @@ const ReservationDetailModal = ({
               <DetailItem label="เวลาสิ้นสุด" value={formatTime(reservation.endTime)} />
             </div>
             
+            {/* Expected Return Date - Important for loan conversion */}
+            <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-medium text-purple-800">วันที่คาดว่าจะคืนอุปกรณ์</p>
+                  <p className="text-sm text-purple-700">{formatExpectedReturnDate()}</p>
+                  <p className="text-xs text-purple-600 mt-1">
+                    ข้อมูลนี้จะถูกใช้เมื่อแปลงการจองเป็นคำขอยืม
+                  </p>
+                </div>
+              </div>
+            </div>
+            
             <DetailItem label="วัตถุประสงค์" value={reservation.purpose} />
             {reservation.notes && <DetailItem label="หมายเหตุ" value={reservation.notes} />}
+            
+            {/* Converted Loan Info */}
+            {reservation.convertedToLoanId && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium text-green-800">แปลงเป็นคำขอยืมแล้ว</p>
+                    <p className="text-sm text-green-700">
+                      รหัสคำขอยืม: #{reservation.convertedToLoanId.slice(-8)}
+                    </p>
+                    {reservation.convertedAt && (
+                      <p className="text-xs text-green-600 mt-1">
+                        แปลงเมื่อ: {reservation.convertedAt?.toDate?.()?.toLocaleString('th-TH') || '-'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Settings Info */}
             <div className="p-3 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>กฎการจอง:</strong> จองล่วงหน้าได้สูงสุด {settings.maxAdvanceBookingDays || 30} วัน
+                <strong>กฎการจอง:</strong> จองล่วงหน้าได้สูงสุด {settings?.maxAdvanceBookingDays || 30} วัน
               </p>
             </div>
             
@@ -890,6 +1026,20 @@ const ReservationDetailModal = ({
                 </button>
               </>
             )}
+            
+            {/* Convert to Loan Button */}
+            {canConvert.canConvert && !showCancelForm && (
+              <button
+                onClick={handleConvert}
+                className="px-4 py-2 text-sm text-white bg-purple-600 rounded-lg hover:bg-purple-700 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+                แปลงเป็นคำขอยืม
+              </button>
+            )}
+            
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"

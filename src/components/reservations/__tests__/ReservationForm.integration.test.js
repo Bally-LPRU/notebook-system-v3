@@ -15,11 +15,13 @@ import ReservationForm from '../ReservationForm';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { useClosedDates } from '../../../hooks/useClosedDates';
 import { useReservations } from '../../../hooks/useReservations';
+import { useUserTypeLimits } from '../../../hooks/useUserTypeLimits';
 
 // Mock hooks
 jest.mock('../../../contexts/SettingsContext');
 jest.mock('../../../hooks/useClosedDates');
 jest.mock('../../../hooks/useReservations');
+jest.mock('../../../hooks/useUserTypeLimits');
 
 describe('ReservationForm Integration Tests', () => {
   const mockEquipment = {
@@ -73,6 +75,19 @@ describe('ReservationForm Integration Tests', () => {
     // Mock useReservations
     useReservations.mockReturnValue({
       createReservation: jest.fn(),
+      loading: false,
+      error: null
+    });
+
+    // Mock useUserTypeLimits
+    useUserTypeLimits.mockReturnValue({
+      limits: {
+        maxAdvanceBookingDays: 21,
+        maxLoanDuration: 14,
+        maxItemsPerLoan: 5,
+        userTypeName: 'นักศึกษา',
+        isDefault: false
+      },
       loading: false,
       error: null
     });
@@ -172,6 +187,19 @@ describe('ReservationForm Integration Tests', () => {
     // Mock with null settings
     useSettings.mockReturnValue({
       settings: null,
+      loading: false,
+      error: null
+    });
+
+    // Mock useUserTypeLimits with default values
+    useUserTypeLimits.mockReturnValue({
+      limits: {
+        maxAdvanceBookingDays: 30,
+        maxLoanDuration: 14,
+        maxItemsPerLoan: 5,
+        userTypeName: 'ผู้ใช้ทั่วไป',
+        isDefault: true
+      },
       loading: false,
       error: null
     });

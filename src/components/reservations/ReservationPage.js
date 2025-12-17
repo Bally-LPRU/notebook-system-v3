@@ -252,7 +252,7 @@ const ReservationPage = () => {
                             {item.brand} {item.model}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {item.location}
+                            {typeof item.location === 'object' ? item.location?.building || item.location?.room || 'ไม่ระบุ' : item.location || 'ไม่ระบุ'}
                           </p>
                         </div>
                       </div>
@@ -291,8 +291,8 @@ const ReservationPage = () => {
                   <div className="flex-1">
                     <p className="font-medium text-gray-900">{selectedEquipment.name}</p>
                     <p className="text-sm text-gray-500">{selectedEquipment.brand} {selectedEquipment.model}</p>
-                    <p className="text-sm text-gray-500">รหัส: {selectedEquipment.serialNumber}</p>
-                    <p className="text-sm text-gray-500">สถานที่: {selectedEquipment.location}</p>
+                    <p className="text-sm text-gray-500">รหัส: {selectedEquipment.serialNumber || selectedEquipment.equipmentNumber || 'ไม่ระบุ'}</p>
+                    <p className="text-sm text-gray-500">สถานที่: {typeof selectedEquipment.location === 'object' ? selectedEquipment.location?.building || selectedEquipment.location?.room || 'ไม่ระบุ' : selectedEquipment.location || 'ไม่ระบุ'}</p>
                   </div>
                 </div>
               </div>

@@ -45,12 +45,15 @@ export const RESERVATION_STATUS_COLORS = {
  * @property {Date} reservationDate - วันที่จอง
  * @property {Date} startTime - เวลาเริ่มต้น
  * @property {Date} endTime - เวลาสิ้นสุด
+ * @property {Date} expectedReturnDate - วันที่คาดว่าจะคืนอุปกรณ์ (สำหรับแปลงเป็นคำขอยืม)
  * @property {string} purpose - วัตถุประสงค์
  * @property {string} notes - หมายเหตุ
  * @property {string} status - สถานะ (from RESERVATION_STATUS)
  * @property {string|null} approvedBy - UID ของผู้อนุมัติ
  * @property {Date|null} approvedAt - วันที่อนุมัติ
  * @property {boolean} notificationSent - ส่งการแจ้งเตือนแล้วหรือไม่
+ * @property {string|null} convertedToLoanId - ID ของคำขอยืมที่แปลงจากการจองนี้
+ * @property {Date|null} convertedAt - วันที่แปลงเป็นคำขอยืม
  * @property {Date} createdAt - วันที่สร้าง
  * @property {Date} updatedAt - วันที่อัปเดต
  */
@@ -62,6 +65,7 @@ export const RESERVATION_STATUS_COLORS = {
  * @property {string} reservationDate
  * @property {string} startTime
  * @property {string} endTime
+ * @property {string} expectedReturnDate - วันที่คาดว่าจะคืนอุปกรณ์
  * @property {string} purpose
  * @property {string} notes
  */
@@ -104,6 +108,10 @@ export const RESERVATION_VALIDATION = {
   endTime: {
     required: true
   },
+  expectedReturnDate: {
+    required: true,
+    minDate: 'reservationDate' // Must be on or after reservation date
+  },
   purpose: {
     required: true,
     minLength: 5,
@@ -123,6 +131,7 @@ export const DEFAULT_RESERVATION_FORM = {
   reservationDate: '',
   startTime: '',
   endTime: '',
+  expectedReturnDate: '',
   purpose: '',
   notes: ''
 };
