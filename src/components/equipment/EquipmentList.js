@@ -536,25 +536,88 @@ const EquipmentList = () => {
                   </div>
                 )}
 
-                {/* Equipment Grid - Mobile: 1 col, Tablet: 2 cols, Desktop: 3-4 cols */}
+                {/* Equipment Display */}
                 {(isAdmin ? equipment : filteredEquipment).length > 0 && (
-                  <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-                    {(isAdmin ? equipment : filteredEquipment).map((item) => (
-                      <EquipmentCard
-                        key={item.id}
-                        equipment={item}
-                        userActiveRequest={userActiveRequests[item.id]}
-                        onBorrow={handleBorrow}
-                        onReserve={handleReserve}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                        onViewDetail={handleViewDetail}
-                        isSelectable={isAdmin}
-                        isSelected={selectedItems.includes(item.id)}
-                        onSelect={(isSelected) => handleSelectItem(item.id, isSelected)}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    {/* Admin: Grid view with cards */}
+                    {isAdmin ? (
+                      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+                        {equipment.map((item) => (
+                          <EquipmentCard
+                            key={item.id}
+                            equipment={item}
+                            userActiveRequest={userActiveRequests[item.id]}
+                            onBorrow={handleBorrow}
+                            onReserve={handleReserve}
+                            onEdit={handleEdit}
+                            onDelete={handleDelete}
+                            onViewDetail={handleViewDetail}
+                            isSelectable={isAdmin}
+                            isSelected={selectedItems.includes(item.id)}
+                            onSelect={(isSelected) => handleSelectItem(item.id, isSelected)}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      /* User: Simple list view (name + equipment number) */
+                      <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-4">
+                        <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <span className="inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 text-white rounded-full text-xs font-bold">
+                            {equipment.length > 5 ? '3' : '2'}
+                          </span>
+                          เลือกอุปกรณ์
+                          <span className="text-xs font-normal text-gray-500">
+                            ({filteredEquipment.length} รายการ)
+                          </span>
+                        </h3>
+                        <div className="space-y-1.5 max-h-96 overflow-y-auto">
+                          {filteredEquipment.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {item.name}
+                                </p>
+                                <p className="text-xs text-gray-500 font-mono">
+                                  {item.equipmentNumber || item.serialNumber || '-'}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {userActiveRequests[item.id] && (
+                                  <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded">
+                                    มีคำขอ
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => handleBorrow(item)}
+                                  className="px-2.5 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
+                                >
+                                  ยืม
+                                </button>
+                                <button
+                                  onClick={() => handleReserve(item)}
+                                  className="px-2.5 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-100 rounded hover:bg-yellow-200"
+                                >
+                                  จอง
+                                </button>
+                                <button
+                                  onClick={() => handleViewDetail(item)}
+                                  className="p-1.5 text-gray-400 hover:text-gray-600"
+                                  title="ดูรายละเอียด"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Load More Button - Mobile Optimized */}

@@ -349,81 +349,27 @@ const ReservationPage = () => {
                     </div>
                   )}
 
-                  {/* Mobile: Horizontal scroll */}
-                  <div className="lg:hidden flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin">
+                  {/* Equipment list - Simple text format (name + equipment number) */}
+                  <div className="space-y-1.5 max-h-72 sm:max-h-80 overflow-y-auto pr-1">
                     {filteredEquipment.map((item) => (
                       <button
                         key={item.id}
                         onClick={() => handleEquipmentSelect(item)}
                         className={`
-                          flex-shrink-0 w-32 sm:w-40 text-left p-2 rounded-lg border transition-colors
+                          w-full text-left px-3 py-2.5 rounded-lg border transition-colors
                           ${selectedEquipment?.id === item.id
                             ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
                           }
                         `}
                       >
-                        <div className="flex flex-col items-center text-center">
-                          {item.imageURL ? (
-                            <img
-                              src={item.imageURL}
-                              alt={item.name}
-                              className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded mb-1"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gray-200 rounded flex items-center justify-center mb-1">
-                              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                              </svg>
-                            </div>
-                          )}
-                          <p className="text-xs font-medium text-gray-900 truncate w-full">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium text-gray-900 truncate">
                             {item.name}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate w-full">
-                            {item.brand}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Desktop: Vertical list with scroll */}
-                  <div className="hidden lg:block space-y-2 max-h-80 overflow-y-auto pr-1">
-                    {filteredEquipment.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => handleEquipmentSelect(item)}
-                        className={`
-                          w-full text-left p-3 rounded-lg border transition-colors
-                          ${selectedEquipment?.id === item.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                          }
-                        `}
-                      >
-                        <div className="flex items-center space-x-3">
-                          {item.imageURL ? (
-                            <img
-                              src={item.imageURL}
-                              alt={item.name}
-                              className="w-10 h-10 object-cover rounded"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
-                              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                              </svg>
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {item.name}
-                            </p>
-                            <p className="text-xs text-gray-500 truncate">
-                              {item.brand} {item.model}
-                            </p>
-                          </div>
+                          </span>
+                          <span className="text-xs text-gray-500 font-mono whitespace-nowrap">
+                            {item.equipmentNumber || item.serialNumber || '-'}
+                          </span>
                         </div>
                       </button>
                     ))}
