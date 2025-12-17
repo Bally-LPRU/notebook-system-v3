@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Layout from '../layout/Layout';
 import ReservationCalendar from './ReservationCalendar';
 import ReservationForm from './ReservationForm';
@@ -7,6 +8,7 @@ import { useEquipment } from '../../hooks/useEquipment';
 import { useUserTypeLimits } from '../../hooks/useUserTypeLimits';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useCategories } from '../../contexts/EquipmentCategoriesContext';
+import EquipmentService from '../../services/equipmentService';
 
 /**
  * ReservationPage Component
@@ -15,6 +17,9 @@ import { useCategories } from '../../contexts/EquipmentCategoriesContext';
  * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
  */
 const ReservationPage = () => {
+  const [searchParams] = useSearchParams();
+  const equipmentIdFromUrl = searchParams.get('equipmentId');
+  
   const [activeTab, setActiveTab] = useState('new'); // 'new' | 'my-reservations'
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
@@ -22,9 +27,38 @@ const ReservationPage = () => {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
   const [showReservationForm, setShowReservationForm] = useState(false);
   const [equipmentSearch, setEquipmentSearch] = useState('');
+  const [loadingEquipmentFromUrl, setLoadingEquipmentFromUrl] = useState(false);
 
   // Get categories from context
   const { categories, loading: categoriesLoading } = useCategories();
+  
+  // Load equipment from URL parameter if provided
+  useEffect(() => {
+    const loadEquipmentFromUrl = async () => {
+      if (equipmentIdFromUrl && !selectedEquipment) {
+        setLoadingEquipmentFromUrl(true);
+        try {
+          const equipmentData = await EquipmentService.getEquipmentById(equipmentIdFromUrl);
+          if (equipmentData) {
+            setSelectedEquipment(equipmentData);
+            // Also set the category if available
+            if (equipmentData.category) {
+              const categoryId = typeof equipmentData.category === 'object' 
+                ? equipmentData.category.id 
+                : equipmentData.category;
+              setSelectedCategory(categoryId);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading equipment from URL:', error);
+        } finally {
+          setLoadingEquipmentFromUrl(false);
+        }
+      }
+    };
+    
+    loadEquipmentFromUrl();
+  }, [equipmentIdFromUrl, selectedEquipment]);
 
   // Only load equipment when category is selected
   const { equipment, loading: equipmentLoading, updateFilters, triggerLoad, pagination, loadMore } = useEquipment({
@@ -108,7 +142,7 @@ const ReservationPage = () => {
   };
 
   // Show loading state
-  if (settingsLoading) {
+  if (settingsLoading || loadingEquipmentFromUrl) {
     return (
       <Layout>
         <div className="max-w-7xl mx-auto">

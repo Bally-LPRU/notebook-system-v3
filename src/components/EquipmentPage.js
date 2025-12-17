@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from './layout';
 import EquipmentManagementService from '../services/equipmentManagementService';
 import { getCategoryId } from '../utils/equipmentHelpers';
@@ -17,8 +18,9 @@ import { EQUIPMENT_STATUS } from '../types/equipment';
  * Only shows: View Details, Borrow, Reserve actions
  */
 const EquipmentPage = () => {
-  const { user } = useAuth();
+  const { user, isApproved } = useAuth();
   const { showToast } = useNotificationContext();
+  const navigate = useNavigate();
   // Use categories from Context for consistent data across the app
   const { categories } = useCategories();
   
@@ -27,6 +29,7 @@ const EquipmentPage = () => {
   const [error, setError] = useState(null);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [showBorrowModal, setShowBorrowModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -158,7 +161,20 @@ const EquipmentPage = () => {
       return;
     }
 
+    // Check if user is approved
+    if (!isApproved) {
+      showToast?.({
+        title: 'ไม่สามารถยืมได้',
+        message: 'บัญชีของคุณยังไม่ได้รับการอนุมัติ กรุณารอการอนุมัติจากผู้ดูแลระบบ',
+      });
+      return;
+    }
+
     if (!item || item.status !== EQUIPMENT_STATUS.AVAILABLE) {
+      showToast?.({
+        title: 'ไม่สามารถยืมได้',
+        message: 'อุปกรณ์นี้ไม่พร้อมให้ยืม',
+      });
       return;
     }
 
@@ -167,15 +183,38 @@ const EquipmentPage = () => {
   };
 
   const handleViewDetails = (item) => {
-    // TODO: Navigate to equipment detail page or open modal
-    console.log('View details:', item);
-    alert(`ดูรายละเอียด: ${item.name}\n\nฟีเจอร์นี้จะพัฒนาในอนาคต`);
+    setSelectedEquipment(item);
+    setShowDetailModal(true);
   };
 
   const handleReserve = (item) => {
-    // TODO: Navigate to reservation page
-    console.log('Reserve:', item);
-    alert(`จองอุปกรณ์: ${item.name}\n\nฟีเจอร์นี้จะพัฒนาในอนาคต`);
+    if (!user) {
+      showToast?.({
+        title: 'กรุณาเข้าสู่ระบบ',
+        message: 'ต้องเข้าสู่ระบบก่อนจองอุปกรณ์',
+      });
+      return;
+    }
+
+    // Check if user is approved
+    if (!isApproved) {
+      showToast?.({
+        title: 'ไม่สามารถจองได้',
+        message: 'บัญชีของคุณยังไม่ได้รับการอนุมัติ กรุณารอการอนุมัติจากผู้ดูแลระบบ',
+      });
+      return;
+    }
+
+    if (!item || item.status !== EQUIPMENT_STATUS.AVAILABLE) {
+      showToast?.({
+        title: 'ไม่สามารถจองได้',
+        message: 'อุปกรณ์นี้ไม่พร้อมให้จอง',
+      });
+      return;
+    }
+
+    // Navigate to reservation page with equipment ID
+    navigate(`/reservations?equipmentId=${item.id}`);
   };
 
   // Loading state
@@ -608,6 +647,108 @@ const EquipmentPage = () => {
                 onSuccess={handleLoanRequestSuccess}
                 onCancel={handleBorrowModalClose}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {showDetailModal && selectedEquipment && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center overflow-y-auto px-4 py-8">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full relative max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+              <h3 className="text-lg font-semibold text-gray-900">รายละเอียดอุปกรณ์</h3>
+              <button
+                onClick={() => {
+                  setShowDetailModal(false);
+                  setSelectedEquipment(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="ปิดหน้าต่างรายละเอียด"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6">
+              {/* Equipment Image */}
+              {(selectedEquipment.images?.[0]?.url || selectedEquipment.imageURL) && (
+                <div className="mb-6">
+                  <img
+                    src={selectedEquipment.images?.[0]?.url || selectedEquipment.imageURL}
+                    alt={selectedEquipment.name}
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                </div>
+              )}
+
+              {/* Equipment Info */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xl font-semibold text-gray-900">{selectedEquipment.name}</h4>
+                  <EquipmentStatusBadge status={selectedEquipment.status} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">ยี่ห้อ:</span>
+                    <span className="ml-2 text-gray-900 font-medium">{selectedEquipment.brand || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">รุ่น:</span>
+                    <span className="ml-2 text-gray-900 font-medium">{selectedEquipment.model || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">หมายเลขครุภัณฑ์:</span>
+                    <span className="ml-2 text-gray-900 font-mono">{selectedEquipment.equipmentNumber || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Serial Number:</span>
+                    <span className="ml-2 text-gray-900 font-mono">{selectedEquipment.serialNumber || '-'}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-500">สถานที่:</span>
+                    <span className="ml-2 text-gray-900">
+                      {typeof selectedEquipment.location === 'object'
+                        ? `${selectedEquipment.location.building || ''} ${selectedEquipment.location.floor || ''} ${selectedEquipment.location.room || ''}`.trim() || '-'
+                        : selectedEquipment.location || '-'}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedEquipment.description && (
+                  <div>
+                    <span className="text-gray-500 text-sm">รายละเอียด:</span>
+                    <p className="mt-1 text-gray-900">{selectedEquipment.description}</p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                {selectedEquipment.status === EQUIPMENT_STATUS.AVAILABLE && (
+                  <div className="flex gap-3 pt-4 border-t">
+                    <button
+                      onClick={() => {
+                        setShowDetailModal(false);
+                        handleBorrow(selectedEquipment);
+                      }}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      ยืมอุปกรณ์
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowDetailModal(false);
+                        handleReserve(selectedEquipment);
+                      }}
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      จองล่วงหน้า
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
