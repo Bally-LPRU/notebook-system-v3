@@ -21,13 +21,15 @@ const ReservationPage = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
   const [showReservationForm, setShowReservationForm] = useState(false);
+  const [equipmentSearch, setEquipmentSearch] = useState('');
 
   // Get categories from context
   const { categories, loading: categoriesLoading } = useCategories();
 
   // Only load equipment when category is selected
-  const { equipment, loading: equipmentLoading, updateFilters, triggerLoad } = useEquipment({
+  const { equipment, loading: equipmentLoading, updateFilters, triggerLoad, pagination, loadMore } = useEquipment({
     skipInitialLoad: true,
+    limit: 20,
     filters: { status: 'available', category: selectedCategory }
   });
 
@@ -39,12 +41,26 @@ const ReservationPage = () => {
     }
   }, [selectedCategory, updateFilters, triggerLoad]);
 
+  // Filter equipment by search term (client-side for quick filtering)
+  const filteredEquipment = equipment.filter(item => {
+    if (!equipmentSearch.trim()) return true;
+    const search = equipmentSearch.toLowerCase();
+    return (
+      item.name?.toLowerCase().includes(search) ||
+      item.brand?.toLowerCase().includes(search) ||
+      item.model?.toLowerCase().includes(search) ||
+      item.serialNumber?.toLowerCase().includes(search) ||
+      item.equipmentNumber?.toLowerCase().includes(search)
+    );
+  });
+
   const handleCategorySelect = (categoryId) => {
     setSelectedCategory(categoryId);
     setSelectedEquipment(null);
     setSelectedDate(null);
     setSelectedTimeSlot(null);
     setShowReservationForm(false);
+    setEquipmentSearch('');
   };
 
   // Use user type limits hook to get maxAdvanceBookingDays
@@ -285,6 +301,11 @@ const ReservationPage = () => {
               <h2 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
                 <span className={`inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-full text-xs font-bold ${selectedCategory ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-500'}`}>2</span>
                 เลือกอุปกรณ์
+                {selectedCategory && equipment.length > 0 && (
+                  <span className="text-xs font-normal text-gray-500">
+                    ({filteredEquipment.length} รายการ)
+                  </span>
+                )}
               </h2>
               
               {!selectedCategory ? (
@@ -294,15 +315,43 @@ const ReservationPage = () => {
                   </svg>
                   <p>กรุณาเลือกประเภทอุปกรณ์ก่อน</p>
                 </div>
-              ) : equipmentLoading ? (
+              ) : equipmentLoading && equipment.length === 0 ? (
                 <div className="flex justify-center py-6 sm:py-8">
                   <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-500"></div>
                 </div>
               ) : (
                 <>
+                  {/* Search box for equipment (show when > 5 items) */}
+                  {equipment.length > 5 && (
+                    <div className="mb-3">
+                      <div className="relative">
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                          type="text"
+                          placeholder="ค้นหาอุปกรณ์..."
+                          value={equipmentSearch}
+                          onChange={(e) => setEquipmentSearch(e.target.value)}
+                          className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        {equipmentSearch && (
+                          <button
+                            onClick={() => setEquipmentSearch('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Mobile: Horizontal scroll */}
                   <div className="lg:hidden flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin">
-                    {equipment.map((item) => (
+                    {filteredEquipment.map((item) => (
                       <button
                         key={item.id}
                         onClick={() => handleEquipmentSelect(item)}
@@ -339,9 +388,9 @@ const ReservationPage = () => {
                     ))}
                   </div>
 
-                  {/* Desktop: Vertical list */}
-                  <div className="hidden lg:block space-y-3 max-h-96 overflow-y-auto">
-                    {equipment.map((item) => (
+                  {/* Desktop: Vertical list with scroll */}
+                  <div className="hidden lg:block space-y-2 max-h-80 overflow-y-auto pr-1">
+                    {filteredEquipment.map((item) => (
                       <button
                         key={item.id}
                         onClick={() => handleEquipmentSelect(item)}
@@ -358,11 +407,11 @@ const ReservationPage = () => {
                             <img
                               src={item.imageURL}
                               alt={item.name}
-                              className="w-12 h-12 object-cover rounded"
+                              className="w-10 h-10 object-cover rounded"
                             />
                           ) : (
-                            <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
-                              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
+                              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
                               </svg>
                             </div>
@@ -374,14 +423,35 @@ const ReservationPage = () => {
                             <p className="text-xs text-gray-500 truncate">
                               {item.brand} {item.model}
                             </p>
-                            <p className="text-xs text-gray-500">
-                              {typeof item.location === 'object' ? item.location?.building || item.location?.room || 'ไม่ระบุ' : item.location || 'ไม่ระบุ'}
-                            </p>
                           </div>
                         </div>
                       </button>
                     ))}
                   </div>
+
+                  {/* Load more button */}
+                  {pagination?.hasNextPage && (
+                    <button
+                      onClick={loadMore}
+                      disabled={equipmentLoading}
+                      className="mt-3 w-full py-2 text-sm text-blue-600 hover:text-blue-800 border border-blue-200 rounded-lg hover:bg-blue-50 disabled:opacity-50"
+                    >
+                      {equipmentLoading ? 'กำลังโหลด...' : 'โหลดเพิ่มเติม'}
+                    </button>
+                  )}
+
+                  {/* No results from search */}
+                  {filteredEquipment.length === 0 && equipmentSearch && (
+                    <div className="text-center py-4 text-gray-500 text-sm">
+                      <p>ไม่พบอุปกรณ์ที่ค้นหา</p>
+                      <button
+                        onClick={() => setEquipmentSearch('')}
+                        className="mt-2 text-blue-600 hover:text-blue-800 text-xs"
+                      >
+                        ล้างการค้นหา
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
                   

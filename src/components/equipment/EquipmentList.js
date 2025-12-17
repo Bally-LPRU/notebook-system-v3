@@ -24,6 +24,7 @@ const EquipmentList = () => {
   const [selectedItems, setSelectedItems] = useState([]);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [userActiveRequests, setUserActiveRequests] = useState({});
+  const [equipmentSearch, setEquipmentSearch] = useState('');
 
   // Get categories from context
   const { categories, loading: categoriesLoading } = useCategories();
@@ -45,9 +46,23 @@ const EquipmentList = () => {
     filters: { status: isAdmin ? undefined : 'available', category: selectedCategory }
   });
 
+  // Filter equipment by search term (client-side for quick filtering)
+  const filteredEquipment = equipment.filter(item => {
+    if (!equipmentSearch.trim()) return true;
+    const search = equipmentSearch.toLowerCase();
+    return (
+      item.name?.toLowerCase().includes(search) ||
+      item.brand?.toLowerCase().includes(search) ||
+      item.model?.toLowerCase().includes(search) ||
+      item.serialNumber?.toLowerCase().includes(search) ||
+      item.equipmentNumber?.toLowerCase().includes(search)
+    );
+  });
+
   // Handle category selection
   const handleCategorySelect = (categoryId) => {
     setSelectedCategory(categoryId);
+    setEquipmentSearch('');
     updateFilters({ status: isAdmin ? undefined : 'available', category: categoryId });
     triggerLoad();
   };
@@ -296,9 +311,7 @@ const EquipmentList = () => {
         {!isAdmin && (
           <div className="mb-4 sm:mb-6 bg-white rounded-lg shadow-sm border p-3 sm:p-4">
             <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
+              <span className="inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 text-white rounded-full text-xs font-bold">1</span>
               เลือกประเภทอุปกรณ์
             </h3>
             
@@ -307,23 +320,31 @@ const EquipmentList = () => {
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
               </div>
             ) : (
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                 {categories.map((category) => (
                   <button
                     key={category.id}
                     onClick={() => handleCategorySelect(category.id)}
                     className={`
-                      px-3 py-2 rounded-lg border text-xs sm:text-sm font-medium transition-all
+                      p-2 sm:p-3 rounded-lg border text-left transition-all
                       ${selectedCategory === category.id
-                        ? 'border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-200'
-                        : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:bg-gray-50'
+                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                        : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
                       }
                     `}
                   >
-                    <span className="flex items-center gap-1.5">
-                      {category.icon && <span>{category.icon}</span>}
-                      {category.name}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {category.icon ? (
+                        <span className="text-lg sm:text-xl">{category.icon}</span>
+                      ) : (
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                      )}
+                      <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
+                        {category.name}
+                      </span>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -340,10 +361,12 @@ const EquipmentList = () => {
               <div className="mt-3 flex items-center justify-between bg-blue-50 rounded-lg px-3 py-2">
                 <span className="text-xs sm:text-sm text-blue-700">
                   กำลังแสดง: <span className="font-semibold">{getSelectedCategoryName()}</span>
+                  {equipment.length > 0 && ` (${filteredEquipment.length} รายการ)`}
                 </span>
                 <button
                   onClick={() => {
                     setSelectedCategory(null);
+                    setEquipmentSearch('');
                     resetFilters();
                   }}
                   className="text-xs text-blue-600 hover:text-blue-800 underline"
@@ -355,13 +378,47 @@ const EquipmentList = () => {
           </div>
         )}
 
-        {/* Filters */}
-        <EquipmentFilters
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          onReset={resetFilters}
-          loading={loading}
-        />
+        {/* Search box for users (show when category selected and > 5 items) */}
+        {!isAdmin && selectedCategory && equipment.length > 5 && (
+          <div className="mb-4 sm:mb-6 bg-white rounded-lg shadow-sm border p-3 sm:p-4">
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <span className="inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 text-white rounded-full text-xs font-bold">2</span>
+              ค้นหาอุปกรณ์
+            </h3>
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="ค้นหาชื่อ, ยี่ห้อ, รุ่น, หมายเลขครุภัณฑ์..."
+                value={equipmentSearch}
+                onChange={(e) => setEquipmentSearch(e.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              {equipmentSearch && (
+                <button
+                  onClick={() => setEquipmentSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Filters - Only show for admin or when user has selected category */}
+        {(isAdmin || selectedCategory) && (
+          <EquipmentFilters
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            onReset={resetFilters}
+            loading={loading}
+          />
+        )}
 
         {/* Bulk Actions */}
         {isAdmin && (
@@ -460,24 +517,45 @@ const EquipmentList = () => {
               />
             ) : (
               <>
+                {/* No results from search */}
+                {!isAdmin && filteredEquipment.length === 0 && equipmentSearch && (
+                  <div className="bg-white rounded-lg shadow-sm border p-6 sm:p-8 text-center">
+                    <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <h3 className="text-base font-semibold text-gray-900 mb-2">ไม่พบอุปกรณ์ที่ค้นหา</h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      ลองค้นหาด้วยคำอื่น หรือล้างการค้นหา
+                    </p>
+                    <button
+                      onClick={() => setEquipmentSearch('')}
+                      className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 border border-blue-200 rounded-lg hover:bg-blue-50"
+                    >
+                      ล้างการค้นหา
+                    </button>
+                  </div>
+                )}
+
                 {/* Equipment Grid - Mobile: 1 col, Tablet: 2 cols, Desktop: 3-4 cols */}
-                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-                  {equipment.map((item) => (
-                <EquipmentCard
-                  key={item.id}
-                  equipment={item}
-                  userActiveRequest={userActiveRequests[item.id]}
-                  onBorrow={handleBorrow}
-                  onReserve={handleReserve}
-                  onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onViewDetail={handleViewDetail}
-                      isSelectable={isAdmin}
-                      isSelected={selectedItems.includes(item.id)}
-                      onSelect={(isSelected) => handleSelectItem(item.id, isSelected)}
-                    />
-                  ))}
-                </div>
+                {(isAdmin ? equipment : filteredEquipment).length > 0 && (
+                  <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+                    {(isAdmin ? equipment : filteredEquipment).map((item) => (
+                      <EquipmentCard
+                        key={item.id}
+                        equipment={item}
+                        userActiveRequest={userActiveRequests[item.id]}
+                        onBorrow={handleBorrow}
+                        onReserve={handleReserve}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onViewDetail={handleViewDetail}
+                        isSelectable={isAdmin}
+                        isSelected={selectedItems.includes(item.id)}
+                        onSelect={(isSelected) => handleSelectItem(item.id, isSelected)}
+                      />
+                    ))}
+                  </div>
+                )}
 
                 {/* Load More Button - Mobile Optimized */}
                 {pagination.hasNextPage && (
@@ -519,9 +597,12 @@ const EquipmentList = () => {
         )}
 
         {/* Results Summary - Mobile Optimized */}
-        {equipment.length > 0 && (
+        {(isAdmin ? equipment : filteredEquipment).length > 0 && (
           <div className="mt-4 sm:mt-6 text-center text-xs sm:text-sm text-gray-500">
-            แสดง {equipment.length} รายการ
+            แสดง {isAdmin ? equipment.length : filteredEquipment.length} รายการ
+            {!isAdmin && equipmentSearch && equipment.length !== filteredEquipment.length && (
+              <span> (จากทั้งหมด {equipment.length} รายการ)</span>
+            )}
             {pagination.hasNextPage && ' (มีรายการเพิ่มเติม)'}
           </div>
         )}
