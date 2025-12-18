@@ -407,7 +407,7 @@ const ReservationCalendar = ({
               </div>
             ) : error ? (
               <div className="text-center py-3 sm:py-4">
-                <p className="text-red-600 mb-2 text-sm">{error}</p>
+                <p className="text-red-600 mb-2 text-sm">{error?.message || String(error) || 'เกิดข้อผิดพลาด'}</p>
                 <button
                   onClick={refresh}
                   className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm"
