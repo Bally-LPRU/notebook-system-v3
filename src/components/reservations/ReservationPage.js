@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Layout from '../layout/Layout';
 import ReservationCalendar from './ReservationCalendar';
-import ReservationForm from './ReservationForm';
 import ReservationList from './ReservationList';
 import { useEquipment } from '../../hooks/useEquipment';
 import { useUserTypeLimits } from '../../hooks/useUserTypeLimits';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useCategories } from '../../contexts/EquipmentCategoriesContext';
+import { useReservations } from '../../hooks/useReservations';
+import useLunchBreak from '../../hooks/useLunchBreak';
 import EquipmentService from '../../services/equipmentService';
+import { formatReservationDate } from '../../types/reservation';
 
 /**
  * ReservationPage Component
@@ -25,9 +27,18 @@ const ReservationPage = () => {
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
-  const [showReservationForm, setShowReservationForm] = useState(false);
   const [equipmentSearch, setEquipmentSearch] = useState('');
   const [loadingEquipmentFromUrl, setLoadingEquipmentFromUrl] = useState(false);
+  
+  // Inline form state (simplified - only pickup and return info)
+  const [expectedReturnDate, setExpectedReturnDate] = useState('');
+  const [expectedReturnTime, setExpectedReturnTime] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+  
+  // Hooks
+  const { createReservation } = useReservations();
+  const { lunchBreak, lunchBreakDisplay, lunchBreakMessage } = useLunchBreak();
 
   // Get categories from context
   const { categories, loading: categoriesLoading } = useCategories();
@@ -93,7 +104,9 @@ const ReservationPage = () => {
     setSelectedEquipment(null);
     setSelectedDate(null);
     setSelectedTimeSlot(null);
-    setShowReservationForm(false);
+    setExpectedReturnDate('');
+    setExpectedReturnTime('');
+    setFormError('');
     setEquipmentSearch('');
   };
 
@@ -111,34 +124,97 @@ const ReservationPage = () => {
     setSelectedEquipment(equipment);
     setSelectedDate(null);
     setSelectedTimeSlot(null);
-    setShowReservationForm(false);
+    setExpectedReturnDate('');
+    setExpectedReturnTime('');
+    setFormError('');
   };
 
   const handleDateSelect = (date) => {
     setSelectedDate(date);
     setSelectedTimeSlot(null);
-    setShowReservationForm(false);
+    setFormError('');
   };
 
   const handleTimeSlotSelect = (timeSlot) => {
     setSelectedTimeSlot(timeSlot);
-    setShowReservationForm(false);
+    // Set default expected return date to selected date
+    if (selectedDate) {
+      setExpectedReturnDate(selectedDate.toISOString().split('T')[0]);
+    }
   };
 
-  const handleShowReservationForm = () => {
-    setShowReservationForm(true);
+  // Handle direct reservation submission (simplified flow)
+  const handleSubmitReservation = async () => {
+    // Validate
+    if (!expectedReturnDate) {
+      setFormError('กรุณาเลือกวันที่คืนอุปกรณ์');
+      return;
+    }
+    if (!expectedReturnTime) {
+      setFormError('กรุณาเลือกเวลาคืนอุปกรณ์');
+      return;
+    }
+
+    setFormError('');
+    setIsSubmitting(true);
+
+    try {
+      // Create reservation date objects
+      const reservationDate = new Date(selectedDate);
+      const startTime = new Date(reservationDate);
+      const [startHour, startMinute] = selectedTimeSlot.time.split(':');
+      startTime.setHours(parseInt(startHour), parseInt(startMinute), 0, 0);
+      
+      // End time = start time + 1 hour (for pickup window)
+      const endTime = new Date(startTime);
+      endTime.setHours(endTime.getHours() + 1);
+
+      // Expected return datetime
+      const returnDate = new Date(expectedReturnDate);
+      const [returnHour, returnMinute] = expectedReturnTime.split(':');
+      returnDate.setHours(parseInt(returnHour), parseInt(returnMinute), 0, 0);
+
+      const reservationData = {
+        equipmentId: selectedEquipment.id,
+        reservationDate: reservationDate,
+        startTime: startTime,
+        endTime: endTime,
+        expectedReturnDate: returnDate,
+        expectedReturnTime: expectedReturnTime,
+        purpose: 'จองอุปกรณ์ล่วงหน้า',
+        notes: ''
+      };
+
+      await createReservation(reservationData);
+      
+      // Success - reset and show message
+      alert('ส่งคำขอจองสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ');
+      
+      // Reset form
+      setSelectedEquipment(null);
+      setSelectedDate(null);
+      setSelectedTimeSlot(null);
+      setExpectedReturnDate('');
+      setExpectedReturnTime('');
+      
+      // Navigate to my reservations
+      setActiveTab('my-reservations');
+
+    } catch (error) {
+      console.error('Error creating reservation:', error);
+      setFormError(`เกิดข้อผิดพลาด: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleReservationSuccess = (reservation) => {
-    console.log('Reservation created:', reservation);
-    setShowReservationForm(false);
+  const handleCancelReservation = () => {
     setSelectedEquipment(null);
     setSelectedDate(null);
     setSelectedTimeSlot(null);
-  };
-
-  const handleReservationCancel = () => {
-    setShowReservationForm(false);
+    setExpectedReturnDate('');
+    setExpectedReturnTime('');
+    setFormError('');
   };
 
   // Show loading state
@@ -482,49 +558,178 @@ const ReservationPage = () => {
               maxAdvanceBookingDays={limits.maxAdvanceBookingDays}
             />
 
-            {/* Reservation Summary - Mobile Optimized */}
+            {/* Reservation Form - Inline (Simplified Flow) */}
             {selectedEquipment && selectedDate && selectedTimeSlot && (
               <div className="mt-3 sm:mt-4 lg:mt-6 bg-white rounded-lg shadow-sm border p-3 sm:p-4 lg:p-6">
-                <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 mb-2 sm:mb-3 lg:mb-4">
-                  สรุปการจอง
+                <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 bg-green-600 text-white rounded-full text-xs font-bold">✓</span>
+                  ยืนยันการจอง
                 </h3>
-                <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                  <div className="flex flex-wrap">
-                    <span className="font-medium text-gray-500 w-16 sm:w-20">อุปกรณ์:</span>
-                    <span className="text-gray-900 flex-1">{selectedEquipment.name}</span>
-                  </div>
-                  <div className="flex flex-wrap">
-                    <span className="font-medium text-gray-500 w-16 sm:w-20">วันที่:</span>
-                    <span className="text-gray-900 flex-1">
-                      {new Intl.DateTimeFormat('th-TH', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        weekday: 'short'
-                      }).format(selectedDate)}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap">
-                    <span className="font-medium text-gray-500 w-16 sm:w-20">เวลา:</span>
-                    <span className="text-gray-900 flex-1">{selectedTimeSlot.time}</span>
+                
+                {/* Summary */}
+                <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs sm:text-sm">
+                    <div>
+                      <span className="text-gray-500">อุปกรณ์:</span>
+                      <p className="font-medium text-gray-900 truncate">{selectedEquipment.name}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">วันที่รับ:</span>
+                      <p className="font-medium text-gray-900">
+                        {formatReservationDate(selectedDate)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">เวลารับ:</span>
+                      <p className="font-medium text-gray-900">{selectedTimeSlot.time} น.</p>
+                    </div>
                   </div>
                 </div>
+
+                {/* Lunch Break Notice */}
+                {lunchBreak.enabled && (
+                  <div className="bg-orange-50 border-l-4 border-orange-400 p-3 rounded-r-lg mb-4">
+                    <div className="flex items-center gap-2 text-sm text-orange-700">
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>{lunchBreakMessage || `พักกลางวัน ${lunchBreakDisplay}`}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Error Message */}
+                {formError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg mb-4 text-sm">
+                    {formError}
+                  </div>
+                )}
+
+                {/* Admin Settings Info */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <h4 className="text-xs font-medium text-blue-800 mb-2 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    กฎการยืม-คืนอุปกรณ์
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-blue-700">
+                    <div>
+                      <span className="text-blue-600">ยืมได้สูงสุด:</span>
+                      <span className="ml-1 font-medium">{settings?.maxLoanDays || 30} วัน</span>
+                    </div>
+                    <div>
+                      <span className="text-blue-600">จองล่วงหน้า:</span>
+                      <span className="ml-1 font-medium">{limits.maxAdvanceBookingDays} วัน</span>
+                    </div>
+                    {settings?.loanReturnStartTime && settings?.loanReturnEndTime && (
+                      <div className="col-span-2">
+                        <span className="text-blue-600">เวลารับ-คืน:</span>
+                        <span className="ml-1 font-medium">{settings.loanReturnStartTime} - {settings.loanReturnEndTime} น.</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Inline Form Fields */}
+                <div className="space-y-4">
+                  {/* Return Date */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      วันที่คืนอุปกรณ์ *
+                    </label>
+                    <input
+                      type="date"
+                      value={expectedReturnDate}
+                      onChange={(e) => setExpectedReturnDate(e.target.value)}
+                      min={selectedDate.toISOString().split('T')[0]}
+                      max={(() => {
+                        const maxDays = settings?.maxLoanDays || 30;
+                        const maxDate = new Date(selectedDate);
+                        maxDate.setDate(maxDate.getDate() + maxDays);
+                        return maxDate.toISOString().split('T')[0];
+                      })()}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    />
+                  </div>
+
+                  {/* Return Time */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      เวลาคืนอุปกรณ์ *
+                    </label>
+                    <select
+                      value={expectedReturnTime}
+                      onChange={(e) => setExpectedReturnTime(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    >
+                      <option value="">เลือกเวลาคืน</option>
+                      {(() => {
+                        const slots = [];
+                        const startHour = parseInt(settings?.loanReturnStartTime?.split(':')[0]) || 8;
+                        const endHour = parseInt(settings?.loanReturnEndTime?.split(':')[0]) || 17;
+                        const lunchStart = parseInt(lunchBreak.startTime?.split(':')[0]) || 12;
+                        const lunchEnd = parseInt(lunchBreak.endTime?.split(':')[0]) || 13;
+                        
+                        for (let h = startHour; h <= endHour; h++) {
+                          for (let m = 0; m < 60; m += 30) {
+                            // Skip lunch break times
+                            if (lunchBreak.enabled && h >= lunchStart && h < lunchEnd) continue;
+                            
+                            const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                            slots.push(
+                              <option key={time} value={time}>{time} น.</option>
+                            );
+                          }
+                        }
+                        return slots;
+                      })()}
+                    </select>
+                  </div>
+
+                  {/* Loan Duration Display */}
+                  {expectedReturnDate && expectedReturnTime && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2 text-sm text-green-700">
+                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                          <span className="font-medium">ระยะเวลายืม: </span>
+                          {Math.ceil((new Date(expectedReturnDate) - selectedDate) / (1000 * 60 * 60 * 24))} วัน
+                          <span className="text-green-600 ml-2">
+                            (คืน {formatReservationDate(new Date(expectedReturnDate))} เวลา {expectedReturnTime} น.)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 
+                {/* Action Buttons */}
                 <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
-                    className="flex-1 bg-blue-600 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base font-medium"
-                    onClick={handleShowReservationForm}
+                    onClick={handleSubmitReservation}
+                    disabled={isSubmitting}
+                    className={`flex-1 px-4 py-2.5 rounded-lg font-medium text-sm sm:text-base transition-colors ${
+                      isSubmitting
+                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
                   >
-                    ส่งคำขอจอง
+                    {isSubmitting ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        กำลังส่งคำขอ...
+                      </span>
+                    ) : (
+                      'ยืนยันการจอง'
+                    )}
                   </button>
                   <button
-                    className="px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base"
-                    onClick={() => {
-                      setSelectedEquipment(null);
-                      setSelectedDate(null);
-                      setSelectedTimeSlot(null);
-                      setShowReservationForm(false);
-                    }}
+                    onClick={handleCancelReservation}
+                    disabled={isSubmitting}
+                    className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base disabled:opacity-50"
                   >
                     ยกเลิก
                   </button>
@@ -533,21 +738,6 @@ const ReservationPage = () => {
             )}
           </div>
         </div>
-
-        {/* Reservation Form Modal - Mobile Full Screen */}
-        {showReservationForm && selectedEquipment && selectedDate && selectedTimeSlot && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50">
-            <div className="w-full sm:max-w-2xl sm:mx-4 max-h-[95vh] sm:max-h-[90vh] overflow-y-auto bg-white sm:rounded-lg rounded-t-xl">
-              <ReservationForm
-                equipment={selectedEquipment}
-                selectedDate={selectedDate}
-                selectedTimeSlot={selectedTimeSlot}
-                onSuccess={handleReservationSuccess}
-                onCancel={handleReservationCancel}
-              />
-            </div>
-          </div>
-        )}
         </>
         )}
       </div>
