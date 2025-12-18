@@ -23,6 +23,20 @@ class ReservationService {
   static COLLECTION_NAME = 'reservations';
 
   /**
+   * Helper to safely convert to Date - handles Firestore Timestamp, Date, and string
+   * @param {*} value - Value to convert
+   * @returns {Date|null} Date object or null
+   */
+  static _toDate(value) {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value.toDate === 'function') return value.toDate();
+    if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+    if (typeof value.seconds === 'number') return new Date(value.seconds * 1000);
+    return null;
+  }
+
+  /**
    * Create new reservation
    * @param {Object} reservationData - Reservation data
    * @param {string} userId - User ID
@@ -30,18 +44,40 @@ class ReservationService {
    */
   static async createReservation(reservationData, userId) {
     try {
+      // Create reservation date objects - handle both Date objects and strings
+      const reservationDate = this._toDate(reservationData.reservationDate) || new Date(reservationData.reservationDate);
+      
+      // Handle startTime - can be Date object or string "HH:mm"
+      let startTime;
+      if (reservationData.startTime instanceof Date) {
+        startTime = reservationData.startTime;
+      } else if (typeof reservationData.startTime === 'string') {
+        startTime = this.createDateTime(reservationDate, reservationData.startTime);
+      } else {
+        startTime = this._toDate(reservationData.startTime);
+      }
+      
+      // Handle endTime - can be Date object or string "HH:mm"
+      let endTime;
+      if (reservationData.endTime instanceof Date) {
+        endTime = reservationData.endTime;
+      } else if (typeof reservationData.endTime === 'string') {
+        endTime = this.createDateTime(reservationDate, reservationData.endTime);
+      } else {
+        endTime = this._toDate(reservationData.endTime);
+      }
+      
+      // Extract time strings for validation
+      const startTimeStr = startTime ? `${startTime.getHours().toString().padStart(2, '0')}:${startTime.getMinutes().toString().padStart(2, '0')}` : null;
+      const endTimeStr = endTime ? `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}` : null;
+
       // Validate reservation time
       await this.validateReservationTime(
         reservationData.equipmentId,
-        reservationData.reservationDate,
-        reservationData.startTime,
-        reservationData.endTime
+        reservationDate,
+        startTimeStr,
+        endTimeStr
       );
-
-      // Create reservation date objects
-      const reservationDate = new Date(reservationData.reservationDate);
-      const startTime = this.createDateTime(reservationDate, reservationData.startTime);
-      const endTime = this.createDateTime(reservationDate, reservationData.endTime);
 
       // Calculate expected return date (default: same day as reservation if not provided)
       const expectedReturnDate = reservationData.expectedReturnDate 
@@ -454,8 +490,11 @@ class ReservationService {
           continue;
         }
 
-        const existingStart = reservation.startTime.toDate();
-        const existingEnd = reservation.endTime.toDate();
+        const existingStart = this._toDate(reservation.startTime);
+        const existingEnd = this._toDate(reservation.endTime);
+
+        // Skip if dates are invalid
+        if (!existingStart || !existingEnd) continue;
 
         // Check for time overlap
         if (
@@ -497,8 +536,11 @@ class ReservationService {
           let conflictingReservation = null;
           
           for (const reservation of existingReservations) {
-            const reservationStart = reservation.startTime.toDate();
-            const reservationEnd = reservation.endTime.toDate();
+            const reservationStart = this._toDate(reservation.startTime);
+            const reservationEnd = this._toDate(reservation.endTime);
+            
+            // Skip if dates are invalid
+            if (!reservationStart || !reservationEnd) continue;
             
             if (slotDateTime >= reservationStart && slotDateTime < reservationEnd) {
               isAvailable = false;

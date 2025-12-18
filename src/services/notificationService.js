@@ -709,7 +709,14 @@ class NotificationService {
       const settings = await this.getUserNotificationSettings(loanRequest.userId);
       const reminderDays = settings.reminderTiming?.loanReminder || 1;
       
-      const reminderDate = new Date(loanRequest.expectedReturnDate.toDate());
+      // Safely convert expectedReturnDate to Date
+      const expectedReturnDate = this._toDate(loanRequest.expectedReturnDate);
+      if (!expectedReturnDate) {
+        console.warn('Cannot schedule loan reminder: invalid expectedReturnDate');
+        return;
+      }
+      
+      const reminderDate = new Date(expectedReturnDate);
       reminderDate.setDate(reminderDate.getDate() - reminderDays);
       
       // Only schedule if reminder date is in the future
@@ -721,7 +728,7 @@ class NotificationService {
           {
             loanId: loanRequest.id,
             equipmentName: equipment.name,
-            dueDate: loanRequest.expectedReturnDate.toDate().toLocaleDateString('th-TH'),
+            dueDate: expectedReturnDate.toLocaleDateString('th-TH'),
             relatedId: loanRequest.id,
             relatedType: 'loan'
           }
@@ -733,15 +740,32 @@ class NotificationService {
     }
   }
 
+  // Helper to safely convert to Date - handles Firestore Timestamp, Date, and string
+  static _toDate(value) {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value.toDate === 'function') return value.toDate();
+    if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+    if (typeof value.seconds === 'number') return new Date(value.seconds * 1000);
+    return null;
+  }
+
   // Notify about reservation status
   static async notifyUserReservationStatus(reservation, equipment, approved, rejectionReason = '') {
     try {
       const type = approved ? NOTIFICATION_TYPES.RESERVATION_APPROVED : NOTIFICATION_TYPES.RESERVATION_REJECTED;
+      
+      // Safely convert startTime to Date
+      const startTimeDate = this._toDate(reservation.startTime);
+      const reservationDateStr = startTimeDate 
+        ? startTimeDate.toLocaleDateString('th-TH') 
+        : 'ไม่ระบุวันที่';
+      
       const data = {
         reservationId: reservation.id,
         equipmentId: equipment.id,
         equipmentName: equipment.name,
-        reservationDate: reservation.startTime.toDate().toLocaleDateString('th-TH'),
+        reservationDate: reservationDateStr,
         approved,
         rejectionReason: rejectionReason ? `: ${rejectionReason}` : ''
       };
@@ -770,7 +794,14 @@ class NotificationService {
       const settings = await this.getUserNotificationSettings(reservation.userId);
       const reminderHours = settings.reminderTiming?.reservationReminder || 24;
       
-      const reminderDate = new Date(reservation.startTime.toDate());
+      // Safely convert startTime to Date
+      const startTimeDate = this._toDate(reservation.startTime);
+      if (!startTimeDate) {
+        console.warn('Cannot schedule reminder: invalid startTime');
+        return;
+      }
+      
+      const reminderDate = new Date(startTimeDate);
       reminderDate.setHours(reminderDate.getHours() - reminderHours);
       
       // Only schedule if reminder date is in the future
@@ -793,7 +824,7 @@ class NotificationService {
       await this.scheduleNotification(
         reservation.userId,
         NOTIFICATION_TYPES.RESERVATION_READY,
-        reservation.startTime.toDate(),
+        startTimeDate,
         {
           reservationId: reservation.id,
           equipmentName: equipment.name,
@@ -821,6 +852,12 @@ class NotificationService {
       const adminSnapshot = await getDocs(adminQuery);
       const notificationPromises = [];
       
+      // Safely convert startTime to Date using helper
+      const startTimeDate = this._toDate(reservation.startTime);
+      const reservationDateStr = startTimeDate 
+        ? startTimeDate.toLocaleDateString('th-TH') 
+        : 'ไม่ระบุวันที่';
+      
       adminSnapshot.forEach((adminDoc) => {
         const admin = adminDoc.data();
         notificationPromises.push(
@@ -834,8 +871,8 @@ class NotificationService {
               equipmentId: equipment.id,
               equipmentName: equipment.name,
               userId: user.uid,
-              userName: `${user.firstName} ${user.lastName}`,
-              reservationDate: reservation.startTime.toDate().toLocaleDateString('th-TH')
+              userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.displayName || user.email || 'ไม่ระบุชื่อ',
+              reservationDate: reservationDateStr
             }
           )
         );
