@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useReservations } from '../../hooks/useReservations';
 import { useClosedDates } from '../../hooks/useClosedDates';
 import { useUserTypeLimits } from '../../hooks/useUserTypeLimits';
+import useLunchBreak from '../../hooks/useLunchBreak';
 import { 
   DEFAULT_RESERVATION_FORM,
   RESERVATION_VALIDATION,
@@ -40,6 +41,14 @@ const ReservationForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { createReservation } = useReservations();
+  
+  // Get lunch break settings
+  const { 
+    lunchBreak, 
+    generateTimeSlots: generateLunchBreakAwareSlots,
+    lunchBreakDisplay,
+    lunchBreakMessage 
+  } = useLunchBreak();
   
   // Get max advance booking days from user type limits (Requirements: 5.1, 5.5)
   const maxAdvanceBookingDays = limits.maxAdvanceBookingDays;
@@ -233,19 +242,18 @@ const ReservationForm = ({
     }
   };
 
-  // Generate time options
-  const generateTimeOptions = () => {
-    const options = [];
-    for (let hour = TIME_SLOTS_CONFIG.START_HOUR; hour < TIME_SLOTS_CONFIG.END_HOUR; hour++) {
-      for (let minute = 0; minute < 60; minute += TIME_SLOTS_CONFIG.SLOT_DURATION) {
-        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        options.push(timeString);
-      }
-    }
-    return options;
-  };
+  // Generate time options with 30-minute intervals, excluding lunch break
+  const timeSlots = useMemo(() => {
+    return generateLunchBreakAwareSlots(
+      TIME_SLOTS_CONFIG.START_HOUR, 
+      TIME_SLOTS_CONFIG.END_HOUR, 
+      30 // 30-minute intervals
+    );
+  }, [generateLunchBreakAwareSlots]);
 
-  const timeOptions = generateTimeOptions();
+  const timeOptions = useMemo(() => {
+    return timeSlots.filter(slot => !slot.disabled).map(slot => slot.time);
+  }, [timeSlots]);
 
   return (
     <div className={`bg-white rounded-lg shadow-sm border ${className}`}>
@@ -277,6 +285,27 @@ const ReservationForm = ({
                   <p className="font-medium text-gray-900">{equipment.name}</p>
                   <p className="text-sm text-gray-500">{equipment.brand} {equipment.model}</p>
                   <p className="text-sm text-gray-500">สถานที่: {equipment.location}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Lunch Break Notice */}
+          {lunchBreak.enabled && (
+            <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-r-lg">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <svg className="w-5 h-5 text-orange-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium text-orange-800">
+                    เวลาพักกลางวัน
+                  </h4>
+                  <p className="mt-1 text-sm text-orange-700">
+                    {lunchBreakMessage || `พักกลางวัน ${lunchBreakDisplay || '12:00 - 13:00 น.'} ไม่สามารถรับ-คืนอุปกรณ์ได้`}
+                  </p>
                 </div>
               </div>
             </div>

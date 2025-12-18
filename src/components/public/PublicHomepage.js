@@ -11,6 +11,7 @@ import HeroSection from './HeroSection';
 import Footer from './Footer';
 import StatsCard from './StatsCard';
 import usePublicStats from '../../hooks/usePublicStats';
+import useLunchBreak from '../../hooks/useLunchBreak';
 import PublicHomepageErrorBoundary from './PublicHomepageErrorBoundary';
 import { 
   OfflineIndicator, 
@@ -32,6 +33,7 @@ const PublicHomepageContent = memo(() => {
     retryWhenOnline 
   } = usePublicStats();
   const { signIn, user, userProfile, needsProfileSetup } = useAuth();
+  const { lunchBreak, lunchBreakDisplay, lunchBreakMessage, loading: lunchBreakLoading } = useLunchBreak();
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
 
@@ -155,6 +157,48 @@ const PublicHomepageContent = memo(() => {
           title="ระบบยืม-คืนอุปกรณ์"
           subtitle="จัดการการยืม-คืนอุปกรณ์อย่างมีประสิทธิภาพ ตรวจสอบสถานะอุปกรณ์และจองล่วงหน้าได้ง่ายๆ"
         />
+        
+        {/* Lunch Break Notice - แสดงเวลาพักกลางวันอย่างชัดเจน */}
+        {!lunchBreakLoading && lunchBreak.enabled && (
+          <section className="py-4 px-3 sm:px-4 md:px-6 lg:px-8">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-l-4 border-orange-400 rounded-r-xl shadow-sm overflow-hidden">
+                <div className="p-4 sm:p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 bg-orange-100 rounded-full flex items-center justify-center">
+                        <svg className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <h3 className="text-lg sm:text-xl font-bold text-orange-800">
+                          🍽️ เวลาพักกลางวัน
+                        </h3>
+                        <div className="inline-flex items-center px-3 py-1.5 bg-orange-100 rounded-full">
+                          <svg className="w-4 h-4 text-orange-600 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-sm sm:text-base font-semibold text-orange-700">
+                            {lunchBreakDisplay || '12:00 - 13:00 น.'}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-sm sm:text-base text-orange-700">
+                        {lunchBreakMessage || `ห้องให้บริการยืม-คืนอุปกรณ์ปิดให้บริการในช่วงเวลาพักกลางวัน ${lunchBreakDisplay || '12:00 - 13:00 น.'}`}
+                      </p>
+                      <p className="mt-1 text-xs sm:text-sm text-orange-600">
+                        {'กรุณาวางแผนการรับ-คืนอุปกรณ์ให้อยู่นอกช่วงเวลาดังกล่าว'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
         
         {/* Authentication Error Display */}
         {authError && (

@@ -23,6 +23,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { useClosedDates } from '../../hooks/useClosedDates';
 import { useCategoryLimits } from '../../hooks/useCategoryLimits';
 import { useUserTypeLimits } from '../../hooks/useUserTypeLimits';
+import useLunchBreak from '../../hooks/useLunchBreak';
 
 /**
  * Field Input Component with validation feedback
@@ -145,6 +146,13 @@ const EnhancedLoanRequestForm = ({
     canBorrow
   } = useUserTypeLimits();
   
+  // Use lunch break hook
+  const { 
+    lunchBreak, 
+    lunchBreakDisplay, 
+    lunchBreakMessage 
+  } = useLunchBreak();
+  
   // Get max loan duration from user type limits (Requirements: 4.2)
   // Use user type specific maxDays if available, otherwise fall back to settings
   const maxLoanDuration = limits?.maxDays || settings?.maxLoanDuration || 30;
@@ -258,6 +266,23 @@ const EnhancedLoanRequestForm = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Lunch Break Notice */}
+      {lunchBreak.enabled && (
+        <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-r-lg">
+          <div className="flex items-start">
+            <svg className="w-5 h-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h4 className="text-sm font-medium text-orange-800">เวลาพักกลางวัน</h4>
+              <p className="mt-1 text-sm text-orange-700">
+                {lunchBreakMessage || `พักกลางวัน ${lunchBreakDisplay || '12:00 - 13:00 น.'} ไม่สามารถรับ-คืนอุปกรณ์ได้`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Borrowing Limits Info (Requirements: 4.1, 4.4) */}
       {!limitsLoading && (
         <div className={`rounded-lg border p-4 ${hasExceededMaxItems ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>

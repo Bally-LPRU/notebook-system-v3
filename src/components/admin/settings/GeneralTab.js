@@ -322,6 +322,31 @@ const GeneralTab = () => {
           tabId="general"
         />
 
+        {/* Lunch Break Card */}
+        <SettingsCard
+          title="เวลาพักกลางวัน"
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+          color="orange"
+          items={[
+            { 
+              label: 'สถานะ', 
+              value: settings.lunchBreak?.enabled !== false ? 'เปิดใช้งาน' : 'ปิดใช้งาน',
+              status: settings.lunchBreak?.enabled !== false ? 'success' : 'neutral'
+            },
+            { 
+              label: 'ช่วงเวลา', 
+              value: settings.lunchBreak?.enabled !== false 
+                ? `${settings.lunchBreak?.startTime || '12:00'} - ${settings.lunchBreak?.endTime || '13:00'} น.`
+                : 'ไม่มี'
+            }
+          ]}
+          tabId="lunch-break"
+        />
+
         {/* Closed Dates Card */}
         <SettingsCard
           title="วันปิดทำการ"
@@ -455,7 +480,8 @@ const SettingsCard = ({ title, icon, color, items, tabId }) => {
     red: 'bg-red-50 text-red-600 border-red-200',
     green: 'bg-green-50 text-green-600 border-green-200',
     indigo: 'bg-indigo-50 text-indigo-600 border-indigo-200',
-    gray: 'bg-gray-50 text-gray-600 border-gray-200'
+    gray: 'bg-gray-50 text-gray-600 border-gray-200',
+    orange: 'bg-orange-50 text-orange-600 border-orange-200'
   };
 
   const statusClasses = {

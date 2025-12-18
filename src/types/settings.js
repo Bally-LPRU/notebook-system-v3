@@ -141,7 +141,8 @@ export const CRITICAL_SETTINGS = [
   'loanReturnStartTime',
   'loanReturnEndTime',
   'closedDates',
-  'categoryLimits'
+  'categoryLimits',
+  'lunchBreak'
 ];
 
 /**
@@ -232,6 +233,43 @@ export const USER_TYPE_LIMITS_VALIDATION = {
 };
 
 /**
+ * Lunch Break Settings Structure
+ * @typedef {Object} LunchBreakSettings
+ * @property {boolean} enabled - Whether lunch break is enabled
+ * @property {string} startTime - Lunch break start time (HH:mm, 24h)
+ * @property {string} endTime - Lunch break end time (HH:mm, 24h)
+ * @property {string} message - Message to display to users
+ */
+
+/**
+ * Default lunch break settings
+ */
+export const DEFAULT_LUNCH_BREAK = {
+  enabled: true,
+  startTime: '12:00',
+  endTime: '13:00',
+  message: 'พักกลางวัน 12:00 - 13:00 น. ไม่สามารถรับ-คืนอุปกรณ์ได้'
+};
+
+/**
+ * Lunch break validation
+ */
+export const LUNCH_BREAK_VALIDATION = {
+  startTime: {
+    min: '00:00',
+    max: '23:59'
+  },
+  endTime: {
+    min: '00:00',
+    max: '23:59'
+  },
+  message: {
+    minLength: 0,
+    maxLength: 200
+  }
+};
+
+/**
  * Default system settings
  */
 export const DEFAULT_SETTINGS = {
@@ -244,5 +282,6 @@ export const DEFAULT_SETTINGS = {
   discordEnabled: false,
   userTypeLimitsEnabled: false,
   reservationSystemEnabled: true, // ระบบจองอุปกรณ์ล่วงหน้า
+  lunchBreak: DEFAULT_LUNCH_BREAK, // เวลาพักกลางวัน
   version: 1
 };

@@ -25,6 +25,7 @@ import NotificationsTab from './NotificationsTab';
 import SystemNotificationsTab from './SystemNotificationsTab';
 import AuditLogTab from './AuditLogTab';
 import UnifiedLoanSettingsTab from './UnifiedLoanSettingsTab';
+import LunchBreakTab from './LunchBreakTab';
 import SettingsTabSkeleton from './SettingsTabSkeleton';
 
 /**
@@ -54,6 +55,17 @@ const SETTINGS_TABS = [
       </svg>
     ),
     description: 'กฎการยืมเริ่มต้นและการยืมตามประเภทผู้ใช้'
+  },
+  {
+    id: 'lunch-break',
+    name: 'เวลาพักกลางวัน',
+    shortName: 'พักกลางวัน',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    description: 'ตั้งค่าเวลาพักกลางวันของห้องให้บริการ'
   },
   {
     id: 'closed-dates',
@@ -207,6 +219,9 @@ const AdminSettingsPage = () => {
       switch (activeTab) {
         case 'loan-settings':
           return <UnifiedLoanSettingsTab />;
+        
+        case 'lunch-break':
+          return <LunchBreakTab />;
         
         case 'closed-dates':
           return <ClosedDatesTab />;
