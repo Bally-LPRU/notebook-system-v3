@@ -377,7 +377,13 @@ const BorrowedEquipmentList = () => {
                                 <p className="text-sm font-medium text-gray-900">{request.equipment.name}</p>
                                 <p className="text-sm text-gray-600">{request.equipment.brand} {request.equipment.model}</p>
                                 <p className="text-xs text-gray-500 font-mono">รหัส: {request.equipment.serialNumber}</p>
-                                <p className="text-xs text-gray-500">สถานที่: {request.equipment.location}</p>
+                                <p className="text-xs text-gray-500">สถานที่: {
+                                  typeof request.equipment.location === 'string' 
+                                    ? request.equipment.location 
+                                    : request.equipment.location?.room 
+                                      ? `${request.equipment.location.room}${request.equipment.location.building ? `, ${request.equipment.location.building}` : ''}${request.equipment.location.floor ? ` ชั้น ${request.equipment.location.floor}` : ''}`
+                                      : 'ไม่ระบุ'
+                                }</p>
                               </div>
                             </div>
                           </div>

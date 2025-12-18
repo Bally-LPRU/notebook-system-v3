@@ -299,7 +299,13 @@ const EnhancedEquipmentCard = ({
           </div>
           <div className={`flex justify-between ${isCompactMode ? 'text-xs' : 'text-sm'}`}>
             <span className="text-gray-500">สถานที่:</span>
-            <span className="text-gray-900 font-medium">{equipment.location}</span>
+            <span className="text-gray-900 font-medium">
+              {typeof equipment.location === 'string' 
+                ? equipment.location 
+                : equipment.location?.room 
+                  ? `${equipment.location.room}${equipment.location.building ? `, ${equipment.location.building}` : ''}${equipment.location.floor ? ` ชั้น ${equipment.location.floor}` : ''}`
+                  : 'ไม่ระบุ'}
+            </span>
           </div>
         </div>
 

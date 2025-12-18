@@ -387,7 +387,13 @@ const EquipmentDetailView = ({
                     </div>
                     <div>
                       <dt className="text-sm font-medium text-gray-500">สถานที่</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{equipment.location}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">
+                        {typeof equipment.location === 'string' 
+                          ? equipment.location 
+                          : equipment.location?.room 
+                            ? `${equipment.location.room}${equipment.location.building ? `, ${equipment.location.building}` : ''}${equipment.location.floor ? ` ชั้น ${equipment.location.floor}` : ''}`
+                            : 'ไม่ระบุ'}
+                      </dd>
                     </div>
                   </dl>
                 </div>

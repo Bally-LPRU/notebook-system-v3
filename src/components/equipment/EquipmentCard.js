@@ -219,7 +219,13 @@ const EquipmentCard = ({
           </div>
           <div className={`flex justify-between text-xs sm:text-sm ${!isListMode ? 'hidden sm:flex' : ''}`}>
             <span className="text-gray-500">สถานที่:</span>
-            <span className="text-gray-900 font-medium truncate ml-2">{equipment.location}</span>
+            <span className="text-gray-900 font-medium truncate ml-2">
+              {typeof equipment.location === 'string' 
+                ? equipment.location 
+                : equipment.location?.room 
+                  ? `${equipment.location.room}${equipment.location.building ? `, ${equipment.location.building}` : ''}${equipment.location.floor ? ` ชั้น ${equipment.location.floor}` : ''}`
+                  : 'ไม่ระบุ'}
+            </span>
           </div>
         </div>
 

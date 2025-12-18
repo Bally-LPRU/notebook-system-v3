@@ -786,7 +786,13 @@ const EquipmentList = () => {
                   </div>
                   <div>
                     <label className="text-xs sm:text-sm font-medium text-gray-500">สถานที่</label>
-                    <p className="text-sm sm:text-base text-gray-900">{selectedEquipment.location}</p>
+                    <p className="text-sm sm:text-base text-gray-900">
+                      {typeof selectedEquipment.location === 'string' 
+                        ? selectedEquipment.location 
+                        : selectedEquipment.location?.room 
+                          ? `${selectedEquipment.location.room}${selectedEquipment.location.building ? `, ${selectedEquipment.location.building}` : ''}${selectedEquipment.location.floor ? ` ชั้น ${selectedEquipment.location.floor}` : ''}`
+                          : 'ไม่ระบุ'}
+                    </p>
                   </div>
                 </div>
                 

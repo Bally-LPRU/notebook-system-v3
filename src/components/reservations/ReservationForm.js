@@ -282,9 +282,17 @@ const ReservationForm = ({
                   </div>
                 )}
                 <div>
-                  <p className="font-medium text-gray-900">{equipment.name}</p>
-                  <p className="text-sm text-gray-500">{equipment.brand} {equipment.model}</p>
-                  <p className="text-sm text-gray-500">สถานที่: {equipment.location}</p>
+                  <p className="font-medium text-gray-900">{equipment.name || 'ไม่ระบุชื่อ'}</p>
+                  <p className="text-sm text-gray-500">{equipment.brand || ''} {equipment.model || ''}</p>
+                  <p className="text-sm text-gray-500">
+                    สถานที่: {
+                      typeof equipment.location === 'string' 
+                        ? equipment.location 
+                        : equipment.location?.room 
+                          ? `${equipment.location.room}${equipment.location.building ? `, ${equipment.location.building}` : ''}${equipment.location.floor ? ` ชั้น ${equipment.location.floor}` : ''}`
+                          : 'ไม่ระบุ'
+                    }
+                  </p>
                 </div>
               </div>
             </div>
