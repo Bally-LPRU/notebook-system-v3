@@ -14,12 +14,22 @@ const formatDate = (date) => {
   return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 };
 
-const CurrentLoansCard = ({ currentLoans, recentLoan, loading }) => {
+const CurrentLoansCard = ({ currentLoans, recentLoan, loading, error }) => {
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 animate-pulse">
         <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
         <div className="h-16 bg-gray-200 rounded"></div>
+      </div>
+    );
+  }
+
+  // Show error if any
+  if (error) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-red-200 p-4">
+        <h3 className="text-sm font-medium text-red-900 mb-2">อุปกรณ์ของฉัน</h3>
+        <p className="text-xs text-red-600">ไม่สามารถโหลดข้อมูลได้: {error}</p>
       </div>
     );
   }
@@ -127,7 +137,8 @@ const CurrentLoansCard = ({ currentLoans, recentLoan, loading }) => {
 CurrentLoansCard.propTypes = {
   currentLoans: PropTypes.array,
   recentLoan: PropTypes.object,
-  loading: PropTypes.bool
+  loading: PropTypes.bool,
+  error: PropTypes.string
 };
 
 export default CurrentLoansCard;

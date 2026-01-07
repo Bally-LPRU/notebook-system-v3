@@ -8,7 +8,6 @@ import {
   collection, 
   query, 
   where, 
-  orderBy, 
   limit,
   getDocs
 } from 'firebase/firestore';
@@ -41,37 +40,58 @@ export const useCurrentLoans = () => {
     try {
       const loanRequestsRef = collection(db, 'loanRequests');
       
-      // Query for user's loan requests (simpler query without compound index)
-      const userLoansQuery = query(
+      // Query 1: Get currently borrowed items (status = borrowed or overdue)
+      // Using simple query without orderBy to avoid index requirement
+      const borrowedQuery = query(
         loanRequestsRef,
         where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc'),
-        limit(20)
+        limit(50)
       );
 
-      const snapshot = await getDocs(userLoansQuery);
+      console.log('🔍 useCurrentLoans: Fetching loans for user:', user.uid);
+      
+      const snapshot = await getDocs(borrowedQuery);
       const allLoans = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
 
-      // Filter for currently borrowed items
+      console.log('📦 useCurrentLoans: Found', allLoans.length, 'total loans');
+      console.log('📦 useCurrentLoans: Loan statuses:', allLoans.map(l => l.status));
+
+      // Filter for currently borrowed items using string comparison
       const borrowedItems = allLoans.filter(loan => 
         loan.status === LOAN_REQUEST_STATUS.BORROWED || 
-        loan.status === LOAN_REQUEST_STATUS.OVERDUE
+        loan.status === LOAN_REQUEST_STATUS.OVERDUE ||
+        loan.status === 'borrowed' ||  // Fallback string comparison
+        loan.status === 'overdue'      // Fallback string comparison
       );
+      
+      console.log('✅ useCurrentLoans: Found', borrowedItems.length, 'borrowed items');
+      
+      // Sort by createdAt client-side
+      borrowedItems.sort((a, b) => {
+        const dateA = a.createdAt?.toDate?.() || a.createdAt || 0;
+        const dateB = b.createdAt?.toDate?.() || b.createdAt || 0;
+        return dateB - dateA;
+      });
+      
       setCurrentLoans(borrowedItems);
 
       // If no current loans, get most recent returned loan
       if (borrowedItems.length === 0) {
         const returnedLoans = allLoans.filter(loan => 
-          loan.status === LOAN_REQUEST_STATUS.RETURNED
+          loan.status === LOAN_REQUEST_STATUS.RETURNED ||
+          loan.status === 'returned'  // Fallback string comparison
         );
+        
+        console.log('📋 useCurrentLoans: Found', returnedLoans.length, 'returned loans');
+        
         if (returnedLoans.length > 0) {
-          // Sort by actualReturnDate if available
+          // Sort by actualReturnDate or createdAt
           returnedLoans.sort((a, b) => {
-            const dateA = a.actualReturnDate?.toDate?.() || a.actualReturnDate || 0;
-            const dateB = b.actualReturnDate?.toDate?.() || b.actualReturnDate || 0;
+            const dateA = a.actualReturnDate?.toDate?.() || a.createdAt?.toDate?.() || 0;
+            const dateB = b.actualReturnDate?.toDate?.() || b.createdAt?.toDate?.() || 0;
             return dateB - dateA;
           });
           setRecentLoan(returnedLoans[0]);
@@ -82,9 +102,9 @@ export const useCurrentLoans = () => {
         setRecentLoan(null);
       }
     } catch (err) {
-      console.error('Error loading current loans:', err);
-      // Don't show error to user, just log it
-      setError(null);
+      console.error('❌ useCurrentLoans: Error loading loans:', err);
+      console.error('❌ useCurrentLoans: Error details:', err.code, err.message);
+      setError(err.message);
       setCurrentLoans([]);
       setRecentLoan(null);
     } finally {

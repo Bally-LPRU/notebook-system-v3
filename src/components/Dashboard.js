@@ -22,7 +22,7 @@ const Dashboard = () => {
     pendingRequestsCount,
     remainingQuota
   } = useUserTypeLimits();
-  const { currentLoans, recentLoan, loading: loansLoading } = useCurrentLoans();
+  const { currentLoans, recentLoan, loading: loansLoading, error: loansError } = useCurrentLoans();
 
   return (
     <Layout>
@@ -106,6 +106,7 @@ const Dashboard = () => {
               currentLoans={currentLoans}
               recentLoan={recentLoan}
               loading={loansLoading}
+              error={loansError}
             />
           )}
 
