@@ -41,38 +41,40 @@ export const useCurrentLoans = () => {
     try {
       const loanRequestsRef = collection(db, 'loanRequests');
       
-      // Query for currently borrowed items
-      const borrowedQuery = query(
+      // Query for user's loan requests (simpler query without compound index)
+      const userLoansQuery = query(
         loanRequestsRef,
         where('userId', '==', user.uid),
-        where('status', 'in', [LOAN_REQUEST_STATUS.BORROWED, LOAN_REQUEST_STATUS.OVERDUE]),
-        orderBy('borrowDate', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(20)
       );
 
-      const borrowedSnapshot = await getDocs(borrowedQuery);
-      const borrowedItems = borrowedSnapshot.docs.map(doc => ({
+      const snapshot = await getDocs(userLoansQuery);
+      const allLoans = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+
+      // Filter for currently borrowed items
+      const borrowedItems = allLoans.filter(loan => 
+        loan.status === LOAN_REQUEST_STATUS.BORROWED || 
+        loan.status === LOAN_REQUEST_STATUS.OVERDUE
+      );
       setCurrentLoans(borrowedItems);
 
       // If no current loans, get most recent returned loan
       if (borrowedItems.length === 0) {
-        const recentQuery = query(
-          loanRequestsRef,
-          where('userId', '==', user.uid),
-          where('status', '==', LOAN_REQUEST_STATUS.RETURNED),
-          orderBy('actualReturnDate', 'desc'),
-          limit(1)
+        const returnedLoans = allLoans.filter(loan => 
+          loan.status === LOAN_REQUEST_STATUS.RETURNED
         );
-
-        const recentSnapshot = await getDocs(recentQuery);
-        if (!recentSnapshot.empty) {
-          const doc = recentSnapshot.docs[0];
-          setRecentLoan({
-            id: doc.id,
-            ...doc.data()
+        if (returnedLoans.length > 0) {
+          // Sort by actualReturnDate if available
+          returnedLoans.sort((a, b) => {
+            const dateA = a.actualReturnDate?.toDate?.() || a.actualReturnDate || 0;
+            const dateB = b.actualReturnDate?.toDate?.() || b.actualReturnDate || 0;
+            return dateB - dateA;
           });
+          setRecentLoan(returnedLoans[0]);
         } else {
           setRecentLoan(null);
         }
@@ -81,7 +83,10 @@ export const useCurrentLoans = () => {
       }
     } catch (err) {
       console.error('Error loading current loans:', err);
-      setError(err?.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+      // Don't show error to user, just log it
+      setError(null);
+      setCurrentLoans([]);
+      setRecentLoan(null);
     } finally {
       setLoading(false);
     }

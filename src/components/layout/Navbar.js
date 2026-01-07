@@ -147,7 +147,7 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
 
           {/* Desktop Navigation - Show for non-admin users */}
           {!isAdmin && (
-            <div className="hidden md:flex items-center space-x-1">
+            <div className="hidden lg:flex items-center space-x-1">
               {navigationItems.map((item) => (
                 item.href === '/reservations' ? (
                   <Link
@@ -158,15 +158,15 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
                         e.preventDefault();
                       }
                     }}
-                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    className={`flex items-center px-2 py-1.5 rounded-md text-xs font-medium transition-colors duration-200 ${
                       isActivePath(item.href)
                         ? 'bg-blue-100 text-blue-700'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                     } ${!isReservationEnabled ? 'opacity-60' : ''}`}
                     aria-label={item.name}
                   >
-                    {getIcon(item.icon)}
-                    <span className="ml-2">{item.name}</span>
+                    <span className="hidden xl:inline">{getIcon(item.icon)}</span>
+                    <span className="xl:ml-1">{item.name}</span>
                     {!isReservationEnabled && (
                       <span className="ml-1 text-xs text-gray-400">(ปิด)</span>
                     )}
@@ -175,14 +175,14 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
                   <Link
                     key={item.name}
                     to={item.href}
-                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    className={`flex items-center px-2 py-1.5 rounded-md text-xs font-medium transition-colors duration-200 ${
                       isActivePath(item.href)
                         ? 'bg-blue-100 text-blue-700'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                     }`}
                   >
-                    {getIcon(item.icon)}
-                    <span className="ml-2">{item.name}</span>
+                    <span className="hidden xl:inline">{getIcon(item.icon)}</span>
+                    <span className="xl:ml-1">{item.name}</span>
                   </Link>
                 )
               ))}
@@ -274,7 +274,7 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
             {!isAdmin && (
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="md:hidden ml-2 inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                className="lg:hidden ml-2 inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
               >
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {isMenuOpen ? (
@@ -292,7 +292,7 @@ const Navbar = ({ onMenuToggle, showMenuButton = false, isMobile = false }) => {
       {/* Mobile Navigation Menu - Only show for non-admin users */}
       {/* Admin users use the Sidebar instead */}
       {isMenuOpen && !isAdmin && (
-        <div className="md:hidden">
+        <div className="lg:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-50 border-t border-gray-200">
             {navigationItems.map((item) => (
               item.href === '/reservations' ? (
