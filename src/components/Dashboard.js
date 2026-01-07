@@ -3,14 +3,16 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useUserTypeLimits } from '../hooks/useUserTypeLimits';
 import { useClosedDates } from '../hooks/useClosedDates';
+import { useCurrentLoans } from '../hooks/useCurrentLoans';
 import { Layout } from './layout';
 import { 
   BorrowingLimitsCard,
-  LoanRulesSection
+  LoanRulesSection,
+  CurrentLoansCard
 } from './dashboard/index';
 
 const Dashboard = () => {
-  const { user, userProfile, isAdmin } = useAuth();
+  const { userProfile, isAdmin } = useAuth();
   const { settings, loading: settingsLoading } = useSettings();
   const { closedDates, loading: closedDatesLoading } = useClosedDates();
   const {
@@ -20,6 +22,7 @@ const Dashboard = () => {
     pendingRequestsCount,
     remainingQuota
   } = useUserTypeLimits();
+  const { currentLoans, recentLoan, loading: loansLoading } = useCurrentLoans();
 
   return (
     <Layout>
@@ -33,65 +36,7 @@ const Dashboard = () => {
         </div>
 
         <div className="space-y-4 sm:space-y-6">
-          {/* User Profile Section */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
-            <div className="flex items-center mb-4 sm:mb-6">
-              <img
-                className="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 rounded-full"
-                src={user?.photoURL || '/default-avatar.png'}
-                alt={user?.displayName}
-              />
-              <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 truncate">
-                  สวัสดี, {user?.displayName}
-                </h2>
-                <p className="text-sm sm:text-base text-gray-600 truncate">{user?.email}</p>
-              </div>
-            </div>
-
-            {isAdmin && (
-              <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-purple-50 border border-purple-200 rounded-md">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
-                  <div>
-                    <p className="text-xs sm:text-sm font-medium text-purple-800">
-                      เมนูผู้ดูแลระบบ
-                    </p>
-                    <p className="text-xs text-purple-600">
-                      จัดการผู้ใช้และระบบ
-                    </p>
-                  </div>
-                  <Link
-                    to="/admin"
-                    className="inline-flex items-center justify-center px-3 py-1.5 sm:py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 w-full sm:w-auto"
-                  >
-                    แดชบอร์ดผู้ดูแล
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Borrowing Limits Card */}
-          {userProfile?.status === 'approved' && (
-            <BorrowingLimitsCard
-              limits={limits}
-              currentBorrowedCount={currentBorrowedCount}
-              pendingRequestsCount={pendingRequestsCount}
-              remainingQuota={remainingQuota}
-              loading={limitsLoading}
-            />
-          )}
-
-          {/* Loan Rules Section */}
-          {userProfile?.status === 'approved' && (
-            <LoanRulesSection
-              settings={settings}
-              closedDates={closedDates}
-              loading={settingsLoading || closedDatesLoading}
-            />
-          )}
-
-          {/* Quick Actions */}
+          {/* Quick Actions - เมนูลัด (ย้ายมาด้านบน) */}
           {userProfile?.status === 'approved' && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">เมนูลัด</h3>
@@ -145,6 +90,47 @@ const Dashboard = () => {
                   <span className="text-sm font-medium text-orange-800">ประวัติการยืม</span>
                 </Link>
               </div>
+
+              {isAdmin && (
+                <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-md">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-purple-800">เมนูผู้ดูแลระบบ</span>
+                    <Link
+                      to="/admin"
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
+                    >
+                      แดชบอร์ดผู้ดูแล
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Current Loans Card - อุปกรณ์ที่กำลังยืมอยู่ */}
+          {userProfile?.status === 'approved' && (
+            <CurrentLoansCard
+              currentLoans={currentLoans}
+              recentLoan={recentLoan}
+              loading={loansLoading}
+            />
+          )}
+
+          {/* Borrowing Limits & Loan Rules - แสดงแบบ 2 คอลัมน์ */}
+          {userProfile?.status === 'approved' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <BorrowingLimitsCard
+                limits={limits}
+                currentBorrowedCount={currentBorrowedCount}
+                pendingRequestsCount={pendingRequestsCount}
+                remainingQuota={remainingQuota}
+                loading={limitsLoading}
+              />
+              <LoanRulesSection
+                settings={settings}
+                closedDates={closedDates}
+                loading={settingsLoading || closedDatesLoading}
+              />
             </div>
           )}
         </div>

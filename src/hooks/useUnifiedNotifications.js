@@ -184,7 +184,8 @@ const useUnifiedNotifications = (isAdmin = false) => {
     };
   }, [isAdmin]);
 
-  // Combine and sort all notifications by priority and date
+  // Combine and sort all notifications by date (newest first)
+  // Priority is used for display badges only, not for sorting order
   const allNotifications = useMemo(() => {
     const combined = [
       ...pendingUsers,
@@ -193,14 +194,8 @@ const useUnifiedNotifications = (isAdmin = false) => {
       ...pendingReservations
     ];
 
-    // Sort by priority first, then by date
+    // Sort by date only (newest first)
     return combined.sort((a, b) => {
-      const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
-      const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
-      
-      if (priorityDiff !== 0) return priorityDiff;
-      
-      // Same priority - sort by date (newest first)
       const dateA = a.createdAt?.toDate?.() || new Date(0);
       const dateB = b.createdAt?.toDate?.() || new Date(0);
       return dateB - dateA;

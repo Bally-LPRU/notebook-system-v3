@@ -2,7 +2,7 @@
  * LoanRulesSection Component
  * 
  * Displays loan rules and regulations from admin settings.
- * Shows loanReturnStartTime, loanReturnEndTime, upcoming closedDates, and maxAdvanceBookingDays.
+ * Shows loanReturnStartTime, loanReturnEndTime, lunchBreak, and upcoming closedDates.
  * 
  * Requirements: 1.6, 1.7, 1.8, 1.9
  * 
@@ -23,31 +23,28 @@ const formatTime = (time) => {
 };
 
 /**
- * Format date for display
+ * Format date for display (short)
  * @param {Date|Object} date - Date object or Firestore Timestamp
- * @returns {string} Formatted date string
+ * @returns {string} Formatted date string (short)
  */
-const formatDate = (date) => {
+const formatDateShort = (date) => {
   if (!date) return '';
   
-  // Handle Firestore Timestamp
   const dateObj = date.toDate ? date.toDate() : new Date(date);
   
   return dateObj.toLocaleDateString('th-TH', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    month: 'short'
   });
 };
 
 /**
- * Get upcoming closed dates (within next 30 days)
+ * Get next upcoming closed date (within next 30 days)
  * @param {Array} closedDates - Array of closed date objects
- * @returns {Array} Filtered and sorted upcoming closed dates
+ * @returns {Object|null} Next closed date or null
  */
-const getUpcomingClosedDates = (closedDates) => {
-  if (!closedDates || !Array.isArray(closedDates)) return [];
+const getNextClosedDate = (closedDates) => {
+  if (!closedDates || !Array.isArray(closedDates)) return null;
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -55,7 +52,7 @@ const getUpcomingClosedDates = (closedDates) => {
   const thirtyDaysFromNow = new Date(today);
   thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
   
-  return closedDates
+  const upcoming = closedDates
     .filter(item => {
       const date = item.date?.toDate ? item.date.toDate() : new Date(item.date);
       return date >= today && date <= thirtyDaysFromNow;
@@ -64,8 +61,9 @@ const getUpcomingClosedDates = (closedDates) => {
       const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date);
       const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date);
       return dateA - dateB;
-    })
-    .slice(0, 5); // Show max 5 upcoming dates
+    });
+  
+  return upcoming.length > 0 ? upcoming[0] : null;
 };
 
 /**
@@ -85,130 +83,69 @@ const LoanRulesSection = ({
   closedDates = [],
   loading = false
 }) => {
-  const upcomingClosedDates = useMemo(
-    () => getUpcomingClosedDates(closedDates),
+  const nextClosedDate = useMemo(
+    () => getNextClosedDate(closedDates),
     [closedDates]
   );
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 animate-pulse">
-        <div className="h-5 sm:h-6 bg-gray-200 rounded w-1/3 mb-3 sm:mb-4"></div>
-        <div className="space-y-2 sm:space-y-3">
-          <div className="h-3 sm:h-4 bg-gray-200 rounded w-full"></div>
-          <div className="h-3 sm:h-4 bg-gray-200 rounded w-2/3"></div>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 animate-pulse">
+        <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+        <div className="space-y-2">
+          <div className="h-3 bg-gray-200 rounded w-full"></div>
+          <div className="h-3 bg-gray-200 rounded w-2/3"></div>
         </div>
       </div>
     );
   }
 
   const {
-    maxAdvanceBookingDays,
     loanReturnStartTime,
-    loanReturnEndTime
+    loanReturnEndTime,
+    lunchBreak
   } = settings || {};
 
   const hasReturnTimeRestriction = loanReturnStartTime && loanReturnEndTime;
+  const hasLunchBreak = lunchBreak?.enabled && lunchBreak?.startTime && lunchBreak?.endTime;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
-      <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">
-        กฎระเบียบการยืม-คืน
-      </h3>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+      <h3 className="text-sm font-medium text-gray-900 mb-2">กฎระเบียบ</h3>
 
-      <div className="space-y-3 sm:space-y-4">
-        {/* Return Time Restriction */}
-        {hasReturnTimeRestriction && (
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <svg className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-2 sm:ml-3">
-              <p className="text-xs sm:text-sm font-medium text-gray-900">เวลาคืนอุปกรณ์</p>
-              <p className="text-xs sm:text-sm text-gray-600">
-                {formatTime(loanReturnStartTime)} - {formatTime(loanReturnEndTime)} น.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Advance Booking Limit */}
-        {maxAdvanceBookingDays && (
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <svg className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div className="ml-2 sm:ml-3">
-              <p className="text-xs sm:text-sm font-medium text-gray-900">จองล่วงหน้า</p>
-              <p className="text-xs sm:text-sm text-gray-600">
-                ไม่เกิน {maxAdvanceBookingDays} วัน
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* General Rules */}
-        <div className="flex items-start">
-          <div className="flex-shrink-0">
-            <svg className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div className="ml-2 sm:ml-3">
-            <p className="text-xs sm:text-sm font-medium text-gray-900">ข้อควรทราบ</p>
-            <ul className="text-xs sm:text-sm text-gray-600 list-disc list-inside mt-1 space-y-0.5 sm:space-y-1">
-              <li>คืนอุปกรณ์ตามกำหนด</li>
-              <li>ตรวจสอบสภาพก่อนรับ-คืน</li>
-            </ul>
-          </div>
+      <div className="space-y-2">
+        {/* Return Time & Lunch Break - Compact */}
+        <div className="flex flex-wrap gap-2 text-xs">
+          {hasReturnTimeRestriction && (
+            <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded">
+              คืน {formatTime(loanReturnStartTime)}-{formatTime(loanReturnEndTime)} น.
+            </span>
+          )}
+          {hasLunchBreak && (
+            <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded">
+              พักเที่ยง {formatTime(lunchBreak.startTime)}-{formatTime(lunchBreak.endTime)} น.
+            </span>
+          )}
+          <span className="px-2 py-1 bg-yellow-50 text-yellow-700 rounded">คืนตามกำหนด</span>
         </div>
 
-        {/* Upcoming Closed Dates */}
-        {upcomingClosedDates.length > 0 && (
-          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <svg className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </div>
-              <div className="ml-2 sm:ml-3 flex-1">
-                <p className="text-xs sm:text-sm font-medium text-gray-900">วันปิดทำการ</p>
-                <div className="mt-1.5 sm:mt-2 space-y-1.5 sm:space-y-2">
-                  {upcomingClosedDates.map((item, index) => (
-                    <div 
-                      key={item.id || index}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-red-50 rounded-md px-2 sm:px-3 py-1.5 sm:py-2"
-                    >
-                      <span className="text-xs sm:text-sm text-red-800">
-                        {formatDate(item.date)}
-                      </span>
-                      {item.reason && (
-                        <span className="text-xs text-red-600 sm:ml-2">
-                          {item.reason}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+        {/* Next Closed Date - Compact (1 วัน) */}
+        {nextClosedDate && (
+          <div className="pt-2 border-t border-gray-200">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-gray-600">วันปิดถัดไป:</span>
+              <span className="px-2 py-0.5 bg-red-50 text-red-700 rounded" title={nextClosedDate.reason || ''}>
+                {formatDateShort(nextClosedDate.date)}
+                {nextClosedDate.reason && ` (${nextClosedDate.reason})`}
+              </span>
             </div>
           </div>
         )}
 
-        {/* No upcoming closed dates message */}
-        {upcomingClosedDates.length === 0 && (
-          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
-            <div className="flex items-center text-xs sm:text-sm text-gray-500">
-              <svg className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              ไม่มีวันปิดทำการใน 30 วันข้างหน้า
-            </div>
+        {/* No upcoming closed dates */}
+        {!nextClosedDate && (
+          <div className="pt-2 border-t border-gray-200">
+            <span className="text-xs text-green-600">✓ ไม่มีวันปิดทำการใน 30 วันข้างหน้า</span>
           </div>
         )}
       </div>
@@ -220,7 +157,13 @@ LoanRulesSection.propTypes = {
   settings: PropTypes.shape({
     maxAdvanceBookingDays: PropTypes.number,
     loanReturnStartTime: PropTypes.string,
-    loanReturnEndTime: PropTypes.string
+    loanReturnEndTime: PropTypes.string,
+    lunchBreak: PropTypes.shape({
+      enabled: PropTypes.bool,
+      startTime: PropTypes.string,
+      endTime: PropTypes.string,
+      message: PropTypes.string
+    })
   }),
   closedDates: PropTypes.arrayOf(
     PropTypes.shape({

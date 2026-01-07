@@ -5,11 +5,11 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import settingsService from '../services/settingsService';
 import settingsCache from '../utils/settingsCache';
-import { DEFAULT_SETTINGS } from '../types/settings';
+import { DEFAULT_SETTINGS, DEFAULT_USER_TYPE_LIMITS } from '../types/settings';
 import { useAuth } from './AuthContext';
 
 const TEST_AUTH_FALLBACK = {
@@ -63,6 +63,7 @@ const SettingsContext = createContext(null);
  */
 export const SettingsProvider = ({ children }) => {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [userTypeLimits, setUserTypeLimits] = useState(DEFAULT_USER_TYPE_LIMITS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user, authInitialized } = useSafeAuth();
@@ -71,7 +72,8 @@ export const SettingsProvider = ({ children }) => {
    * Initialize settings and set up real-time listener
    */
   useEffect(() => {
-    let unsubscribe = null;
+    let unsubscribeSettings = null;
+    let unsubscribeUserTypeLimits = null;
 
     // Wait for auth to initialize so reads are authenticated
     if (!authInitialized) {
@@ -81,6 +83,7 @@ export const SettingsProvider = ({ children }) => {
     // If signed out, reset to defaults and stop
     if (!user) {
       setSettings(DEFAULT_SETTINGS);
+      setUserTypeLimits(DEFAULT_USER_TYPE_LIMITS);
       setLoading(false);
       setError(null);
       return undefined;
@@ -95,7 +98,6 @@ export const SettingsProvider = ({ children }) => {
         const cachedSettings = settingsCache.get('systemSettings');
         if (cachedSettings) {
           setSettings(cachedSettings);
-          setLoading(false);
         }
 
         // Fetch from Firestore
@@ -104,12 +106,23 @@ export const SettingsProvider = ({ children }) => {
         
         // Update cache
         settingsCache.set('systemSettings', fetchedSettings);
+
+        // Fetch user type limits
+        try {
+          const fetchedUserTypeLimits = await settingsService.getUserTypeLimits();
+          if (fetchedUserTypeLimits && Object.keys(fetchedUserTypeLimits).length > 0) {
+            setUserTypeLimits(fetchedUserTypeLimits);
+            settingsCache.set('userTypeLimits', fetchedUserTypeLimits);
+          }
+        } catch (limitsError) {
+          console.warn('Could not load user type limits, using defaults:', limitsError.message);
+        }
         
         setLoading(false);
 
-        // Set up real-time listener
+        // Set up real-time listener for settings
         const settingsRef = doc(db, 'settings', 'systemSettings');
-        unsubscribe = onSnapshot(
+        unsubscribeSettings = onSnapshot(
           settingsRef,
           (snapshot) => {
             if (snapshot.exists()) {
@@ -129,10 +142,36 @@ export const SettingsProvider = ({ children }) => {
             // Don't set error state to avoid blocking UI
           }
         );
+
+        // Set up real-time listener for user type limits
+        const userTypeLimitsRef = collection(db, 'userTypeLimits');
+        unsubscribeUserTypeLimits = onSnapshot(
+          userTypeLimitsRef,
+          (snapshot) => {
+            const limits = {};
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              limits[docSnap.id] = {
+                ...data,
+                userType: docSnap.id,
+                updatedAt: data.updatedAt?.toDate()
+              };
+            });
+            if (Object.keys(limits).length > 0) {
+              setUserTypeLimits(limits);
+              settingsCache.set('userTypeLimits', limits);
+            }
+          },
+          (err) => {
+            // Log error but don't block the app
+            console.warn('User type limits listener error (non-critical):', err.message);
+          }
+        );
       } catch (err) {
         // Log error but use default settings to not block the app
         console.warn('Settings initialization error (using defaults):', err.message);
         setSettings(DEFAULT_SETTINGS);
+        setUserTypeLimits(DEFAULT_USER_TYPE_LIMITS);
         setLoading(false);
         // Don't set error state to avoid blocking UI
       }
@@ -140,10 +179,13 @@ export const SettingsProvider = ({ children }) => {
 
     initializeSettings();
 
-    // Cleanup listener on unmount or when user changes
+    // Cleanup listeners on unmount or when user changes
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
+      if (unsubscribeSettings) {
+        unsubscribeSettings();
+      }
+      if (unsubscribeUserTypeLimits) {
+        unsubscribeUserTypeLimits();
       }
     };
   }, [authInitialized, user]);
@@ -210,6 +252,7 @@ export const SettingsProvider = ({ children }) => {
       
       // Invalidate cache
       settingsCache.invalidate('systemSettings');
+      settingsCache.invalidate('userTypeLimits');
       
       // Fetch fresh data
       const fetchedSettings = await settingsService.getSettings();
@@ -217,6 +260,17 @@ export const SettingsProvider = ({ children }) => {
       
       // Update cache
       settingsCache.set('systemSettings', fetchedSettings);
+
+      // Fetch user type limits
+      try {
+        const fetchedUserTypeLimits = await settingsService.getUserTypeLimits();
+        if (fetchedUserTypeLimits && Object.keys(fetchedUserTypeLimits).length > 0) {
+          setUserTypeLimits(fetchedUserTypeLimits);
+          settingsCache.set('userTypeLimits', fetchedUserTypeLimits);
+        }
+      } catch (limitsError) {
+        console.warn('Could not refresh user type limits:', limitsError.message);
+      }
       
       setLoading(false);
     } catch (err) {
@@ -239,7 +293,11 @@ export const SettingsProvider = ({ children }) => {
 
   const value = {
     // State
-    settings,
+    settings: {
+      ...settings,
+      userTypeLimits // Include userTypeLimits in settings object
+    },
+    userTypeLimits, // Also expose separately for direct access
     loading,
     error,
     
@@ -268,7 +326,7 @@ export const SettingsProvider = ({ children }) => {
  * **Usage:**
  * ```jsx
  * function MyComponent() {
- *   const { settings, loading, error, updateSetting } = useSettings();
+ *   const { settings, userTypeLimits, loading, error, updateSetting } = useSettings();
  *   
  *   if (loading) return <LoadingSpinner />;
  *   if (error) return <ErrorMessage error={error} />;
@@ -287,7 +345,8 @@ export const SettingsProvider = ({ children }) => {
  * @hook
  * @throws {Error} If used outside of SettingsProvider
  * @returns {Object} Settings context value
- * @returns {Object} returns.settings - System settings object
+ * @returns {Object} returns.settings - System settings object (includes userTypeLimits)
+ * @returns {Object} returns.userTypeLimits - User type limits object (direct access)
  * @returns {boolean} returns.loading - Loading state
  * @returns {Error|null} returns.error - Error object if loading failed
  * @returns {Function} returns.updateSetting - Update a single setting

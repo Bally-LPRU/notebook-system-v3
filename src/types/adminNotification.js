@@ -393,24 +393,21 @@ export const createHistoryItem = (adminId, action, sourceType, sourceId, sourceD
 // ============================================================================
 
 /**
- * Compare two notifications for sorting by priority then date
+ * Compare two notifications for sorting by date (newest first)
+ * Priority is used for display purposes only, not for sorting order
  * @param {UnifiedNotification} a - First notification
  * @param {UnifiedNotification} b - Second notification
  * @returns {number} Comparison result (-1, 0, 1)
  */
 export const compareNotifications = (a, b) => {
-  // First compare by priority (lower order = higher priority)
-  const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-  if (priorityDiff !== 0) return priorityDiff;
-  
-  // Same priority - sort by date (newest first)
+  // Sort by date only (newest first) - priority is for display badges only
   const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
   const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
   return dateB.getTime() - dateA.getTime();
 };
 
 /**
- * Sort notifications by priority then date
+ * Sort notifications by date (newest first)
  * @param {UnifiedNotification[]} notifications - Array of notifications
  * @returns {UnifiedNotification[]} Sorted array (new array, does not mutate input)
  */

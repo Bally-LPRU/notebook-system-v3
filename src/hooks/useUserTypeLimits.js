@@ -51,24 +51,28 @@ export const getUserTypeLabel = (userType) => {
  * @returns {Object} User type limits
  */
 export const getUserTypeLimitsFromSettings = (settings, userType) => {
+  // Helper function to get system default limits
+  const getSystemDefaults = () => ({
+    maxItems: settings?.defaultCategoryLimit || DEFAULT_SETTINGS.defaultCategoryLimit,
+    maxDays: settings?.maxLoanDuration || DEFAULT_SETTINGS.maxLoanDuration,
+    maxAdvanceBookingDays: settings?.maxAdvanceBookingDays || DEFAULT_SETTINGS.maxAdvanceBookingDays,
+    userType: userType || null,
+    userTypeName: getUserTypeLabel(userType),
+    isEnabled: false,
+    isDefault: true
+  });
+
   // Check if userTypeLimitsEnabled is true
   if (!settings?.userTypeLimitsEnabled) {
     // Return default system-wide limits
-    return {
-      maxItems: settings?.defaultCategoryLimit || DEFAULT_SETTINGS.defaultCategoryLimit,
-      maxDays: settings?.maxLoanDuration || DEFAULT_SETTINGS.maxLoanDuration,
-      maxAdvanceBookingDays: settings?.maxAdvanceBookingDays || DEFAULT_SETTINGS.maxAdvanceBookingDays,
-      userType: userType || null,
-      userTypeName: getUserTypeLabel(userType),
-      isEnabled: false,
-      isDefault: true
-    };
+    return getSystemDefaults();
   }
 
   // Get user type specific limits from settings
   const userTypeLimits = settings?.userTypeLimits?.[userType];
   
-  if (userTypeLimits && userTypeLimits.isActive !== false) {
+  // Check if this user type has active limits configured
+  if (userTypeLimits && userTypeLimits.isActive === true) {
     return {
       maxItems: userTypeLimits.maxItems ?? DEFAULT_USER_TYPE_LIMITS[userType]?.maxItems ?? 5,
       maxDays: userTypeLimits.maxDays ?? DEFAULT_USER_TYPE_LIMITS[userType]?.maxDays ?? 14,
@@ -80,30 +84,9 @@ export const getUserTypeLimitsFromSettings = (settings, userType) => {
     };
   }
 
-  // Fallback to default limits for the user type
-  const defaultLimits = DEFAULT_USER_TYPE_LIMITS[userType];
-  if (defaultLimits) {
-    return {
-      maxItems: defaultLimits.maxItems,
-      maxDays: defaultLimits.maxDays,
-      maxAdvanceBookingDays: defaultLimits.maxAdvanceBookingDays,
-      userType: userType,
-      userTypeName: defaultLimits.userTypeName || getUserTypeLabel(userType),
-      isEnabled: true,
-      isDefault: true
-    };
-  }
-
-  // Ultimate fallback - use system defaults
-  return {
-    maxItems: settings?.defaultCategoryLimit || DEFAULT_SETTINGS.defaultCategoryLimit,
-    maxDays: settings?.maxLoanDuration || DEFAULT_SETTINGS.maxLoanDuration,
-    maxAdvanceBookingDays: settings?.maxAdvanceBookingDays || DEFAULT_SETTINGS.maxAdvanceBookingDays,
-    userType: userType || null,
-    userTypeName: getUserTypeLabel(userType),
-    isEnabled: false,
-    isDefault: true
-  };
+  // If userTypeLimitsEnabled is true but this specific user type is not active,
+  // or user type is not set, use system defaults
+  return getSystemDefaults();
 };
 
 /**
