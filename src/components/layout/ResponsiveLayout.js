@@ -16,7 +16,6 @@ const ResponsiveLayout = ({ children, showSidebar = false }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Set mounted state after first render to prevent hydration mismatch
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -37,7 +36,6 @@ const ResponsiveLayout = ({ children, showSidebar = false }) => {
     }
   };
 
-  // Use default values during SSR/initial render to prevent hydration mismatch
   const containerPadding = mounted ? getSpacing({
     xs: '1rem',
     sm: '1.5rem',
@@ -51,39 +49,56 @@ const ResponsiveLayout = ({ children, showSidebar = false }) => {
     : 'max-w-7xl';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Navigation */}
-      <Navbar 
-        onMenuToggle={handleSidebarToggle}
-        showMenuButton={showSidebar}
-        isMobile={mounted ? isMobile : false}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Fixed Navigation */}
+      <div className="fixed top-0 left-0 right-0 z-40">
+        <Navbar 
+          onMenuToggle={handleSidebarToggle}
+          showMenuButton={showSidebar}
+          isMobile={mounted ? isMobile : false}
+        />
+      </div>
 
-      <div className="flex flex-1">
-        {/* Sidebar */}
+      {/* Main Layout Container - with top padding for fixed navbar */}
+      <div className="flex pt-16 min-h-screen">
+        {/* Fixed Sidebar */}
         {showSidebar && (
-          <Sidebar 
-            isOpen={shouldShowMobileMenu ? isMobileMenuOpen : true}
-            onClose={handleSidebarClose}
-          />
+          <div className="hidden lg:block fixed left-0 top-16 bottom-0 w-64 z-30">
+            <Sidebar 
+              isOpen={true}
+              onClose={handleSidebarClose}
+            />
+          </div>
         )}
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Content Area */}
-          <main className="flex-1 relative overflow-hidden">
+        {/* Mobile Sidebar Overlay */}
+        {showSidebar && shouldShowMobileMenu && isMobileMenuOpen && (
+          <div className="lg:hidden fixed inset-0 z-50">
             <div 
-              className="h-full overflow-auto"
+              className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity duration-300"
+              onClick={handleSidebarClose}
+            />
+            <div className="absolute left-0 top-0 bottom-0 w-64 animate-slide-in-left">
+              <Sidebar 
+                isOpen={true}
+                onClose={handleSidebarClose}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Main Content Area */}
+        <div className={`flex-1 flex flex-col min-w-0 ${showSidebar ? 'lg:ml-64' : ''}`}>
+          <main className="flex-1 relative">
+            <div 
+              className="min-h-full"
               style={{ padding: containerPadding }}
             >
-              {/* Responsive Container */}
-              <div className={`mx-auto ${maxWidth}`}>
+              <div className={`mx-auto ${maxWidth} animate-fade-in`}>
                 {children}
               </div>
             </div>
           </main>
-
-          {/* Footer */}
           <Footer />
         </div>
       </div>

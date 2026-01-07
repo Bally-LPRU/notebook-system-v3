@@ -1,48 +1,19 @@
 /**
  * LoanRulesSection Component
- * 
- * Displays loan rules and regulations from admin settings.
- * Shows loanReturnStartTime, loanReturnEndTime, lunchBreak, and upcoming closedDates.
- * 
- * Requirements: 1.6, 1.7, 1.8, 1.9
- * 
- * @module components/dashboard/LoanRulesSection
+ * Updated with pastel colors and animations
  */
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import PropTypes from 'prop-types';
 
-/**
- * Format time string for display
- * @param {string|null} time - Time in HH:mm format
- * @returns {string} Formatted time string
- */
-const formatTime = (time) => {
-  if (!time) return null;
-  return time;
-};
+const formatTime = (time) => time || null;
 
-/**
- * Format date for display (short)
- * @param {Date|Object} date - Date object or Firestore Timestamp
- * @returns {string} Formatted date string (short)
- */
 const formatDateShort = (date) => {
   if (!date) return '';
-  
   const dateObj = date.toDate ? date.toDate() : new Date(date);
-  
-  return dateObj.toLocaleDateString('th-TH', {
-    day: 'numeric',
-    month: 'short'
-  });
+  return dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 };
 
-/**
- * Get next upcoming closed date (within next 30 days)
- * @param {Array} closedDates - Array of closed date objects
- * @returns {Object|null} Next closed date or null
- */
 const getNextClosedDate = (closedDates) => {
   if (!closedDates || !Array.isArray(closedDates)) return null;
   
@@ -66,88 +37,98 @@ const getNextClosedDate = (closedDates) => {
   return upcoming.length > 0 ? upcoming[0] : null;
 };
 
-/**
- * LoanRulesSection Component
- * 
- * @param {Object} props - Component props
- * @param {Object} props.settings - System settings object
- * @param {number} props.settings.maxAdvanceBookingDays - Maximum advance booking days
- * @param {string|null} props.settings.loanReturnStartTime - Loan return start time
- * @param {string|null} props.settings.loanReturnEndTime - Loan return end time
- * @param {Array} props.closedDates - Array of closed date objects
- * @param {boolean} props.loading - Loading state
- * @returns {JSX.Element} LoanRulesSection component
- */
-const LoanRulesSection = ({
-  settings,
-  closedDates = [],
-  loading = false
-}) => {
-  const nextClosedDate = useMemo(
-    () => getNextClosedDate(closedDates),
-    [closedDates]
-  );
+const LoanRulesSection = ({ settings, closedDates = [], loading = false }) => {
+  const nextClosedDate = useMemo(() => getNextClosedDate(closedDates), [closedDates]);
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 animate-pulse">
-        <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
-        <div className="space-y-2">
-          <div className="h-3 bg-gray-200 rounded w-full"></div>
-          <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="animate-pulse">
+          <div className="h-5 bg-gray-200 rounded-full w-1/3 mb-4"></div>
+          <div className="space-y-3">
+            <div className="h-10 bg-gray-200 rounded-xl"></div>
+            <div className="h-10 bg-gray-200 rounded-xl"></div>
+          </div>
         </div>
       </div>
     );
   }
 
-  const {
-    loanReturnStartTime,
-    loanReturnEndTime,
-    lunchBreak
-  } = settings || {};
-
+  const { loanReturnStartTime, loanReturnEndTime, lunchBreak } = settings || {};
   const hasReturnTimeRestriction = loanReturnStartTime && loanReturnEndTime;
   const hasLunchBreak = lunchBreak?.enabled && lunchBreak?.startTime && lunchBreak?.endTime;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
-      <h3 className="text-sm font-medium text-gray-900 mb-2">กฎระเบียบ</h3>
+    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>
+        กฎระเบียบการยืม
+      </h3>
 
-      <div className="space-y-2">
-        {/* Return Time & Lunch Break - Compact */}
-        <div className="flex flex-wrap gap-2 text-xs">
+      <div className="space-y-3">
+        {/* Return Time & Lunch Break */}
+        <div className="flex flex-wrap gap-2">
           {hasReturnTimeRestriction && (
-            <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded">
-              คืน {formatTime(loanReturnStartTime)}-{formatTime(loanReturnEndTime)} น.
-            </span>
-          )}
-          {hasLunchBreak && (
-            <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded">
-              พักเที่ยง {formatTime(lunchBreak.startTime)}-{formatTime(lunchBreak.endTime)} น.
-            </span>
-          )}
-          <span className="px-2 py-1 bg-yellow-50 text-yellow-700 rounded">คืนตามกำหนด</span>
-        </div>
-
-        {/* Next Closed Date - Compact (1 วัน) */}
-        {nextClosedDate && (
-          <div className="pt-2 border-t border-gray-200">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-gray-600">วันปิดถัดไป:</span>
-              <span className="px-2 py-0.5 bg-red-50 text-red-700 rounded" title={nextClosedDate.reason || ''}>
-                {formatDateShort(nextClosedDate.date)}
-                {nextClosedDate.reason && ` (${nextClosedDate.reason})`}
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-xl border border-blue-100">
+              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-medium text-blue-700">
+                คืนได้ {formatTime(loanReturnStartTime)}-{formatTime(loanReturnEndTime)} น.
               </span>
             </div>
-          </div>
-        )}
+          )}
+          {hasLunchBreak && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-xl border border-orange-100">
+              <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-medium text-orange-700">
+                พักเที่ยง {formatTime(lunchBreak.startTime)}-{formatTime(lunchBreak.endTime)} น.
+              </span>
+            </div>
+          )}
+        </div>
 
-        {/* No upcoming closed dates */}
-        {!nextClosedDate && (
-          <div className="pt-2 border-t border-gray-200">
-            <span className="text-xs text-green-600">✓ ไม่มีวันปิดทำการใน 30 วันข้างหน้า</span>
-          </div>
-        )}
+        {/* Important Rules */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-xl border border-amber-100">
+          <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span className="text-sm font-medium text-amber-700">กรุณาคืนอุปกรณ์ตามกำหนด</span>
+        </div>
+
+        {/* Next Closed Date */}
+        <div className="pt-3 border-t border-gray-100">
+          {nextClosedDate ? (
+            <div className="flex items-center gap-3 p-3 bg-rose-50 rounded-xl border border-rose-100">
+              <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-rose-800">วันปิดทำการถัดไป</p>
+                <p className="text-sm text-rose-600">
+                  {formatDateShort(nextClosedDate.date)}
+                  {nextClosedDate.reason && ` - ${nextClosedDate.reason}`}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+              <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-emerald-800">เปิดให้บริการปกติ</p>
+                <p className="text-sm text-emerald-600">ไม่มีวันปิดทำการใน 30 วันข้างหน้า</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
