@@ -214,20 +214,20 @@ const MyRequests = () => {
   return (
     <Layout>
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">คำขอของฉัน</h1>
-          <p className="mt-2 text-gray-600">
+        <div className="mb-4 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">คำขอของฉัน</h1>
+          <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-600">
             ติดตามสถานะคำขอยืมและการจองของคุณ
           </p>
         </div>
 
-        {/* Borrowing Summary Card - Requirements: 6.1, 6.2, 6.3, 6.4, 6.5 */}
-        <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {/* Borrowing Summary Card - Compact for mobile */}
+        <div className="mb-4 sm:mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            สรุปการยืมของคุณ
+            สรุปการยืม
           </h2>
           
           {limitsLoading ? (
@@ -235,52 +235,50 @@ const MyRequests = () => {
               <LoadingSpinner size="sm" />
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
               {/* Current Borrowed Count */}
-              <div className="bg-blue-50 rounded-lg p-4">
+              <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-blue-600">กำลังยืมอยู่</p>
-                    <p className="text-2xl font-bold text-blue-900">{currentBorrowedCount}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-blue-600 truncate">ยืมอยู่</p>
+                    <p className="text-xl sm:text-2xl font-bold text-blue-900">{currentBorrowedCount}</p>
                   </div>
-                  <div className="p-3 bg-blue-100 rounded-full">
-                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="p-2 sm:p-3 bg-blue-100 rounded-full flex-shrink-0 hidden sm:block">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                     </svg>
                   </div>
                 </div>
-                <p className="text-xs text-blue-500 mt-1">อุปกรณ์ที่ยืมอยู่ในขณะนี้</p>
               </div>
 
               {/* Pending Requests Count */}
-              <div className="bg-yellow-50 rounded-lg p-4">
+              <div className="bg-yellow-50 rounded-lg p-3 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-yellow-600">รอดำเนินการ</p>
-                    <p className="text-2xl font-bold text-yellow-900">{pendingRequestsCount}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-yellow-600 truncate">รอดำเนินการ</p>
+                    <p className="text-xl sm:text-2xl font-bold text-yellow-900">{pendingRequestsCount}</p>
                   </div>
-                  <div className="p-3 bg-yellow-100 rounded-full">
-                    <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="p-2 sm:p-3 bg-yellow-100 rounded-full flex-shrink-0 hidden sm:block">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                 </div>
-                <p className="text-xs text-yellow-500 mt-1">คำขอที่รอการอนุมัติ/รับอุปกรณ์</p>
               </div>
 
               {/* Remaining Quota */}
-              <div className={`rounded-lg p-4 ${canBorrow ? 'bg-green-50' : 'bg-red-50'}`}>
+              <div className={`rounded-lg p-3 sm:p-4 ${canBorrow ? 'bg-green-50' : 'bg-red-50'}`}>
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className={`text-sm font-medium ${canBorrow ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className="min-w-0">
+                    <p className={`text-xs sm:text-sm font-medium truncate ${canBorrow ? 'text-green-600' : 'text-red-600'}`}>
                       ยืมได้อีก
                     </p>
-                    <p className={`text-2xl font-bold ${canBorrow ? 'text-green-900' : 'text-red-900'}`}>
+                    <p className={`text-xl sm:text-2xl font-bold ${canBorrow ? 'text-green-900' : 'text-red-900'}`}>
                       {remainingQuota}
                     </p>
                   </div>
-                  <div className={`p-3 rounded-full ${canBorrow ? 'bg-green-100' : 'bg-red-100'}`}>
-                    <svg className={`w-6 h-6 ${canBorrow ? 'text-green-600' : 'text-red-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className={`p-2 sm:p-3 rounded-full flex-shrink-0 hidden sm:block ${canBorrow ? 'bg-green-100' : 'bg-red-100'}`}>
+                    <svg className={`w-5 h-5 sm:w-6 sm:h-6 ${canBorrow ? 'text-green-600' : 'text-red-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       {canBorrow ? (
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       ) : (
@@ -289,42 +287,34 @@ const MyRequests = () => {
                     </svg>
                   </div>
                 </div>
-                <p className={`text-xs mt-1 ${canBorrow ? 'text-green-500' : 'text-red-500'}`}>
-                  จากโควต้าสูงสุด {limits.maxItems} ชิ้น
-                </p>
               </div>
 
               {/* Max Items Limit */}
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">โควต้าสูงสุด</p>
-                    <p className="text-2xl font-bold text-gray-900">{limits.maxItems}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">โควต้า</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">{limits.maxItems}</p>
                   </div>
-                  <div className="p-3 bg-gray-100 rounded-full">
-                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="p-2 sm:p-3 bg-gray-100 rounded-full flex-shrink-0 hidden sm:block">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {limits.isEnabled 
-                    ? `ตามประเภท: ${limits.userTypeName}` 
-                    : 'ค่าเริ่มต้นของระบบ'}
-                </p>
               </div>
             </div>
           )}
 
           {/* Warning if cannot borrow */}
           {!limitsLoading && !canBorrow && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-center">
-                <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <span className="text-sm text-red-700">
-                  คุณยืมอุปกรณ์ครบจำนวนสูงสุดแล้ว กรุณาคืนอุปกรณ์ก่อนยืมเพิ่ม
+                <span className="text-xs sm:text-sm text-red-700">
+                  ยืมครบโควต้าแล้ว กรุณาคืนก่อนยืมเพิ่ม
                 </span>
               </div>
             </div>
@@ -332,30 +322,30 @@ const MyRequests = () => {
 
           {/* User type warning */}
           {!limitsLoading && limits.warning && (
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-center">
-                <svg className="w-5 h-5 text-yellow-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="text-sm text-yellow-700">{limits.warning}</span>
+                <span className="text-xs sm:text-sm text-yellow-700">{limits.warning}</span>
               </div>
             </div>
           )}
         </div>
 
-        {/* Status Filter with counts */}
-        <div className="mb-6">
-          <div className="flex flex-wrap gap-2">
+        {/* Status Filter with counts - Scrollable on mobile */}
+        <div className="mb-4 sm:mb-6">
+          <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
             <button
               onClick={() => setStatusFilter('')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              className={`flex-shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 sm:gap-2 ${
                 statusFilter === '' 
                   ? 'bg-blue-600 text-white' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               ทั้งหมด
-              <span className={`px-2 py-0.5 rounded-full text-xs ${
+              <span className={`px-1.5 py-0.5 rounded-full text-xs ${
                 statusFilter === '' ? 'bg-blue-500' : 'bg-gray-200'
               }`}>
                 {loanRequests.length}
@@ -365,7 +355,7 @@ const MyRequests = () => {
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                className={`flex-shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 sm:gap-2 ${
                   statusFilter === status 
                     ? 'bg-blue-600 text-white' 
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -373,7 +363,7 @@ const MyRequests = () => {
               >
                 {label}
                 {statusCounts[status] > 0 && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs ${
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs ${
                     statusFilter === status ? 'bg-blue-500' : 'bg-gray-200'
                   }`}>
                     {statusCounts[status]}
@@ -447,77 +437,75 @@ const MyRequests = () => {
 
         {/* Loan Requests List - Compact View */}
         {!loading && paginatedRequests.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {paginatedRequests.map((request) => (
               <div 
                 key={request.id} 
                 ref={request.id === highlightedId ? highlightedRef : null}
-                className={`bg-white rounded-lg shadow-sm border p-4 transition-all duration-500 ${
+                className={`bg-white rounded-lg shadow-sm border p-3 sm:p-4 transition-all duration-500 ${
                   request.id === highlightedId 
                     ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50' 
                     : 'border-gray-200'
                 }`}
               >
-                <div className="flex items-start gap-4">
+                <div className="flex items-start gap-2 sm:gap-4">
                   {/* Main Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-base font-semibold text-gray-900 truncate">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
+                      <h3 className="text-sm sm:text-base font-semibold text-gray-900 truncate">
                         {request.equipment?.name || request.equipmentSnapshot?.name || 'อุปกรณ์ที่ไม่พบ'}
                       </h3>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(request.status)}`}>
+                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 sm:px-2 rounded-full text-xs font-medium border ${getStatusColor(request.status)}`}>
                         {getStatusIcon(request.status)}
-                        {LOAN_REQUEST_STATUS_LABELS[request.status]}
+                        <span className="hidden xs:inline">{LOAN_REQUEST_STATUS_LABELS[request.status]}</span>
                       </span>
                     </div>
                     
                     {/* Compact Info Row */}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                    <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-4 gap-y-0.5 sm:gap-y-1 text-xs sm:text-sm text-gray-600">
                       {(request.equipment?.brand || request.equipment?.model) && (
-                        <span>{request.equipment?.brand} {request.equipment?.model}</span>
+                        <span className="hidden sm:inline">{request.equipment?.brand} {request.equipment?.model}</span>
                       )}
                       <span className="flex items-center gap-1">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        {formatDate(request.borrowDate)} - {formatDate(request.expectedReturnDate)}
+                        <span className="truncate">{formatDate(request.borrowDate)} - {formatDate(request.expectedReturnDate)}</span>
                       </span>
                     </div>
 
-                    {/* Additional Info based on status */}
-                    <div className="mt-2 text-sm">
+                    {/* Additional Info based on status - Compact */}
+                    <div className="mt-1.5 sm:mt-2 text-xs sm:text-sm">
                       {request.status === LOAN_REQUEST_STATUS.PENDING && (
-                        <p className="text-yellow-700">รอการอนุมัติจากผู้ดูแลระบบ</p>
+                        <p className="text-yellow-700">รอการอนุมัติ</p>
                       )}
                       {request.status === LOAN_REQUEST_STATUS.APPROVED && (
-                        <p className="text-green-700">
-                          อนุมัติเมื่อ: {formatDateTime(request.approvedAt)} - รอรับอุปกรณ์
-                        </p>
+                        <p className="text-green-700">อนุมัติแล้ว - รอรับอุปกรณ์</p>
                       )}
                       {request.status === LOAN_REQUEST_STATUS.BORROWED && (
                         <p className="text-blue-700">
-                          กำหนดคืน: {formatDateTime(request.expectedReturnDate)}
+                          กำหนดคืน: {formatDate(request.expectedReturnDate)}
                         </p>
                       )}
                       {request.status === LOAN_REQUEST_STATUS.RETURNED && request.actualReturnDate && (
                         <p className="text-gray-600">
-                          คืนเมื่อ: {formatDateTime(request.actualReturnDate)}
+                          คืนแล้ว: {formatDate(request.actualReturnDate)}
                         </p>
                       )}
                       {request.status === LOAN_REQUEST_STATUS.OVERDUE && (
                         <p className="text-red-700 font-medium">
-                          เกินกำหนดคืน: {formatDateTime(request.expectedReturnDate)} - กรุณาติดต่อผู้ดูแลระบบ
+                          เกินกำหนด - กรุณาติดต่อผู้ดูแล
                         </p>
                       )}
                       {request.status === LOAN_REQUEST_STATUS.REJECTED && request.rejectionReason && (
-                        <p className="text-red-600">
+                        <p className="text-red-600 truncate">
                           เหตุผล: {request.rejectionReason}
                         </p>
                       )}
                     </div>
 
                     {/* Purpose - Collapsed */}
-                    <p className="mt-1 text-sm text-gray-500 truncate">
+                    <p className="mt-1 text-xs sm:text-sm text-gray-500 truncate hidden sm:block">
                       วัตถุประสงค์: {request.purpose}
                     </p>
                   </div>
@@ -527,12 +515,12 @@ const MyRequests = () => {
                     {request.status === LOAN_REQUEST_STATUS.PENDING && (
                       <button
                         onClick={() => handleCancelRequest(request.id)}
-                        className="inline-flex items-center px-3 py-1.5 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 transition-colors"
+                        className="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 border border-red-300 text-xs sm:text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 transition-colors"
                       >
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        ยกเลิก
+                        <span className="hidden sm:inline">ยกเลิก</span>
                       </button>
                     )}
                   </div>
@@ -542,17 +530,17 @@ const MyRequests = () => {
           </div>
         )}
 
-        {/* Pagination */}
+        {/* Pagination - Compact on mobile */}
         {filteredRequests.length > ITEMS_PER_PAGE && (
-          <div className="mt-6 flex items-center justify-between">
-            <div className="text-sm text-gray-500">
-              แสดง {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredRequests.length)} จาก {filteredRequests.length} รายการ
+          <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-xs sm:text-sm text-gray-500 order-2 sm:order-1">
+              {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredRequests.length)} / {filteredRequests.length}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 order-1 sm:order-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-2 py-1 sm:px-3 sm:py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -575,7 +563,7 @@ const MyRequests = () => {
                     <button
                       key={pageNum}
                       onClick={() => setCurrentPage(pageNum)}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      className={`px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors ${
                         currentPage === pageNum
                           ? 'bg-blue-600 text-white'
                           : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
@@ -590,7 +578,7 @@ const MyRequests = () => {
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-2 py-1 sm:px-3 sm:py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
