@@ -5,6 +5,7 @@
  * Displays alerts grouped by priority with filtering and quick actions.
  * 
  * Requirements: 8.1, 8.2, 8.3, 8.4
+ * Design System: Matches AdminDashboard pastel color palette
  */
 
 import React, { useState, useCallback } from 'react';
@@ -32,48 +33,31 @@ import {
   getPriorityLabel
 } from '../../types/adminAlert';
 
+// Pastel Color Palette (matching AdminDashboard)
+const COLORS = {
+  blue: { bg: 'bg-blue-100', text: 'text-blue-600', fill: '#93C5FD', border: 'border-blue-200' },
+  green: { bg: 'bg-emerald-100', text: 'text-emerald-600', fill: '#6EE7B7', border: 'border-emerald-200' },
+  yellow: { bg: 'bg-amber-100', text: 'text-amber-600', fill: '#FCD34D', border: 'border-amber-200' },
+  red: { bg: 'bg-rose-100', text: 'text-rose-600', fill: '#FDA4AF', border: 'border-rose-200' },
+  purple: { bg: 'bg-violet-100', text: 'text-violet-600', fill: '#C4B5FD', border: 'border-violet-200' },
+  orange: { bg: 'bg-orange-100', text: 'text-orange-600', fill: '#FDBA74', border: 'border-orange-200' },
+  gray: { bg: 'bg-slate-100', text: 'text-slate-600', fill: '#CBD5E1', border: 'border-slate-200' },
+};
+
 /**
- * Get priority icon and colors
+ * Get priority config with pastel colors
  */
 const getPriorityConfig = (priority) => {
   switch (priority) {
     case ALERT_PRIORITY.CRITICAL:
-      return {
-        icon: ExclamationTriangleIcon,
-        bgColor: 'bg-red-100',
-        textColor: 'text-red-800',
-        borderColor: 'border-red-500',
-        iconColor: 'text-red-600',
-        badgeColor: 'bg-red-600'
-      };
+      return { ...COLORS.red, icon: ExclamationTriangleIcon };
     case ALERT_PRIORITY.HIGH:
-      return {
-        icon: ExclamationCircleIcon,
-        bgColor: 'bg-orange-100',
-        textColor: 'text-orange-800',
-        borderColor: 'border-orange-500',
-        iconColor: 'text-orange-600',
-        badgeColor: 'bg-orange-500'
-      };
+      return { ...COLORS.orange, icon: ExclamationCircleIcon };
     case ALERT_PRIORITY.MEDIUM:
-      return {
-        icon: InformationCircleIcon,
-        bgColor: 'bg-yellow-100',
-        textColor: 'text-yellow-800',
-        borderColor: 'border-yellow-500',
-        iconColor: 'text-yellow-600',
-        badgeColor: 'bg-yellow-500'
-      };
+      return { ...COLORS.yellow, icon: InformationCircleIcon };
     case ALERT_PRIORITY.LOW:
     default:
-      return {
-        icon: BellIcon,
-        bgColor: 'bg-blue-100',
-        textColor: 'text-blue-800',
-        borderColor: 'border-blue-500',
-        iconColor: 'text-blue-600',
-        badgeColor: 'bg-blue-500'
-      };
+      return { ...COLORS.blue, icon: BellIcon };
   }
 };
 
@@ -93,96 +77,96 @@ const formatDate = (date) => {
 };
 
 /**
- * Alert Card Component
+ * Stat Card Component (matching AdminDashboard style)
  */
-const AlertCard = ({ alert, onResolve, onQuickAction, isLoading }) => {
+const StatCard = ({ title, value, color, delay = 0 }) => (
+  <div
+    className={`group bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border ${COLORS[color].border} p-6 
+      hover:shadow-lg hover:scale-[1.02] transition-all duration-300 animate-fade-in`}
+    style={{ animationDelay: `${delay}ms` }}
+  >
+    <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
+    <p className={`text-3xl font-bold ${COLORS[color].text} transition-all duration-300 group-hover:scale-110`}>
+      {value}
+    </p>
+  </div>
+);
+
+/**
+ * Alert Card Component with modern design
+ */
+const AlertCard = ({ alert, onQuickAction, isLoading }) => {
   const [expanded, setExpanded] = useState(false);
   const config = getPriorityConfig(alert.priority);
   const PriorityIcon = config.icon;
 
-  const handleQuickAction = (action) => {
-    onQuickAction(alert, action);
-  };
-
   return (
-    <div className={`bg-white rounded-lg shadow border-l-4 ${config.borderColor} overflow-hidden`}>
+    <div className={`bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border-l-4 ${config.border} 
+      overflow-hidden hover:shadow-lg transition-all duration-300 animate-fade-in`}>
       {/* Header */}
       <div 
-        className="px-4 py-3 cursor-pointer hover:bg-gray-50"
+        className="px-5 py-4 cursor-pointer hover:bg-gray-50/50"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-3">
-            <div className={`p-2 rounded-full ${config.bgColor}`}>
-              <PriorityIcon className={`w-5 h-5 ${config.iconColor}`} />
+          <div className="flex items-start space-x-4">
+            <div className={`p-3 ${config.bg} rounded-xl transition-all duration-300 group-hover:scale-110`}>
+              <PriorityIcon className={`w-5 h-5 ${config.text}`} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-3">
                 <h4 className="text-sm font-semibold text-gray-900 truncate">
                   {alert.title}
                 </h4>
-                <span className={`px-2 py-0.5 text-xs font-medium text-white rounded-full ${config.badgeColor}`}>
+                <span className={`px-3 py-1 text-xs font-medium ${config.text} ${config.bg} rounded-full`}>
                   {getPriorityLabel(alert.priority)}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+              <p className="text-sm text-gray-600 mt-1.5 line-clamp-2">
                 {alert.description}
               </p>
-              <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                <span>{getAlertTypeLabel(alert.type)}</span>
-                <span>•</span>
+              <div className="flex items-center space-x-4 mt-2.5 text-xs text-gray-500">
+                <span className="px-2 py-0.5 bg-gray-100 rounded-full">{getAlertTypeLabel(alert.type)}</span>
                 <span>{formatDate(alert.createdAt)}</span>
               </div>
             </div>
           </div>
-          <button className="p-1 text-gray-400 hover:text-gray-600">
-            {expanded ? (
-              <ChevronUpIcon className="w-5 h-5" />
-            ) : (
-              <ChevronDownIcon className="w-5 h-5" />
-            )}
+          <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all">
+            {expanded ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
       {/* Expanded Content */}
       {expanded && (
-        <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+        <div className="px-5 py-4 bg-gray-50/50 border-t border-gray-100">
           {/* Source Data */}
           {alert.sourceData && Object.keys(alert.sourceData).length > 0 && (
             <div className="mb-4">
-              <h5 className="text-xs font-semibold text-gray-700 uppercase mb-2">
-                รายละเอียด
-              </h5>
-              <div className="grid grid-cols-2 gap-2 text-sm">
+              <h5 className="text-xs font-semibold text-gray-700 uppercase mb-3">รายละเอียด</h5>
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 {alert.sourceData.equipmentName && (
-                  <div>
-                    <span className="text-gray-500">อุปกรณ์:</span>
-                    <span className="ml-1 text-gray-900">{alert.sourceData.equipmentName}</span>
+                  <div className="bg-white rounded-xl p-3 border border-gray-100">
+                    <span className="text-gray-500 text-xs">อุปกรณ์</span>
+                    <p className="font-medium text-gray-900">{alert.sourceData.equipmentName}</p>
                   </div>
                 )}
                 {alert.sourceData.userName && (
-                  <div>
-                    <span className="text-gray-500">ผู้ใช้:</span>
-                    <span className="ml-1 text-gray-900">{alert.sourceData.userName}</span>
-                  </div>
-                )}
-                {alert.sourceData.userEmail && (
-                  <div>
-                    <span className="text-gray-500">อีเมล:</span>
-                    <span className="ml-1 text-gray-900">{alert.sourceData.userEmail}</span>
+                  <div className="bg-white rounded-xl p-3 border border-gray-100">
+                    <span className="text-gray-500 text-xs">ผู้ใช้</span>
+                    <p className="font-medium text-gray-900">{alert.sourceData.userName}</p>
                   </div>
                 )}
                 {alert.sourceData.daysOverdue !== undefined && (
-                  <div>
-                    <span className="text-gray-500">เกินกำหนด:</span>
-                    <span className="ml-1 text-red-600 font-medium">{alert.sourceData.daysOverdue} วัน</span>
+                  <div className="bg-rose-50 rounded-xl p-3 border border-rose-100">
+                    <span className="text-gray-500 text-xs">เกินกำหนด</span>
+                    <p className="font-bold text-rose-600">{alert.sourceData.daysOverdue} วัน</p>
                   </div>
                 )}
                 {alert.sourceData.noShowCount !== undefined && (
-                  <div>
-                    <span className="text-gray-500">ไม่มารับ:</span>
-                    <span className="ml-1 text-orange-600 font-medium">{alert.sourceData.noShowCount} ครั้ง</span>
+                  <div className="bg-orange-50 rounded-xl p-3 border border-orange-100">
+                    <span className="text-gray-500 text-xs">ไม่มารับ</span>
+                    <p className="font-bold text-orange-600">{alert.sourceData.noShowCount} ครั้ง</p>
                   </div>
                 )}
               </div>
@@ -192,23 +176,18 @@ const AlertCard = ({ alert, onResolve, onQuickAction, isLoading }) => {
           {/* Quick Actions */}
           {alert.quickActions && alert.quickActions.length > 0 && (
             <div>
-              <h5 className="text-xs font-semibold text-gray-700 uppercase mb-2">
-                การดำเนินการ
-              </h5>
+              <h5 className="text-xs font-semibold text-gray-700 uppercase mb-3">การดำเนินการ</h5>
               <div className="flex flex-wrap gap-2">
                 {alert.quickActions.map((action) => (
                   <button
                     key={action.id}
-                    onClick={() => handleQuickAction(action)}
+                    onClick={() => onQuickAction(alert, action)}
                     disabled={isLoading}
-                    className={`
-                      px-3 py-1.5 text-sm font-medium rounded-md
+                    className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-300
                       ${action.action === 'dismiss' 
-                        ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700'}
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                      transition-colors
-                    `}
+                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
+                        : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-[1.02]'}
+                      disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     {action.label}
                   </button>
@@ -225,43 +204,38 @@ const AlertCard = ({ alert, onResolve, onQuickAction, isLoading }) => {
 /**
  * Priority Group Component
  */
-const PriorityGroup = ({ priority, alerts, onResolve, onQuickAction, isLoading }) => {
+const PriorityGroup = ({ priority, alerts, onQuickAction, isLoading }) => {
   const [collapsed, setCollapsed] = useState(false);
   const config = getPriorityConfig(priority);
 
   if (alerts.length === 0) return null;
 
   return (
-    <div className="mb-6">
+    <div className="mb-6 animate-fade-in">
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className={`w-full flex items-center justify-between px-4 py-2 rounded-lg ${config.bgColor} mb-3`}
+        className={`w-full flex items-center justify-between px-5 py-3 ${config.bg} rounded-2xl mb-4
+          hover:shadow-md transition-all duration-300`}
       >
-        <div className="flex items-center space-x-2">
-          <span className={`font-semibold ${config.textColor}`}>
-            {getPriorityLabel(priority)}
-          </span>
-          <span className={`px-2 py-0.5 text-xs font-bold text-white rounded-full ${config.badgeColor}`}>
+        <div className="flex items-center space-x-3">
+          <span className={`font-semibold ${config.text}`}>{getPriorityLabel(priority)}</span>
+          <span className={`px-3 py-1 text-xs font-bold text-white bg-gradient-to-r 
+            ${priority === ALERT_PRIORITY.CRITICAL ? 'from-rose-500 to-red-600' :
+              priority === ALERT_PRIORITY.HIGH ? 'from-orange-500 to-amber-600' :
+              priority === ALERT_PRIORITY.MEDIUM ? 'from-amber-500 to-yellow-600' :
+              'from-blue-500 to-cyan-600'} rounded-full`}>
             {alerts.length}
           </span>
         </div>
-        {collapsed ? (
-          <ChevronDownIcon className={`w-5 h-5 ${config.textColor}`} />
-        ) : (
-          <ChevronUpIcon className={`w-5 h-5 ${config.textColor}`} />
-        )}
+        {collapsed ? <ChevronDownIcon className={`w-5 h-5 ${config.text}`} /> : <ChevronUpIcon className={`w-5 h-5 ${config.text}`} />}
       </button>
 
       {!collapsed && (
-        <div className="space-y-3">
-          {alerts.map((alert) => (
-            <AlertCard
-              key={alert.id}
-              alert={alert}
-              onResolve={onResolve}
-              onQuickAction={onQuickAction}
-              isLoading={isLoading}
-            />
+        <div className="space-y-4">
+          {alerts.map((alert, index) => (
+            <div key={alert.id} style={{ animationDelay: `${index * 50}ms` }}>
+              <AlertCard alert={alert} onQuickAction={onQuickAction} isLoading={isLoading} />
+            </div>
           ))}
         </div>
       )}
@@ -272,139 +246,70 @@ const PriorityGroup = ({ priority, alerts, onResolve, onQuickAction, isLoading }
 /**
  * Filter Panel Component
  */
-const FilterPanel = ({ filter, onFilterChange, onReset, alertTypes }) => {
+const FilterPanel = ({ filter, onFilterChange, onReset }) => {
   const [showFilters, setShowFilters] = useState(false);
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-6">
-      {/* Search and Toggle */}
+    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-100 p-5 mb-6 animate-fade-in">
       <div className="flex items-center space-x-4">
         <div className="flex-1 relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
             placeholder="ค้นหาการแจ้งเตือน..."
             value={filter.searchTerm}
             onChange={(e) => onFilterChange({ searchTerm: e.target.value })}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl 
+              focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
           />
         </div>
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-lg border ${
-            showFilters ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-          }`}
+          className={`flex items-center space-x-2 px-5 py-3 rounded-xl border transition-all duration-300
+            ${showFilters ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}
         >
           <FunnelIcon className="w-5 h-5" />
-          <span>ตัวกรอง</span>
+          <span className="font-medium">ตัวกรอง</span>
         </button>
       </div>
 
-      {/* Filter Options */}
       {showFilters && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
+        <div className="mt-5 pt-5 border-t border-gray-100">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Type Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                ประเภท
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">ประเภท</label>
               <select
                 value={filter.type}
                 onChange={(e) => onFilterChange({ type: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">ทั้งหมด</option>
                 {Object.values(ALERT_TYPE).map((type) => (
-                  <option key={type} value={type}>
-                    {getAlertTypeLabel(type)}
-                  </option>
+                  <option key={type} value={type}>{getAlertTypeLabel(type)}</option>
                 ))}
               </select>
             </div>
-
-            {/* Priority Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                ความสำคัญ
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">ความสำคัญ</label>
               <select
                 value={filter.priority}
                 onChange={(e) => onFilterChange({ priority: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">ทั้งหมด</option>
                 {Object.values(ALERT_PRIORITY).map((priority) => (
-                  <option key={priority} value={priority}>
-                    {getPriorityLabel(priority)}
-                  </option>
+                  <option key={priority} value={priority}>{getPriorityLabel(priority)}</option>
                 ))}
               </select>
             </div>
-
-            {/* Date Range */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                ช่วงวันที่
-              </label>
-              <div className="flex space-x-2">
-                <input
-                  type="date"
-                  value={filter.dateRange?.start || ''}
-                  onChange={(e) => onFilterChange({ 
-                    dateRange: { ...filter.dateRange, start: e.target.value } 
-                  })}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <input
-                  type="date"
-                  value={filter.dateRange?.end || ''}
-                  onChange={(e) => onFilterChange({ 
-                    dateRange: { ...filter.dateRange, end: e.target.value } 
-                  })}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+            <div className="flex items-end">
+              <button onClick={onReset} className="px-5 py-3 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-all">
+                รีเซ็ตตัวกรอง
+              </button>
             </div>
-          </div>
-
-          {/* Reset Button */}
-          <div className="mt-4 flex justify-end">
-            <button
-              onClick={onReset}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-            >
-              รีเซ็ตตัวกรอง
-            </button>
           </div>
         </div>
       )}
-    </div>
-  );
-};
-
-/**
- * Statistics Cards Component
- */
-const StatsCards = ({ stats }) => {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <div className="bg-white rounded-lg shadow p-4 border-l-4 border-gray-500">
-        <p className="text-sm text-gray-600">ทั้งหมด</p>
-        <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-      </div>
-      <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
-        <p className="text-sm text-gray-600">วิกฤต</p>
-        <p className="text-2xl font-bold text-red-600">{stats.byPriority.critical}</p>
-      </div>
-      <div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
-        <p className="text-sm text-gray-600">สูง</p>
-        <p className="text-2xl font-bold text-orange-600">{stats.byPriority.high}</p>
-      </div>
-      <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-        <p className="text-sm text-gray-600">ปานกลาง</p>
-        <p className="text-2xl font-bold text-yellow-600">{stats.byPriority.medium}</p>
-      </div>
     </div>
   );
 };
@@ -415,24 +320,10 @@ const StatsCards = ({ stats }) => {
 const AlertDashboard = () => {
   const { currentUser, isAdmin } = useAuth();
   const {
-    groupedAlerts,
-    stats,
-    filter,
-    updateFilter,
-    resetFilter,
-    resolveAlert,
-    executeQuickAction,
-    refreshAlerts,
-    loading,
-    error,
-    actionLoading,
-    hasAlerts
+    groupedAlerts, stats, filter, updateFilter, resetFilter,
+    resolveAlert, executeQuickAction, refreshAlerts,
+    loading, error, actionLoading, hasAlerts
   } = useAdminAlerts(isAdmin);
-
-  const handleResolve = useCallback(async (alertId, action) => {
-    if (!currentUser) return;
-    await resolveAlert(alertId, currentUser.uid, action);
-  }, [currentUser, resolveAlert]);
 
   const handleQuickAction = useCallback(async (alert, action) => {
     if (!currentUser) return;
@@ -443,7 +334,7 @@ const AlertDashboard = () => {
     return (
       <Layout>
         <div className="flex justify-center items-center h-64">
-          <LoadingSpinner />
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
         </div>
       </Layout>
     );
@@ -452,15 +343,12 @@ const AlertDashboard = () => {
   if (error) {
     return (
       <Layout>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center space-x-2">
-            <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
-            <p className="text-red-800">{error}</p>
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 animate-fade-in">
+          <div className="flex items-center space-x-3">
+            <ExclamationTriangleIcon className="w-6 h-6 text-rose-600" />
+            <p className="text-rose-800 font-medium">{error}</p>
           </div>
-          <button
-            onClick={refreshAlerts}
-            className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
-          >
+          <button onClick={refreshAlerts} className="mt-3 text-sm text-rose-600 hover:text-rose-800 underline">
             ลองใหม่อีกครั้ง
           </button>
         </div>
@@ -470,77 +358,55 @@ const AlertDashboard = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            ศูนย์การแจ้งเตือน
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            จัดการและติดตามการแจ้งเตือนทั้งหมดของระบบ
-          </p>
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between animate-fade-in">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-rose-600 via-orange-600 to-amber-600 bg-clip-text text-transparent">
+              ศูนย์การแจ้งเตือน
+            </h1>
+            <p className="mt-1 text-gray-500">จัดการและติดตามการแจ้งเตือนทั้งหมดของระบบ</p>
+          </div>
+          <button
+            onClick={refreshAlerts}
+            disabled={loading}
+            className="flex items-center space-x-2 px-5 py-2.5 text-sm font-medium text-gray-700 
+              bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl 
+              hover:bg-gray-50 hover:shadow-md transition-all duration-300 disabled:opacity-50"
+          >
+            <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+            <span>รีเฟรช</span>
+          </button>
         </div>
-        <button
-          onClick={refreshAlerts}
-          disabled={loading}
-          className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-        >
-          <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-          <span>รีเฟรช</span>
-        </button>
-      </div>
 
-      {/* Statistics */}
-      <StatsCards stats={stats} />
-
-      {/* Filters */}
-      <FilterPanel
-        filter={filter}
-        onFilterChange={updateFilter}
-        onReset={resetFilter}
-        alertTypes={Object.values(ALERT_TYPE)}
-      />
-
-      {/* Alerts by Priority */}
-      {hasAlerts ? (
-        <div>
-          <PriorityGroup
-            priority={ALERT_PRIORITY.CRITICAL}
-            alerts={groupedAlerts[ALERT_PRIORITY.CRITICAL]}
-            onResolve={handleResolve}
-            onQuickAction={handleQuickAction}
-            isLoading={actionLoading}
-          />
-          <PriorityGroup
-            priority={ALERT_PRIORITY.HIGH}
-            alerts={groupedAlerts[ALERT_PRIORITY.HIGH]}
-            onResolve={handleResolve}
-            onQuickAction={handleQuickAction}
-            isLoading={actionLoading}
-          />
-          <PriorityGroup
-            priority={ALERT_PRIORITY.MEDIUM}
-            alerts={groupedAlerts[ALERT_PRIORITY.MEDIUM]}
-            onResolve={handleResolve}
-            onQuickAction={handleQuickAction}
-            isLoading={actionLoading}
-          />
-          <PriorityGroup
-            priority={ALERT_PRIORITY.LOW}
-            alerts={groupedAlerts[ALERT_PRIORITY.LOW]}
-            onResolve={handleResolve}
-            onQuickAction={handleQuickAction}
-            isLoading={actionLoading}
-          />
+        {/* Statistics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard title="ทั้งหมด" value={stats.total} color="gray" delay={0} />
+          <StatCard title="วิกฤต" value={stats.byPriority.critical} color="red" delay={100} />
+          <StatCard title="สูง" value={stats.byPriority.high} color="orange" delay={200} />
+          <StatCard title="ปานกลาง" value={stats.byPriority.medium} color="yellow" delay={300} />
         </div>
-      ) : (
-        <EmptyState
-          icon={<CheckCircleIcon className="w-24 h-24" />}
-          title="ไม่มีการแจ้งเตือน"
-          description="ไม่มีการแจ้งเตือนที่ต้องดำเนินการในขณะนี้"
-        />
-      )}
+
+        {/* Filters */}
+        <FilterPanel filter={filter} onFilterChange={updateFilter} onReset={resetFilter} />
+
+        {/* Alerts by Priority */}
+        {hasAlerts ? (
+          <div>
+            <PriorityGroup priority={ALERT_PRIORITY.CRITICAL} alerts={groupedAlerts[ALERT_PRIORITY.CRITICAL]} onQuickAction={handleQuickAction} isLoading={actionLoading} />
+            <PriorityGroup priority={ALERT_PRIORITY.HIGH} alerts={groupedAlerts[ALERT_PRIORITY.HIGH]} onQuickAction={handleQuickAction} isLoading={actionLoading} />
+            <PriorityGroup priority={ALERT_PRIORITY.MEDIUM} alerts={groupedAlerts[ALERT_PRIORITY.MEDIUM]} onQuickAction={handleQuickAction} isLoading={actionLoading} />
+            <PriorityGroup priority={ALERT_PRIORITY.LOW} alerts={groupedAlerts[ALERT_PRIORITY.LOW]} onQuickAction={handleQuickAction} isLoading={actionLoading} />
+          </div>
+        ) : (
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-100 p-12 text-center animate-fade-in">
+            <div className="w-20 h-20 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <CheckCircleIcon className="w-10 h-10 text-emerald-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">ไม่มีการแจ้งเตือน</h3>
+            <p className="text-gray-500 mt-1">ไม่มีการแจ้งเตือนที่ต้องดำเนินการในขณะนี้</p>
+          </div>
+        )}
       </div>
     </Layout>
   );
