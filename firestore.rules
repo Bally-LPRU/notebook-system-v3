@@ -341,5 +341,17 @@ service cloud.firestore {
       // History entries should not be modified or deleted (audit trail)
       allow update, delete: if false;
     }
+    
+    // Admin alerts collection - proactive alerts for admin intelligence system
+    match /adminAlerts/{alertId} {
+      // Only admins can read alerts
+      allow read: if isAdmin();
+      // Only admins can create alerts (or system via Cloud Functions)
+      allow create: if isAdmin();
+      // Only admins can update alerts (resolve, acknowledge, etc.)
+      allow update: if isAdmin();
+      // Only admins can delete alerts
+      allow delete: if isAdmin();
+    }
   }
 }

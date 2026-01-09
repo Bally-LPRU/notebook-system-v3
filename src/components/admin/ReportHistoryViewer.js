@@ -847,7 +847,7 @@ const ReportHistoryViewer = () => {
         </div>
       ) : (
         <EmptyState
-          icon={DocumentTextIcon}
+          icon={<DocumentTextIcon className="w-24 h-24" />}
           title="ไม่มีรายงาน"
           description="ยังไม่มีรายงานที่สร้างไว้ คุณสามารถสร้างรายงานใหม่ได้จากปุ่มด้านบน"
         />

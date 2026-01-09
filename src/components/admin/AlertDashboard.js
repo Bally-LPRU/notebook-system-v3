@@ -530,7 +530,7 @@ const AlertDashboard = () => {
         </div>
       ) : (
         <EmptyState
-          icon={CheckCircleIcon}
+          icon={<CheckCircleIcon className="w-24 h-24" />}
           title="ไม่มีการแจ้งเตือน"
           description="ไม่มีการแจ้งเตือนที่ต้องดำเนินการในขณะนี้"
         />

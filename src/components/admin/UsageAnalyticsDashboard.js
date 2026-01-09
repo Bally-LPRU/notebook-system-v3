@@ -237,7 +237,7 @@ const UsageAnalyticsDashboard = () => {
   if (!dashboardData) {
     return (
       <EmptyState
-        icon={ChartBarIcon}
+        icon={<ChartBarIcon className="w-24 h-24" />}
         title="ไม่มีข้อมูล"
         description="ไม่มีข้อมูลการวิเคราะห์การใช้งานในขณะนี้"
       />
@@ -388,7 +388,7 @@ const UsageAnalyticsDashboard = () => {
                 </div>
               ) : (
                 <EmptyState
-                  icon={ChartBarIcon}
+                  icon={<ChartBarIcon className="w-24 h-24" />}
                   title="ไม่มีอุปกรณ์ที่มีความต้องการสูง"
                   description="ไม่มีอุปกรณ์ที่มีอัตราการใช้งานสูงกว่า 80% ในขณะนี้"
                 />
@@ -410,7 +410,7 @@ const UsageAnalyticsDashboard = () => {
                 </div>
               ) : (
                 <EmptyState
-                  icon={ChartBarIcon}
+                  icon={<ChartBarIcon className="w-24 h-24" />}
                   title="ไม่มีอุปกรณ์ที่ไม่ถูกใช้งาน"
                   description="อุปกรณ์ทั้งหมดมีการใช้งานอย่างสม่ำเสมอ"
                 />
@@ -432,7 +432,7 @@ const UsageAnalyticsDashboard = () => {
                 </div>
               ) : (
                 <EmptyState
-                  icon={ChartBarIcon}
+                  icon={<ChartBarIcon className="w-24 h-24" />}
                   title="ไม่มีคำแนะนำ"
                   description="ไม่มีคำแนะนำสำหรับการจัดการคลังอุปกรณ์ในขณะนี้"
                 />

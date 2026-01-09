@@ -70,7 +70,7 @@ const OverdueDashboard = () => {
   if (!statistics) {
     return (
       <EmptyState
-        icon={ChartBarIcon}
+        icon={<ChartBarIcon className="w-24 h-24" />}
         title="ไม่มีข้อมูล"
         description="ไม่พบข้อมูลสถิติการยืมที่เกินกำหนด"
       />
@@ -253,7 +253,7 @@ const OverdueDashboard = () => {
       {/* Empty State */}
       {statistics.totalOverdue === 0 && statistics.totalDueSoon === 0 && (
         <EmptyState
-          icon={ChartBarIcon}
+          icon={<ChartBarIcon className="w-24 h-24" />}
           title="ไม่มีรายการที่ต้องติดตาม"
           description="ไม่มีรายการยืมที่เกินกำหนดหรือใกล้ครบกำหนดในขณะนี้"
         />

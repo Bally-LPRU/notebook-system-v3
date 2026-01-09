@@ -260,7 +260,7 @@ const UserReliabilityDashboard = () => {
   if (!dashboardData) {
     return (
       <EmptyState
-        icon={UserGroupIcon}
+        icon={<UserGroupIcon className="w-24 h-24" />}
         title="ไม่มีข้อมูล"
         description="ไม่มีข้อมูลความน่าเชื่อถือของผู้ใช้ในขณะนี้"
       />
@@ -441,7 +441,7 @@ const UserReliabilityDashboard = () => {
                 </div>
               ) : (
                 <EmptyState
-                  icon={UserGroupIcon}
+                  icon={<UserGroupIcon className="w-24 h-24" />}
                   title="ไม่มีข้อมูล"
                   description="ไม่มีข้อมูลผู้ยืมในขณะนี้"
                 />
@@ -463,7 +463,7 @@ const UserReliabilityDashboard = () => {
                 </div>
               ) : (
                 <EmptyState
-                  icon={StarIcon}
+                  icon={<StarIcon className="w-24 h-24" />}
                   title="ไม่มีข้อมูล"
                   description="ไม่มีข้อมูลผู้ใช้ที่น่าเชื่อถือในขณะนี้"
                 />
@@ -485,7 +485,7 @@ const UserReliabilityDashboard = () => {
                 </div>
               ) : (
                 <EmptyState
-                  icon={FlagIcon}
+                  icon={<FlagIcon className="w-24 h-24" />}
                   title="ไม่มีผู้ใช้ที่ต้องติดตาม"
                   description="ไม่มีผู้ใช้ที่มีพฤติกรรมที่ต้องติดตามในขณะนี้"
                 />
