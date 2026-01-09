@@ -267,7 +267,7 @@ const ReportDetailModal = ({ isOpen, onClose, report }) => {
  * Main Report History Viewer Component
  */
 const ReportHistoryViewer = () => {
-  const { currentUser, isAdmin } = useAuth();
+  const { currentUser, isAdmin, loading: authLoading } = useAuth();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -276,10 +276,17 @@ const ReportHistoryViewer = () => {
   const [filter, setFilter] = useState({ reportType: 'all', limit: 10 });
 
   const loadData = useCallback(async () => {
-    console.log('[ReportHistoryViewer] loadData called, currentUser:', currentUser?.uid, 'isAdmin:', isAdmin);
+    console.log('[ReportHistoryViewer] loadData called, currentUser:', currentUser?.uid, 'isAdmin:', isAdmin, 'authLoading:', authLoading);
+    
+    // Wait for auth to finish loading
+    if (authLoading) {
+      console.log('[ReportHistoryViewer] Auth still loading, waiting...');
+      return;
+    }
+    
     if (!currentUser || !isAdmin) {
       console.log('[ReportHistoryViewer] Skipping load - not admin or no user');
-      // Don't set loading to false here - wait for auth to resolve
+      setLoading(false);
       return;
     }
 
@@ -300,14 +307,7 @@ const ReportHistoryViewer = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentUser, isAdmin, filter]);
-
-  // Set loading to false when we know user is not admin
-  useEffect(() => {
-    if (currentUser && isAdmin === false) {
-      setLoading(false);
-    }
-  }, [currentUser, isAdmin]);
+  }, [currentUser, isAdmin, authLoading, filter]);
 
   useEffect(() => {
     loadData();
