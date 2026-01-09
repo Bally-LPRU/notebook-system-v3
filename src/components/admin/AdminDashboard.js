@@ -4,6 +4,8 @@ import { Layout } from '../layout';
 import { useLoanRequestStats, useLoanRequests } from '../../hooks/useLoanRequests';
 import StatisticsService from '../../services/statisticsService';
 import { LOAN_REQUEST_STATUS } from '../../types/loanRequest';
+import { collection, query, onSnapshot } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer
@@ -83,6 +85,8 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [equipmentStats, setEquipmentStats] = useState({ total: 0, available: 0, borrowed: 0 });
   const [equipmentLoading, setEquipmentLoading] = useState(true);
+  const [alertStats, setAlertStats] = useState({ total: 0, critical: 0, high: 0, unresolved: 0 });
+  const [alertsLoading, setAlertsLoading] = useState(true);
   
   const { stats: loanStats, loading: loanStatsLoading } = useLoanRequestStats();
   
@@ -123,6 +127,28 @@ const AdminDashboard = () => {
       }
     };
     loadEquipmentStats();
+  }, []);
+
+  // Subscribe to alert statistics
+  useEffect(() => {
+    const alertsQuery = query(collection(db, 'adminAlerts'));
+    
+    const unsubscribe = onSnapshot(alertsQuery, (snapshot) => {
+      const alerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const stats = {
+        total: alerts.length,
+        critical: alerts.filter(a => a.priority === 'critical' && !a.isResolved).length,
+        high: alerts.filter(a => a.priority === 'high' && !a.isResolved).length,
+        unresolved: alerts.filter(a => !a.isResolved).length
+      };
+      setAlertStats(stats);
+      setAlertsLoading(false);
+    }, (error) => {
+      console.error('Error loading alert stats:', error);
+      setAlertsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Chart Data with Pastel Colors
@@ -205,6 +231,51 @@ const AdminDashboard = () => {
             </button>
           </div>
         </div>
+
+        {/* Intelligence Alert Summary Widget */}
+        {!alertsLoading && alertStats.unresolved > 0 && (
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 rounded-2xl p-6 shadow-sm animate-fade-in">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-red-100 rounded-xl">
+                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">การแจ้งเตือนที่ต้องดำเนินการ</h3>
+                  <p className="text-sm text-gray-600 mb-3">
+                    มีการแจ้งเตือน {alertStats.unresolved} รายการที่รอการดำเนินการ
+                    {alertStats.critical > 0 && ` (${alertStats.critical} รายการวิกฤต)`}
+                  </p>
+                  <div className="flex items-center gap-4">
+                    {alertStats.critical > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+                        <span className="text-sm font-medium text-red-700">{alertStats.critical} วิกฤต</span>
+                      </div>
+                    )}
+                    {alertStats.high > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="w-3 h-3 bg-orange-500 rounded-full"></span>
+                        <span className="text-sm font-medium text-orange-700">{alertStats.high} สูง</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/admin/intelligence/alerts')}
+                className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium text-sm flex items-center gap-2"
+              >
+                ดูการแจ้งเตือน
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -338,6 +409,100 @@ const AdminDashboard = () => {
               icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
             <QuickActionButton title="ตั้งค่าระบบ" description="กำหนดค่าต่างๆ" color="gray" onClick={() => navigate('/admin/settings')}
               icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
+          </div>
+        </div>
+
+        {/* Intelligence Quick Links */}
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl shadow-sm border border-indigo-100 p-6 animate-fade-in" style={{ animationDelay: '750ms' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Intelligence Assistant</h3>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">เครื่องมือวิเคราะห์และจัดการข้อมูลขั้นสูง</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <button
+              onClick={() => navigate('/admin/intelligence/alerts')}
+              className="flex items-center gap-3 p-3 bg-white rounded-xl border border-indigo-100 hover:border-indigo-300 hover:shadow-md transition-all text-left group"
+            >
+              <div className="p-2 bg-red-100 rounded-lg group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900 text-sm">การแจ้งเตือน</p>
+                <p className="text-xs text-gray-500">ปัญหาที่ต้องดำเนินการ</p>
+              </div>
+              {alertStats.unresolved > 0 && (
+                <span className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
+                  {alertStats.unresolved}
+                </span>
+              )}
+            </button>
+            
+            <button
+              onClick={() => navigate('/admin/intelligence/usage-analytics')}
+              className="flex items-center gap-3 p-3 bg-white rounded-xl border border-indigo-100 hover:border-indigo-300 hover:shadow-md transition-all text-left group"
+            >
+              <div className="p-2 bg-indigo-100 rounded-lg group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900 text-sm">วิเคราะห์การใช้งาน</p>
+                <p className="text-xs text-gray-500">สถิติอุปกรณ์</p>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => navigate('/admin/intelligence/user-reliability')}
+              className="flex items-center gap-3 p-3 bg-white rounded-xl border border-indigo-100 hover:border-indigo-300 hover:shadow-md transition-all text-left group"
+            >
+              <div className="p-2 bg-teal-100 rounded-lg group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900 text-sm">ความน่าเชื่อถือ</p>
+                <p className="text-xs text-gray-500">พฤติกรรมผู้ใช้</p>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => navigate('/admin/intelligence/data-management')}
+              className="flex items-center gap-3 p-3 bg-white rounded-xl border border-indigo-100 hover:border-indigo-300 hover:shadow-md transition-all text-left group"
+            >
+              <div className="p-2 bg-slate-100 rounded-lg group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900 text-sm">จัดการข้อมูล</p>
+                <p className="text-xs text-gray-500">Export/Import</p>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => navigate('/admin/intelligence/reports')}
+              className="flex items-center gap-3 p-3 bg-white rounded-xl border border-indigo-100 hover:border-indigo-300 hover:shadow-md transition-all text-left group"
+            >
+              <div className="p-2 bg-emerald-100 rounded-lg group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900 text-sm">รายงาน</p>
+                <p className="text-xs text-gray-500">ประวัติรายงาน</p>
+              </div>
+            </button>
           </div>
         </div>
 

@@ -32,6 +32,13 @@ import EquipmentPage from './components/EquipmentPage';
 // Admin Settings
 const LazyAdminSettingsPage = lazy(() => import('./components/admin/settings/AdminSettingsPage'));
 
+// Admin Intelligence Assistant
+const LazyAlertDashboard = lazy(() => import('./components/admin/AlertDashboard'));
+const LazyDataManagementConsole = lazy(() => import('./components/admin/DataManagementConsole'));
+const LazyUsageAnalyticsDashboard = lazy(() => import('./components/admin/UsageAnalyticsDashboard'));
+const LazyUserReliabilityDashboard = lazy(() => import('./components/admin/UserReliabilityDashboard'));
+const LazyReportHistoryViewer = lazy(() => import('./components/admin/ReportHistoryViewer'));
+
 // Lazy loaded components
 const LazyAdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const LazyUserApprovalList = lazy(() => import('./components/admin/UserApprovalList'));
@@ -218,6 +225,37 @@ const AppRoutes = () => {
       <Route path="/admin/settings" element={
         <ProtectedRoute requireAdmin={true}>
           <LazyAdminSettingsPage />
+        </ProtectedRoute>
+      } />
+      
+      {/* Admin Intelligence Assistant Routes */}
+      <Route path="/admin/intelligence/alerts" element={
+        <ProtectedRoute requireAdmin={true}>
+          <LazyAlertDashboard />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/intelligence/data-management" element={
+        <ProtectedRoute requireAdmin={true}>
+          <LazyDataManagementConsole />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/intelligence/usage-analytics" element={
+        <ProtectedRoute requireAdmin={true}>
+          <LazyUsageAnalyticsDashboard />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/intelligence/user-reliability" element={
+        <ProtectedRoute requireAdmin={true}>
+          <LazyUserReliabilityDashboard />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/intelligence/reports" element={
+        <ProtectedRoute requireAdmin={true}>
+          <LazyReportHistoryViewer />
         </ProtectedRoute>
       } />
 

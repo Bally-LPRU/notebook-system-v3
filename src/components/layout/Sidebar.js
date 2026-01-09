@@ -1,11 +1,33 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useState, useEffect } from 'react';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { isAdmin } = useAuth();
   const location = useLocation();
+  const [unresolvedAlertsCount, setUnresolvedAlertsCount] = useState(0);
 
   const isActivePath = (path) => location.pathname === path;
+
+  // Subscribe to unresolved alerts count
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const alertsQuery = query(
+      collection(db, 'adminAlerts'),
+      where('isResolved', '==', false)
+    );
+
+    const unsubscribe = onSnapshot(alertsQuery, (snapshot) => {
+      setUnresolvedAlertsCount(snapshot.size);
+    }, (error) => {
+      console.error('Error fetching unresolved alerts:', error);
+    });
+
+    return () => unsubscribe();
+  }, [isAdmin]);
 
   const adminNavigationItems = [
     { name: 'แดชบอร์ด', href: '/admin', icon: 'dashboard', description: 'ภาพรวมระบบ', color: 'blue' },
@@ -18,6 +40,14 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'ตั้งค่าระบบ', href: '/admin/settings', icon: 'settings', description: 'กำหนดค่าระบบ', color: 'gray' }
   ];
 
+  const intelligenceNavigationItems = [
+    { name: 'การแจ้งเตือนเชิงรุก', href: '/admin/intelligence/alerts', icon: 'alert', description: 'แจ้งเตือนและปัญหา', color: 'red', badge: unresolvedAlertsCount },
+    { name: 'วิเคราะห์การใช้งาน', href: '/admin/intelligence/usage-analytics', icon: 'analytics', description: 'สถิติการใช้อุปกรณ์', color: 'indigo' },
+    { name: 'ความน่าเชื่อถือผู้ใช้', href: '/admin/intelligence/user-reliability', icon: 'user-check', description: 'พฤติกรรมผู้ใช้', color: 'teal' },
+    { name: 'จัดการข้อมูล', href: '/admin/intelligence/data-management', icon: 'database', description: 'Export/Import/Delete', color: 'slate' },
+    { name: 'รายงานตามกำหนด', href: '/admin/intelligence/reports', icon: 'report', description: 'ประวัติรายงาน', color: 'emerald' }
+  ];
+
   const colorClasses = {
     blue: { bg: 'bg-blue-100', text: 'text-blue-600', hover: 'hover:bg-blue-50', active: 'bg-blue-100 text-blue-700 border-blue-400' },
     green: { bg: 'bg-emerald-100', text: 'text-emerald-600', hover: 'hover:bg-emerald-50', active: 'bg-emerald-100 text-emerald-700 border-emerald-400' },
@@ -26,7 +56,12 @@ const Sidebar = ({ isOpen, onClose }) => {
     yellow: { bg: 'bg-amber-100', text: 'text-amber-600', hover: 'hover:bg-amber-50', active: 'bg-amber-100 text-amber-700 border-amber-400' },
     cyan: { bg: 'bg-cyan-100', text: 'text-cyan-600', hover: 'hover:bg-cyan-50', active: 'bg-cyan-100 text-cyan-700 border-cyan-400' },
     orange: { bg: 'bg-orange-100', text: 'text-orange-600', hover: 'hover:bg-orange-50', active: 'bg-orange-100 text-orange-700 border-orange-400' },
-    gray: { bg: 'bg-slate-100', text: 'text-slate-600', hover: 'hover:bg-slate-50', active: 'bg-slate-100 text-slate-700 border-slate-400' }
+    gray: { bg: 'bg-slate-100', text: 'text-slate-600', hover: 'hover:bg-slate-50', active: 'bg-slate-100 text-slate-700 border-slate-400' },
+    red: { bg: 'bg-red-100', text: 'text-red-600', hover: 'hover:bg-red-50', active: 'bg-red-100 text-red-700 border-red-400' },
+    indigo: { bg: 'bg-indigo-100', text: 'text-indigo-600', hover: 'hover:bg-indigo-50', active: 'bg-indigo-100 text-indigo-700 border-indigo-400' },
+    teal: { bg: 'bg-teal-100', text: 'text-teal-600', hover: 'hover:bg-teal-50', active: 'bg-teal-100 text-teal-700 border-teal-400' },
+    slate: { bg: 'bg-slate-100', text: 'text-slate-600', hover: 'hover:bg-slate-50', active: 'bg-slate-100 text-slate-700 border-slate-400' },
+    emerald: { bg: 'bg-emerald-100', text: 'text-emerald-600', hover: 'hover:bg-emerald-50', active: 'bg-emerald-100 text-emerald-700 border-emerald-400' }
   };
 
   const getIcon = (iconName) => {
@@ -72,6 +107,31 @@ const Sidebar = ({ isOpen, onClose }) => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       ),
+      alert: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      ),
+      analytics: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      ),
+      'user-check': (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      database: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+        </svg>
+      ),
+      report: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
     };
     return icons[iconName] || null;
   };
@@ -106,6 +166,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+        {/* Main Admin Section */}
         {adminNavigationItems.map((item, index) => {
           const colors = colorClasses[item.color];
           const active = isActivePath(item.href);
@@ -135,6 +196,56 @@ const Sidebar = ({ isOpen, onClose }) => {
                 </div>
               </div>
               {active && (
+                <div className={`w-2 h-2 rounded-full ${colors.bg} animate-pulse`}></div>
+              )}
+            </Link>
+          );
+        })}
+
+        {/* Intelligence Section Divider */}
+        <div className="pt-4 pb-2">
+          <div className="flex items-center gap-2 px-3">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Intelligence</span>
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
+          </div>
+        </div>
+
+        {/* Intelligence Section */}
+        {intelligenceNavigationItems.map((item, index) => {
+          const colors = colorClasses[item.color];
+          const active = isActivePath(item.href);
+          return (
+            <Link
+              key={item.name}
+              to={item.href}
+              className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-[1.02] ${
+                active
+                  ? `${colors.active} border-l-4 shadow-sm`
+                  : `text-gray-600 ${colors.hover} hover:text-gray-900 border-l-4 border-transparent`
+              }`}
+              onClick={() => onClose && onClose()}
+              style={{ animationDelay: `${(adminNavigationItems.length + index) * 50}ms` }}
+            >
+              <div className={`mr-3 p-1.5 rounded-lg transition-all duration-300 ${
+                active ? colors.bg : 'bg-gray-100 group-hover:' + colors.bg
+              }`}>
+                <span className={active ? colors.text : `text-gray-400 group-hover:${colors.text}`}>
+                  {getIcon(item.icon)}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium truncate">{item.name}</div>
+                <div className={`text-xs mt-0.5 truncate ${active ? colors.text : 'text-gray-400'}`}>
+                  {item.description}
+                </div>
+              </div>
+              {item.badge > 0 && (
+                <span className="px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full animate-pulse">
+                  {item.badge}
+                </span>
+              )}
+              {active && !item.badge && (
                 <div className={`w-2 h-2 rounded-full ${colors.bg} animate-pulse`}></div>
               )}
             </Link>
