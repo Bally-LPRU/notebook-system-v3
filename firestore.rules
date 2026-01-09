@@ -353,5 +353,39 @@ service cloud.firestore {
       // Only admins can delete alerts
       allow delete: if isAdmin();
     }
+    
+    // Scheduled reports collection - admin intelligence reports
+    match /scheduledReports/{reportId} {
+      // Only admins can read reports
+      allow read: if isAdmin();
+      // Only admins can create reports
+      allow create: if isAdmin();
+      // Only admins can update reports (mark as viewed, increment download count)
+      allow update: if isAdmin();
+      // Only admins can delete reports
+      allow delete: if isAdmin();
+    }
+    
+    // Report preferences collection - admin report preferences
+    match /reportPreferences/{prefId} {
+      // Only admins can read/write preferences
+      allow read, write: if isAdmin();
+    }
+    
+    // Equipment utilization collection - usage analytics data
+    match /equipmentUtilization/{docId} {
+      // Only admins can read utilization data
+      allow read: if isAdmin();
+      // Only admins can write utilization data
+      allow write: if isAdmin();
+    }
+    
+    // User reliability collection - user behavior analytics
+    match /userReliability/{docId} {
+      // Only admins can read reliability data
+      allow read: if isAdmin();
+      // Only admins can write reliability data
+      allow write: if isAdmin();
+    }
   }
 }
