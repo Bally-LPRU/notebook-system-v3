@@ -22,6 +22,7 @@ import {
 } from '@heroicons/react/24/outline';
 import useAdminAlerts from '../../hooks/useAdminAlerts';
 import { useAuth } from '../../contexts/AuthContext';
+import { Layout } from '../layout';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmptyState from '../common/EmptyState';
 import { 
@@ -440,31 +441,36 @@ const AlertDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner />
+        </div>
+      </Layout>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div className="flex items-center space-x-2">
-          <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
-          <p className="text-red-800">{error}</p>
+      <Layout>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center space-x-2">
+            <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
+            <p className="text-red-800">{error}</p>
+          </div>
+          <button
+            onClick={refreshAlerts}
+            className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+          >
+            ลองใหม่อีกครั้ง
+          </button>
         </div>
-        <button
-          onClick={refreshAlerts}
-          className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
-        >
-          ลองใหม่อีกครั้ง
-        </button>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <Layout>
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -535,7 +541,8 @@ const AlertDashboard = () => {
           description="ไม่มีการแจ้งเตือนที่ต้องดำเนินการในขณะนี้"
         />
       )}
-    </div>
+      </div>
+    </Layout>
   );
 };
 

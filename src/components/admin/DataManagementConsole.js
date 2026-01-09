@@ -17,6 +17,7 @@ import {
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
+import { Layout } from '../layout';
 import DataManagementService from '../../services/dataManagementService';
 import { DATA_TYPE, EXPORT_FORMAT } from '../../types/dataManagement';
 import ExportProgress from './ExportProgress';
@@ -712,7 +713,8 @@ const DataManagementConsole = () => {
   const [activeTab, setActiveTab] = useState('export');
 
   return (
-    <div className="space-y-6">
+    <Layout>
+      <div className="space-y-6">
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900">
@@ -736,7 +738,8 @@ const DataManagementConsole = () => {
           {activeTab === 'delete' && <DeleteTab />}
         </div>
       </div>
-    </div>
+      </div>
+    </Layout>
   );
 };
 

@@ -19,6 +19,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
+import { Layout } from '../layout';
 import ScheduledReportService, { REPORT_TYPE } from '../../services/scheduledReportService';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmptyState from '../common/EmptyState';
@@ -710,36 +711,43 @@ const ReportHistoryViewer = () => {
 
   if (!isAdmin) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <p className="text-yellow-800">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</p>
-      </div>
+      <Layout>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-yellow-800">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+        </div>
+      </Layout>
     );
   }
 
   if (loading && reports.length === 0) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner />
+        </div>
+      </Layout>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-red-800">{error}</p>
-        <button
-          onClick={loadData}
-          className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
-        >
-          ลองใหม่อีกครั้ง
-        </button>
-      </div>
+      <Layout>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">{error}</p>
+          <button
+            onClick={loadData}
+            className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+          >
+            ลองใหม่อีกครั้ง
+          </button>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <Layout>
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -868,7 +876,8 @@ const ReportHistoryViewer = () => {
         onClose={() => setSelectedReport(null)}
         report={selectedReport}
       />
-    </div>
+      </div>
+    </Layout>
   );
 };
 
