@@ -276,7 +276,12 @@ const ReportHistoryViewer = () => {
   const [filter, setFilter] = useState({ reportType: 'all', limit: 10 });
 
   const loadData = useCallback(async () => {
-    if (!currentUser || !isAdmin) return;
+    console.log('[ReportHistoryViewer] loadData called, currentUser:', currentUser?.uid, 'isAdmin:', isAdmin);
+    if (!currentUser || !isAdmin) {
+      console.log('[ReportHistoryViewer] Skipping load - not admin or no user');
+      // Don't set loading to false here - wait for auth to resolve
+      return;
+    }
 
     try {
       setLoading(true);
@@ -285,15 +290,24 @@ const ReportHistoryViewer = () => {
       const queryOptions = { limit: filter.limit };
       if (filter.reportType !== 'all') queryOptions.reportType = filter.reportType;
 
+      console.log('[ReportHistoryViewer] Fetching reports with options:', queryOptions);
       const reportHistory = await ScheduledReportService.getReportHistory(queryOptions);
+      console.log('[ReportHistoryViewer] Received reports:', reportHistory.length);
       setReports(reportHistory);
     } catch (err) {
-      console.error('Error loading report data:', err);
+      console.error('[ReportHistoryViewer] Error loading report data:', err);
       setError('ไม่สามารถโหลดข้อมูลรายงานได้');
     } finally {
       setLoading(false);
     }
   }, [currentUser, isAdmin, filter]);
+
+  // Set loading to false when we know user is not admin
+  useEffect(() => {
+    if (currentUser && isAdmin === false) {
+      setLoading(false);
+    }
+  }, [currentUser, isAdmin]);
 
   useEffect(() => {
     loadData();

@@ -699,6 +699,7 @@ class ScheduledReportService {
    */
   static async getReportHistory(options = {}) {
     try {
+      console.log('[ScheduledReportService] getReportHistory called with options:', options);
       const reportsRef = collection(db, this.REPORTS_COLLECTION);
       const queryConstraints = [orderBy('generatedAt', 'desc')];
 
@@ -710,8 +711,10 @@ class ScheduledReportService {
         queryConstraints.push(firestoreLimit(options.limit));
       }
 
+      console.log('[ScheduledReportService] Executing query...');
       const q = query(reportsRef, ...queryConstraints);
       const querySnapshot = await getDocs(q);
+      console.log('[ScheduledReportService] Query returned', querySnapshot.size, 'documents');
 
       const reports = [];
       querySnapshot.forEach((doc) => {
@@ -723,7 +726,7 @@ class ScheduledReportService {
 
       return reports;
     } catch (error) {
-      console.error('Error getting report history:', error);
+      console.error('[ScheduledReportService] Error getting report history:', error);
       return [];
     }
   }
