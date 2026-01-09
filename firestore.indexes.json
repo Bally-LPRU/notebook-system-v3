@@ -1,6 +1,20 @@
 {
   "indexes": [
     {
+      "collectionGroup": "scheduledReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "reportType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "generatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "adminAlerts",
       "queryScope": "COLLECTION",
       "fields": [

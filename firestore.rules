@@ -186,6 +186,12 @@ service cloud.firestore {
                        request.resource.data.keys().hasOnly(['startTime', 'endTime', 'purpose', 'notes', 'updatedAt'])) ||
                        (isAdmin() && 
                        !request.resource.data.keys().hasAny(['userId', 'equipmentId', 'createdAt']));
+      
+      // Allow user to delete their own pending reservations, admin can delete any
+      allow delete: if (isApprovedUser() && 
+                       request.auth.uid == resource.data.userId &&
+                       resource.data.status == 'pending') ||
+                       isAdmin();
     }
     
     // Notifications collection rules
@@ -386,6 +392,40 @@ service cloud.firestore {
       allow read: if isAdmin();
       // Only admins can write reliability data
       allow write: if isAdmin();
+    }
+    
+    // Data archives collection - backup archives for data management
+    match /dataArchives/{archiveId} {
+      // Only admins can read archives
+      allow read: if isAdmin();
+      // Only admins can create archives
+      allow create: if isAdmin();
+      // Only admins can update archives (mark as restored, etc.)
+      allow update: if isAdmin();
+      // Only admins can delete archives
+      allow delete: if isAdmin();
+    }
+    
+    // Data management audit log collection - tracks data operations
+    match /dataManagementAuditLog/{logId} {
+      // Only admins can read audit logs
+      allow read: if isAdmin();
+      // Only admins can create audit logs
+      allow create: if isAdmin();
+      // Audit logs should not be modified or deleted (audit trail)
+      allow update, delete: if false;
+    }
+    
+    // Import rollbacks collection - tracks import operations for rollback
+    match /importRollbacks/{rollbackId} {
+      // Only admins can read rollback records
+      allow read: if isAdmin();
+      // Only admins can create rollback records
+      allow create: if isAdmin();
+      // Only admins can update rollback records (mark as executed, etc.)
+      allow update: if isAdmin();
+      // Only admins can delete rollback records
+      allow delete: if isAdmin();
     }
   }
 }

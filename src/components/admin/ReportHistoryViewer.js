@@ -12,7 +12,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   DocumentTextIcon,
   ArrowDownTrayIcon,
-  Cog6ToothIcon,
   CalendarIcon,
   ChartBarIcon,
   ArrowPathIcon,

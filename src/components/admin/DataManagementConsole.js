@@ -443,8 +443,13 @@ const DeleteTab = () => {
 
   const canProceed = deleteConfig.dataTypes.length > 0 && deleteConfig.dateRange.start && deleteConfig.dateRange.end;
 
+  // Handle confirmation phrase update from DeleteConfirmation component
+  const handleUpdateConfirmationPhrase = (phrase) => {
+    setDeleteConfig(prev => ({ ...prev, confirmationPhrase: phrase }));
+  };
+
   if (showConfirmation) {
-    return <DeleteConfirmation config={deleteConfig} deleting={deleting} deleteResult={deleteResult} onConfirm={handleDelete} onCancel={handleReset} />;
+    return <DeleteConfirmation config={deleteConfig} deleting={deleting} deleteResult={deleteResult} onConfirm={handleDelete} onCancel={handleReset} onUpdateConfirmationPhrase={handleUpdateConfirmationPhrase} />;
   }
 
   return (

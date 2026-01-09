@@ -174,11 +174,31 @@ class ScheduledReportService {
       // Get reservation activity for the day
       const reservationActivity = await this._getDailyReservationActivity(start, end);
 
-      // Get alert summary
-      const alertSummary = await ProactiveAlertService.getAlertStats();
+      // Get alert summary with fallback
+      let alertSummary;
+      try {
+        alertSummary = await ProactiveAlertService.getAlertStats();
+      } catch (alertError) {
+        console.warn('Error getting alert stats, using defaults:', alertError);
+        alertSummary = {
+          pending: 0,
+          byPriority: { critical: 0, high: 0, medium: 0, low: 0 },
+          resolvedToday: 0
+        };
+      }
 
-      // Get overdue summary
-      const overdueSummary = await ProactiveAlertService.getDailyOverdueSummary();
+      // Get overdue summary with fallback
+      let overdueSummary;
+      try {
+        overdueSummary = await ProactiveAlertService.getDailyOverdueSummary();
+      } catch (overdueError) {
+        console.warn('Error getting overdue summary, using defaults:', overdueError);
+        overdueSummary = {
+          totalOverdue: 0,
+          byPriority: { critical: [], high: [], medium: [] },
+          totalDaysOverdue: 0
+        };
+      }
 
       // Build report data
       const reportData = {
@@ -186,19 +206,19 @@ class ScheduledReportService {
         loans: loanActivity,
         reservations: reservationActivity,
         alerts: {
-          total: alertSummary.pending,
-          critical: alertSummary.byPriority.critical,
-          high: alertSummary.byPriority.high,
-          medium: alertSummary.byPriority.medium,
-          low: alertSummary.byPriority.low,
-          resolvedToday: alertSummary.resolvedToday
+          total: alertSummary.pending || 0,
+          critical: alertSummary.byPriority?.critical || 0,
+          high: alertSummary.byPriority?.high || 0,
+          medium: alertSummary.byPriority?.medium || 0,
+          low: alertSummary.byPriority?.low || 0,
+          resolvedToday: alertSummary.resolvedToday || 0
         },
         overdue: {
-          total: overdueSummary.totalOverdue,
-          critical: overdueSummary.byPriority.critical.length,
-          high: overdueSummary.byPriority.high.length,
-          medium: overdueSummary.byPriority.medium.length,
-          totalDaysOverdue: overdueSummary.totalDaysOverdue
+          total: overdueSummary.totalOverdue || 0,
+          critical: overdueSummary.byPriority?.critical?.length || 0,
+          high: overdueSummary.byPriority?.high?.length || 0,
+          medium: overdueSummary.byPriority?.medium?.length || 0,
+          totalDaysOverdue: overdueSummary.totalDaysOverdue || 0
         },
         generatedAt: new Date()
       };
@@ -378,11 +398,26 @@ class ScheduledReportService {
       const period = this.generateWeeklyPeriod(reportDate);
       const { start, end } = this.getWeekBounds(reportDate);
 
-      // Get equipment utilization data
-      const utilizationData = await EquipmentUsageAnalyzerService.calculateAllEquipmentUtilization(7);
+      // Get equipment utilization data with fallback
+      let utilizationData;
+      try {
+        utilizationData = await EquipmentUsageAnalyzerService.calculateAllEquipmentUtilization(7);
+      } catch (utilError) {
+        console.warn('Error getting utilization data, using defaults:', utilError);
+        utilizationData = {
+          utilizations: [],
+          summary: { averageUtilization: 0, totalEquipment: 0, highDemandCount: 0, idleCount: 0 }
+        };
+      }
 
-      // Get user reliability summary
-      const userBehaviorSummary = await UserReliabilityService.getUserBehaviorSummary();
+      // Get user reliability summary with fallback
+      let userBehaviorSummary;
+      try {
+        userBehaviorSummary = await UserReliabilityService.getUserBehaviorSummary();
+      } catch (userError) {
+        console.warn('Error getting user behavior summary, using defaults:', userError);
+        userBehaviorSummary = { totalUsers: 0, averageScore: 0 };
+      }
 
       // Get weekly loan statistics
       const weeklyLoanStats = await this._getWeeklyLoanStatistics(start, end);
@@ -390,30 +425,41 @@ class ScheduledReportService {
       // Get weekly reservation statistics
       const weeklyReservationStats = await this._getWeeklyReservationStatistics(start, end);
 
-      // Get top borrowers for the week
-      const topBorrowers = await UserReliabilityService.getTopBorrowers(5);
+      // Get top borrowers for the week with fallback
+      let topBorrowers = [];
+      try {
+        topBorrowers = await UserReliabilityService.getTopBorrowers(5);
+      } catch (borrowerError) {
+        console.warn('Error getting top borrowers:', borrowerError);
+      }
 
-      // Get most reliable users
-      const mostReliable = await UserReliabilityService.getMostReliableUsers(5);
+      // Get most reliable users with fallback
+      let mostReliable = [];
+      try {
+        mostReliable = await UserReliabilityService.getMostReliableUsers(5);
+      } catch (reliableError) {
+        console.warn('Error getting most reliable users:', reliableError);
+      }
 
-      // Build report data
+      // Build report data with safe access
+      const utilizations = utilizationData?.utilizations || [];
       const reportData = {
         weekStart: start.toISOString(),
         weekEnd: end.toISOString(),
         equipment: {
-          summary: utilizationData.summary,
-          highDemand: utilizationData.utilizations
+          summary: utilizationData?.summary || {},
+          highDemand: utilizations
             .filter(u => u.classification === 'high_demand')
             .slice(0, 10),
-          idle: utilizationData.utilizations
+          idle: utilizations
             .filter(u => u.classification === 'idle')
             .slice(0, 10),
-          averageUtilization: utilizationData.summary?.averageUtilization || 0
+          averageUtilization: utilizationData?.summary?.averageUtilization || 0
         },
         users: {
-          summary: userBehaviorSummary,
-          topBorrowers,
-          mostReliable
+          summary: userBehaviorSummary || {},
+          topBorrowers: topBorrowers || [],
+          mostReliable: mostReliable || []
         },
         loans: weeklyLoanStats,
         reservations: weeklyReservationStats,
