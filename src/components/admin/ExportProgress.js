@@ -28,18 +28,34 @@ const formatFileSize = (bytes) => {
 };
 
 /**
- * Format date for display
+ * Format date for display - handles various date formats safely
  */
 const formatDate = (date) => {
   if (!date) return '-';
-  const d = date?.toDate?.() || new Date(date);
-  return d.toLocaleDateString('th-TH', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  try {
+    let d;
+    if (date instanceof Date) {
+      d = date;
+    } else if (typeof date.toDate === 'function') {
+      d = date.toDate();
+    } else if (typeof date === 'object' && date.seconds) {
+      d = new Date(date.seconds * 1000);
+    } else if (typeof date === 'string' || typeof date === 'number') {
+      d = new Date(date);
+    } else {
+      return '-';
+    }
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return '-';
+  }
 };
 
 /**

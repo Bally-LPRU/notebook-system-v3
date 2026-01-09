@@ -8,7 +8,7 @@
  * Design System: Matches AdminDashboard pastel color palette
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   ChartBarIcon,
   ArrowTrendingUpIcon,
@@ -22,7 +22,6 @@ import {
 import EquipmentUsageAnalyzerService from '../../services/equipmentUsageAnalyzerService';
 import {
   getClassificationLabel,
-  getClassificationBadgeClass,
   formatUtilizationRate
 } from '../../types/equipmentUtilization';
 import { Layout } from '../layout';
@@ -38,12 +37,28 @@ const COLORS = {
 };
 
 /**
- * Format date for display
+ * Format date for display - handles various date formats safely
  */
 const formatDate = (date) => {
   if (!date) return '-';
-  const d = date?.toDate?.() || new Date(date);
-  return d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+  try {
+    let d;
+    if (date instanceof Date) {
+      d = date;
+    } else if (typeof date.toDate === 'function') {
+      d = date.toDate();
+    } else if (typeof date === 'object' && date.seconds) {
+      d = new Date(date.seconds * 1000);
+    } else if (typeof date === 'string' || typeof date === 'number') {
+      d = new Date(date);
+    } else {
+      return '-';
+    }
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch {
+    return '-';
+  }
 };
 
 /**
@@ -71,29 +86,68 @@ const StatCard = ({ title, value, icon: Icon, color, delay = 0 }) => (
 );
 
 /**
+ * Safely extract string value from potentially object data
+ * Prevents "Objects are not valid as a React child" errors
+ */
+const safeString = (value, defaultValue = '') => {
+  if (value === null || value === undefined) return defaultValue;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'object') {
+    // Handle common object patterns like { name, id, icon }
+    if (value.name) return String(value.name);
+    if (value.label) return String(value.label);
+    if (value.title) return String(value.title);
+    if (value.id) return String(value.id);
+    return defaultValue;
+  }
+  return defaultValue;
+};
+
+/**
  * Equipment Card Component
  */
 const EquipmentCard = ({ equipment, showRecommendation = false }) => {
-  const daysSinceLastBorrow = equipment.lastBorrowedDate
-    ? Math.floor((new Date() - new Date(equipment.lastBorrowedDate)) / (1000 * 60 * 60 * 24))
-    : null;
+  // Safely calculate days since last borrow
+  const daysSinceLastBorrow = (() => {
+    if (!equipment.lastBorrowedDate) return null;
+    try {
+      const lastDate = equipment.lastBorrowedDate?.toDate?.() 
+        || (typeof equipment.lastBorrowedDate === 'object' && equipment.lastBorrowedDate.seconds 
+            ? new Date(equipment.lastBorrowedDate.seconds * 1000)
+            : new Date(equipment.lastBorrowedDate));
+      if (isNaN(lastDate.getTime())) return null;
+      return Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
+    } catch {
+      return null;
+    }
+  })();
 
-  const utilizationColor = equipment.utilizationRate > 0.8 ? 'red' : 
-    equipment.utilizationRate > 0.5 ? 'yellow' : 
-    equipment.utilizationRate > 0.2 ? 'green' : 'gray';
+  const utilizationRate = typeof equipment.utilizationRate === 'number' ? equipment.utilizationRate : 0;
+  const utilizationColor = utilizationRate > 0.8 ? 'red' : 
+    utilizationRate > 0.5 ? 'yellow' : 
+    utilizationRate > 0.2 ? 'green' : 'gray';
+
+  // Safely get all string values
+  const equipmentName = safeString(equipment.equipmentName, 'ไม่ระบุชื่อ');
+  const categoryName = safeString(equipment.category);
+  const classification = safeString(equipment.classification, 'normal');
+  const totalLoans = typeof equipment.totalLoans === 'number' ? equipment.totalLoans : 0;
+  const averageLoanDuration = typeof equipment.averageLoanDuration === 'number' ? equipment.averageLoanDuration : 0;
+  const recommendation = safeString(equipment.recommendation);
 
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-100 p-5 
       hover:shadow-lg hover:scale-[1.02] transition-all duration-300 animate-fade-in">
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-semibold text-gray-900 truncate">{equipment.equipmentName}</h4>
-          {equipment.category && (
-            <p className="text-xs text-gray-500 mt-1">{equipment.category}</p>
+          <h4 className="text-sm font-semibold text-gray-900 truncate">{equipmentName}</h4>
+          {categoryName && (
+            <p className="text-xs text-gray-500 mt-1">{categoryName}</p>
           )}
         </div>
         <span className={`px-3 py-1 text-xs font-medium ${COLORS[utilizationColor].text} ${COLORS[utilizationColor].bg} rounded-full`}>
-          {getClassificationLabel(equipment.classification)}
+          {getClassificationLabel(classification)}
         </span>
       </div>
 
@@ -101,17 +155,17 @@ const EquipmentCard = ({ equipment, showRecommendation = false }) => {
         <div className="bg-gray-50 rounded-xl p-3">
           <span className="text-gray-500 text-xs">อัตราการใช้งาน</span>
           <p className={`font-bold ${COLORS[utilizationColor].text}`}>
-            {formatUtilizationRate(equipment.utilizationRate)}
+            {formatUtilizationRate(utilizationRate)}
           </p>
         </div>
         <div className="bg-gray-50 rounded-xl p-3">
           <span className="text-gray-500 text-xs">จำนวนการยืม</span>
-          <p className="font-bold text-gray-900">{equipment.totalLoans} ครั้ง</p>
+          <p className="font-bold text-gray-900">{totalLoans} ครั้ง</p>
         </div>
-        {equipment.averageLoanDuration > 0 && (
+        {averageLoanDuration > 0 && (
           <div className="bg-gray-50 rounded-xl p-3">
             <span className="text-gray-500 text-xs">ระยะเวลาเฉลี่ย</span>
-            <p className="font-bold text-gray-900">{equipment.averageLoanDuration} วัน</p>
+            <p className="font-bold text-gray-900">{averageLoanDuration} วัน</p>
           </div>
         )}
         {daysSinceLastBorrow !== null && (
@@ -122,9 +176,9 @@ const EquipmentCard = ({ equipment, showRecommendation = false }) => {
         )}
       </div>
 
-      {showRecommendation && equipment.recommendation && (
+      {showRecommendation && recommendation && (
         <div className="mt-3 pt-3 border-t border-gray-100">
-          <p className="text-xs text-gray-600 bg-amber-50 rounded-xl p-3">{equipment.recommendation}</p>
+          <p className="text-xs text-gray-600 bg-amber-50 rounded-xl p-3">{recommendation}</p>
         </div>
       )}
     </div>
@@ -139,6 +193,12 @@ const RecommendationCard = ({ recommendation, index }) => {
   const Icon = isIncrease ? ArrowTrendingUpIcon : ArrowTrendingDownIcon;
   const color = isIncrease ? 'red' : 'gray';
 
+  // Safely extract string values
+  const equipmentName = safeString(recommendation.equipmentName, 'ไม่ระบุชื่อ');
+  const reason = safeString(recommendation.reason, '');
+  const utilizationRate = typeof recommendation.utilizationRate === 'number' ? recommendation.utilizationRate : 0;
+  const demandScore = typeof recommendation.demandScore === 'number' ? recommendation.demandScore : 0;
+
   return (
     <div className={`${COLORS[color].bg} rounded-2xl shadow-sm p-5 
       hover:shadow-lg transition-all duration-300 animate-fade-in`}
@@ -148,14 +208,14 @@ const RecommendationCard = ({ recommendation, index }) => {
           <Icon className={`w-6 h-6 ${COLORS[color].text}`} />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-semibold text-gray-900">{recommendation.equipmentName}</h4>
-          <p className="text-xs text-gray-600 mt-1">{recommendation.reason}</p>
+          <h4 className="text-sm font-semibold text-gray-900">{equipmentName}</h4>
+          <p className="text-xs text-gray-600 mt-1">{reason}</p>
           <div className="mt-3 flex items-center space-x-4 text-xs">
             <span className="px-2 py-1 bg-white rounded-lg">
-              อัตราการใช้งาน: <span className="font-bold">{formatUtilizationRate(recommendation.utilizationRate)}</span>
+              อัตราการใช้งาน: <span className="font-bold">{formatUtilizationRate(utilizationRate)}</span>
             </span>
             <span className="px-2 py-1 bg-white rounded-lg">
-              คะแนน: <span className="font-bold">{recommendation.demandScore}</span>
+              คะแนน: <span className="font-bold">{demandScore}</span>
             </span>
           </div>
         </div>

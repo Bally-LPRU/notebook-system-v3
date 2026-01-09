@@ -287,10 +287,15 @@ class EquipmentUsageAnalyzerService {
       );
 
       // Create utilization object
+      // Handle category - can be object { id, name, icon } or string
+      const categoryName = typeof equipment.category === 'object' && equipment.category !== null
+        ? equipment.category.name || equipment.category.id || ''
+        : equipment.category || equipment.categoryId || '';
+      
       const utilization = createEquipmentUtilization({
         equipmentId,
         equipmentName: equipment.name || 'Unknown',
-        category: equipment.category || equipment.categoryId || '',
+        category: categoryName,
         totalDays: analysisDays,
         borrowedDays: loanStats.borrowedDays,
         utilizationRate,

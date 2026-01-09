@@ -62,6 +62,75 @@ export const getCategoryId = (category) => {
 };
 
 /**
+ * Safely convert any value to a string for rendering in React.
+ * 
+ * This utility prevents "Objects are not valid as a React child" errors
+ * by ensuring the value is always a primitive that can be rendered.
+ * 
+ * **Usage:**
+ * ```js
+ * safeString({ name: 'Test' }) // '[object Object]' or custom handling
+ * safeString('Hello') // 'Hello'
+ * safeString(123) // '123'
+ * safeString(null) // '-'
+ * safeString(undefined) // '-'
+ * ```
+ * 
+ * @function
+ * @param {*} value - Any value to convert to string
+ * @param {string} [defaultValue='-'] - Default value if null/undefined
+ * @returns {string} Safe string for rendering
+ */
+export const safeString = (value, defaultValue = '-') => {
+  if (value === null || value === undefined) return defaultValue;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'object') {
+    // Handle common object patterns
+    if (value.name) return value.name;
+    if (value.label) return value.label;
+    if (value.title) return value.title;
+    if (value.id) return value.id;
+    // Fallback - don't render objects directly
+    return defaultValue;
+  }
+  return defaultValue;
+};
+
+/**
+ * Safely convert a date value to Date object.
+ * 
+ * Handles various date formats including Firestore Timestamps,
+ * Date objects, strings, and numbers.
+ * 
+ * @function
+ * @param {*} value - Date value in various formats
+ * @returns {Date|null} Date object or null if invalid
+ */
+export const safeDate = (value) => {
+  if (!value) return null;
+  
+  try {
+    if (value instanceof Date) {
+      return isNaN(value.getTime()) ? null : value;
+    }
+    if (typeof value.toDate === 'function') {
+      return value.toDate();
+    }
+    if (typeof value === 'object' && typeof value.seconds === 'number') {
+      return new Date(value.seconds * 1000);
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      const date = new Date(value);
+      return isNaN(date.getTime()) ? null : date;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * ฟอร์แมตหมายเลขอุปกรณ์
  * @param {Object} equipment - ข้อมูลอุปกรณ์
  * @returns {string} หมายเลขอุปกรณ์
@@ -130,25 +199,56 @@ export const getEquipmentImageUrl = (equipment) => {
 };
 
 /**
- * ฟอร์แมตวันที่
- * @param {Date|Object} date - วันที่ (Date object หรือ Firestore Timestamp)
- * @returns {string} วันที่ในรูปแบบไทย
+ * ฟอร์แมตวันที่ - รองรับหลายรูปแบบอย่างปลอดภัย
+ * @param {Date|Object|string|number} date - วันที่ (Date object, Firestore Timestamp, string, หรือ number)
+ * @param {Object} options - ตัวเลือกการแสดงผล
+ * @param {boolean} options.short - ใช้รูปแบบสั้น (default: false)
+ * @returns {string} วันที่ในรูปแบบไทย หรือ '-' ถ้าไม่สามารถแปลงได้
  */
-export const formatDate = (date) => {
+export const formatDate = (date, options = {}) => {
   if (!date) return '-';
   
   try {
-    const dateObj = date.toDate ? date.toDate() : new Date(date);
-    return dateObj.toLocaleDateString('th-TH', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    let dateObj;
+    
+    // Handle different date formats
+    if (date instanceof Date) {
+      dateObj = date;
+    } else if (typeof date.toDate === 'function') {
+      // Firestore Timestamp with toDate method
+      dateObj = date.toDate();
+    } else if (typeof date === 'object' && date !== null && typeof date.seconds === 'number') {
+      // Firestore Timestamp object { seconds, nanoseconds }
+      dateObj = new Date(date.seconds * 1000);
+    } else if (typeof date === 'string' || typeof date === 'number') {
+      dateObj = new Date(date);
+    } else {
+      // Unknown format
+      return '-';
+    }
+    
+    // Validate the date
+    if (isNaN(dateObj.getTime())) {
+      return '-';
+    }
+    
+    const formatOptions = options.short 
+      ? { year: 'numeric', month: 'short', day: 'numeric' }
+      : { year: 'numeric', month: 'long', day: 'numeric' };
+    
+    return dateObj.toLocaleDateString('th-TH', formatOptions);
   } catch (error) {
     console.error('Error formatting date:', error);
     return '-';
   }
 };
+
+/**
+ * ฟอร์แมตวันที่แบบสั้น
+ * @param {Date|Object|string|number} date - วันที่
+ * @returns {string} วันที่ในรูปแบบสั้น
+ */
+export const formatDateShort = (date) => formatDate(date, { short: true });
 
 /**
  * ฟอร์แมตราคา
