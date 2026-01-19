@@ -229,7 +229,13 @@ class DuplicateDetectionService {
       case 'pending':
         return '/pending-approval';
       case 'approved':
-        return profile.role === 'admin' ? '/admin' : '/dashboard';
+        // Route based on role: admin -> /admin, staff -> /staff/dashboard, others -> /dashboard
+        if (profile.role === 'admin') {
+          return '/admin';
+        } else if (profile.role === 'staff') {
+          return '/staff/dashboard';
+        }
+        return '/dashboard';
       case 'rejected':
         return '/account-rejected';
       default:

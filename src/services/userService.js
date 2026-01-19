@@ -202,13 +202,37 @@ class UserService {
     try {
       const userDocRef = doc(db, 'users', userId);
       
-      await updateDoc(userDocRef, {
+      // Get current user data to check previous role
+      const userDoc = await getDoc(userDocRef);
+      const currentData = userDoc.exists() ? userDoc.data() : {};
+      const previousRole = currentData.role;
+      
+      const updateData = {
         role: newRole,
         roleUpdatedBy: updatedBy,
         roleUpdatedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      });
+      };
       
+      // If assigning Staff role, record staffAssignedAt and staffAssignedBy
+      if (newRole === 'staff' && previousRole !== 'staff') {
+        updateData.staffAssignedAt = serverTimestamp();
+        updateData.staffAssignedBy = updatedBy;
+        console.log('📋 Recording Staff role assignment:', { userId, assignedBy: updatedBy });
+      }
+      
+      // If removing Staff role, clear staff assignment fields
+      if (previousRole === 'staff' && newRole !== 'staff') {
+        updateData.staffAssignedAt = null;
+        updateData.staffAssignedBy = null;
+        updateData.staffRemovedAt = serverTimestamp();
+        updateData.staffRemovedBy = updatedBy;
+        console.log('📋 Recording Staff role removal:', { userId, removedBy: updatedBy });
+      }
+      
+      await updateDoc(userDocRef, updateData);
+      
+      console.log('✅ User role updated:', { userId, newRole, previousRole });
       return { success: true };
     } catch (error) {
       console.error('Error updating user role:', error);

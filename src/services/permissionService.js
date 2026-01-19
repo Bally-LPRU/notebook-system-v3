@@ -6,10 +6,12 @@ import { db } from '../config/firebase';
  * Handles role-based access control and permission validation
  */
 class PermissionService {
-  // Define roles and their hierarchy
+  // Define roles and their hierarchy (User < Viewer < Editor < Staff < Admin)
   static ROLES = {
+    USER: 'user',
     VIEWER: 'viewer',
-    EDITOR: 'editor', 
+    EDITOR: 'editor',
+    STAFF: 'staff',
     ADMIN: 'admin'
   };
 
@@ -40,11 +42,29 @@ class PermissionService {
     USER_MANAGE: 'user:manage',
     
     // System permissions
-    SYSTEM_SETTINGS: 'system:settings'
+    SYSTEM_SETTINGS: 'system:settings',
+    
+    // Loan management permissions (Staff)
+    LOAN_REQUEST_VIEW: 'loan_request:view',
+    LOAN_REQUEST_APPROVE: 'loan_request:approve',
+    LOAN_REQUEST_REJECT: 'loan_request:reject',
+    LOAN_RETURN_PROCESS: 'loan_return:process',
+    LOAN_RETURN_VERIFY: 'loan_return:verify',
+    OVERDUE_VIEW: 'overdue:view',
+    OVERDUE_NOTIFY: 'overdue:notify',
+    
+    // Reservation permissions
+    RESERVATION_MANAGE: 'reservation:manage',
+    
+    // Intelligence permissions
+    INTELLIGENCE_ACCESS: 'intelligence:access'
   };
 
   // Role-permission mapping
   static ROLE_PERMISSIONS = {
+    [this.ROLES.USER]: [
+      this.PERMISSIONS.EQUIPMENT_VIEW
+    ],
     [this.ROLES.VIEWER]: [
       this.PERMISSIONS.EQUIPMENT_VIEW,
       this.PERMISSIONS.CATEGORY_VIEW,
@@ -57,6 +77,22 @@ class PermissionService {
       this.PERMISSIONS.CATEGORY_VIEW,
       this.PERMISSIONS.REPORT_VIEW,
       this.PERMISSIONS.REPORT_GENERATE
+    ],
+    [this.ROLES.STAFF]: [
+      // Staff can view equipment
+      this.PERMISSIONS.EQUIPMENT_VIEW,
+      this.PERMISSIONS.CATEGORY_VIEW,
+      // Loan management permissions
+      this.PERMISSIONS.LOAN_REQUEST_VIEW,
+      this.PERMISSIONS.LOAN_REQUEST_APPROVE,
+      this.PERMISSIONS.LOAN_REQUEST_REJECT,
+      this.PERMISSIONS.LOAN_RETURN_PROCESS,
+      this.PERMISSIONS.LOAN_RETURN_VERIFY,
+      // Overdue management
+      this.PERMISSIONS.OVERDUE_VIEW,
+      this.PERMISSIONS.OVERDUE_NOTIFY,
+      // Reports (view only)
+      this.PERMISSIONS.REPORT_VIEW
     ],
     [this.ROLES.ADMIN]: [
       this.PERMISSIONS.EQUIPMENT_VIEW,
@@ -73,7 +109,18 @@ class PermissionService {
       this.PERMISSIONS.AUDIT_MANAGE,
       this.PERMISSIONS.USER_VIEW,
       this.PERMISSIONS.USER_MANAGE,
-      this.PERMISSIONS.SYSTEM_SETTINGS
+      this.PERMISSIONS.SYSTEM_SETTINGS,
+      // Admin also has all Staff permissions
+      this.PERMISSIONS.LOAN_REQUEST_VIEW,
+      this.PERMISSIONS.LOAN_REQUEST_APPROVE,
+      this.PERMISSIONS.LOAN_REQUEST_REJECT,
+      this.PERMISSIONS.LOAN_RETURN_PROCESS,
+      this.PERMISSIONS.LOAN_RETURN_VERIFY,
+      this.PERMISSIONS.OVERDUE_VIEW,
+      this.PERMISSIONS.OVERDUE_NOTIFY,
+      // Admin-only permissions
+      this.PERMISSIONS.RESERVATION_MANAGE,
+      this.PERMISSIONS.INTELLIGENCE_ACCESS
     ]
   };
 
@@ -233,6 +280,12 @@ class PermissionService {
    */
   static getRoleDisplayInfo(role) {
     const roleInfo = {
+      [this.ROLES.USER]: {
+        name: 'ผู้ใช้งาน',
+        description: 'สามารถยืมอุปกรณ์และดูข้อมูลได้',
+        color: 'gray',
+        icon: 'user'
+      },
       [this.ROLES.VIEWER]: {
         name: 'ผู้ดู',
         description: 'สามารถดูข้อมูลอุปกรณ์และรายงานได้',
@@ -244,6 +297,12 @@ class PermissionService {
         description: 'สามารถเพิ่มและแก้ไขข้อมูลอุปกรณ์ได้',
         color: 'green',
         icon: 'edit'
+      },
+      [this.ROLES.STAFF]: {
+        name: 'เจ้าหน้าที่ให้บริการ',
+        description: 'สามารถอนุมัติและจัดการคำขอยืม-คืนอุปกรณ์ได้',
+        color: 'indigo',
+        icon: 'clipboard-document-list'
       },
       [this.ROLES.ADMIN]: {
         name: 'ผู้ดูแลระบบ',
@@ -357,6 +416,156 @@ class PermissionService {
       console.error('Error refreshing user permissions:', error);
       throw error;
     }
+  }
+
+  // ==================== Staff-specific permission checks ====================
+
+  /**
+   * Check if user is Staff
+   * @param {Object} user - User object
+   * @returns {boolean} True if user has Staff role
+   */
+  static isStaff(user) {
+    return user?.role === this.ROLES.STAFF;
+  }
+
+  /**
+   * Check if user is Staff or Admin (can perform Staff functions)
+   * @param {Object} user - User object
+   * @returns {boolean} True if user can perform Staff functions
+   */
+  static canPerformStaffFunctions(user) {
+    return user?.role === this.ROLES.STAFF || user?.role === this.ROLES.ADMIN;
+  }
+
+  /**
+   * Check if user can approve loan requests
+   * @param {Object} user - User object
+   * @returns {boolean} True if user can approve loans
+   */
+  static canApproveLoan(user) {
+    return this.hasPermission(user, this.PERMISSIONS.LOAN_REQUEST_APPROVE);
+  }
+
+  /**
+   * Check if user can reject loan requests
+   * @param {Object} user - User object
+   * @returns {boolean} True if user can reject loans
+   */
+  static canRejectLoan(user) {
+    return this.hasPermission(user, this.PERMISSIONS.LOAN_REQUEST_REJECT);
+  }
+
+  /**
+   * Check if user can process equipment returns
+   * @param {Object} user - User object
+   * @returns {boolean} True if user can process returns
+   */
+  static canProcessReturn(user) {
+    return this.hasPermission(user, this.PERMISSIONS.LOAN_RETURN_PROCESS);
+  }
+
+  /**
+   * Check if user can verify equipment condition on return
+   * @param {Object} user - User object
+   * @returns {boolean} True if user can verify returns
+   */
+  static canVerifyReturn(user) {
+    return this.hasPermission(user, this.PERMISSIONS.LOAN_RETURN_VERIFY);
+  }
+
+  /**
+   * Check if user can view overdue loans
+   * @param {Object} user - User object
+   * @returns {boolean} True if user can view overdue
+   */
+  static canViewOverdue(user) {
+    return this.hasPermission(user, this.PERMISSIONS.OVERDUE_VIEW);
+  }
+
+  /**
+   * Check if user can send overdue notifications
+   * @param {Object} user - User object
+   * @returns {boolean} True if user can notify overdue
+   */
+  static canNotifyOverdue(user) {
+    return this.hasPermission(user, this.PERMISSIONS.OVERDUE_NOTIFY);
+  }
+
+  /**
+   * Check if user can view loan requests
+   * @param {Object} user - User object
+   * @returns {boolean} True if user can view loan requests
+   */
+  static canViewLoanRequests(user) {
+    return this.hasPermission(user, this.PERMISSIONS.LOAN_REQUEST_VIEW);
+  }
+
+  /**
+   * Get list of permissions that Staff does NOT have (restricted permissions)
+   * @returns {Array<string>} Array of restricted permissions for Staff
+   */
+  static getStaffRestrictedPermissions() {
+    return [
+      this.PERMISSIONS.USER_MANAGE,
+      this.PERMISSIONS.EQUIPMENT_CREATE,
+      this.PERMISSIONS.EQUIPMENT_UPDATE,
+      this.PERMISSIONS.EQUIPMENT_DELETE,
+      this.PERMISSIONS.EQUIPMENT_BULK_EDIT,
+      this.PERMISSIONS.EQUIPMENT_BULK_DELETE,
+      this.PERMISSIONS.CATEGORY_MANAGE,
+      this.PERMISSIONS.RESERVATION_MANAGE,
+      this.PERMISSIONS.SYSTEM_SETTINGS,
+      this.PERMISSIONS.INTELLIGENCE_ACCESS,
+      this.PERMISSIONS.AUDIT_VIEW,
+      this.PERMISSIONS.AUDIT_MANAGE
+    ];
+  }
+
+  /**
+   * Check if a permission is restricted for Staff
+   * @param {string} permission - Permission to check
+   * @returns {boolean} True if permission is restricted for Staff
+   */
+  static isStaffRestrictedPermission(permission) {
+    return this.getStaffRestrictedPermissions().includes(permission);
+  }
+
+  /**
+   * Get all available roles for display (e.g., in dropdowns)
+   * @returns {Array<Object>} Array of role objects with value and display info
+   */
+  static getAllRoles() {
+    return Object.values(this.ROLES).map(role => ({
+      value: role,
+      ...this.getRoleDisplayInfo(role)
+    }));
+  }
+
+  /**
+   * Check if role A has higher or equal privileges than role B
+   * @param {string} roleA - First role
+   * @param {string} roleB - Second role
+   * @returns {boolean} True if roleA >= roleB in hierarchy
+   */
+  static hasHigherOrEqualRole(roleA, roleB) {
+    const hierarchy = [
+      this.ROLES.USER,
+      this.ROLES.VIEWER,
+      this.ROLES.EDITOR,
+      this.ROLES.STAFF,
+      this.ROLES.ADMIN
+    ];
+    
+    const indexA = hierarchy.indexOf(roleA);
+    const indexB = hierarchy.indexOf(roleB);
+    
+    // If either role is not found, return false
+    if (indexA === -1 || indexB === -1) {
+      return false;
+    }
+    
+    return indexA >= indexB;
   }
 }
 

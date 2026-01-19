@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import UserService from '../../services/userService';
+import PermissionService from '../../services/permissionService';
 import { 
   USER_TYPES, 
   USER_TYPE_NAMES 
@@ -11,6 +13,7 @@ import { getUserTypeLimitsFromSettings } from '../../hooks/useUserTypeLimits';
 const UserEditModal = ({ user, onClose, onSave }) => {
   const { user: currentUser } = useAuth();
   const { settings } = useSettings();
+  const { isStaff, isAdmin } = usePermissions();
   const [formData, setFormData] = useState({
     displayName: '',
     firstName: '',
@@ -122,8 +125,14 @@ const UserEditModal = ({ user, onClose, onSave }) => {
         }
       }
 
-      // Handle role changes
+      // Handle role changes - Only Admin can change roles
       if (formData.role !== user.role) {
+        // Prevent Staff from changing roles (server-side check)
+        if (isStaff && !isAdmin) {
+          setError('คุณไม่มีสิทธิ์เปลี่ยนบทบาทผู้ใช้');
+          setLoading(false);
+          return;
+        }
         await UserService.updateUserRole(user.id, formData.role, currentUser.uid);
       }
 
@@ -299,7 +308,8 @@ const UserEditModal = ({ user, onClose, onSave }) => {
                       </div>
                     )}
 
-                    {/* Role */}
+                    {/* Role - Only show to Admin users, hide from Staff */}
+                    {isAdmin && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         บทบาท
@@ -311,9 +321,31 @@ const UserEditModal = ({ user, onClose, onSave }) => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         <option value="user">ผู้ใช้ทั่วไป</option>
+                        <option value="staff">เจ้าหน้าที่ให้บริการ</option>
                         <option value="admin">ผู้ดูแลระบบ</option>
                       </select>
+                      {formData.role === 'staff' && (
+                        <p className="mt-1 text-xs text-indigo-600">
+                          เจ้าหน้าที่ให้บริการสามารถอนุมัติ/ปฏิเสธคำขอยืม และรับคืนอุปกรณ์ได้
+                        </p>
+                      )}
                     </div>
+                    )}
+
+                    {/* Show current role for Staff users (read-only) */}
+                    {isStaff && !isAdmin && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        บทบาท
+                      </label>
+                      <div className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-600">
+                        {PermissionService.getRoleDisplayInfo(formData.role).name}
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        คุณไม่มีสิทธิ์เปลี่ยนบทบาทผู้ใช้
+                      </p>
+                    </div>
+                    )}
 
                     {/* Status */}
                     <div>

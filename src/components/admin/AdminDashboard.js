@@ -10,6 +10,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer
 } from 'recharts';
+import StaffActivitySection from './StaffActivitySection';
 
 // Pastel Color Palette
 const COLORS = {
@@ -505,6 +506,9 @@ const AdminDashboard = () => {
             </button>
           </div>
         </div>
+
+        {/* Staff Activity Section - Requirement 12.6 */}
+        <StaffActivitySection maxItems={8} showFilters={true} />
 
         {/* Two Column: Pending & Borrowed */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

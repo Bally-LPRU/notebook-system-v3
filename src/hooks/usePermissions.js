@@ -32,6 +32,16 @@ export const usePermissions = () => {
         canManageAudit: false,
         canManageUsers: false,
         canManageSystem: false,
+        canViewLoanRequests: false,
+        canApproveLoan: false,
+        canRejectLoan: false,
+        canProcessReturn: false,
+        canVerifyReturn: false,
+        canViewOverdue: false,
+        canNotifyOverdue: false,
+        isStaff: false,
+        isAdmin: false,
+        canPerformStaffFunctions: false,
         validateEquipmentAccess: () => ({ allowed: false, reason: 'ไม่ได้เข้าสู่ระบบ' }),
         validateBulkAccess: () => ({ allowed: false, reason: 'ไม่ได้เข้าสู่ระบบ' }),
         getRoleDisplayInfo: () => PermissionService.getRoleDisplayInfo(null)
@@ -75,6 +85,20 @@ export const usePermissions = () => {
       
       // System permissions
       canManageSystem: PermissionService.hasPermission(userProfile, PermissionService.PERMISSIONS.SYSTEM_SETTINGS),
+      
+      // Staff-specific loan management permissions
+      canViewLoanRequests: PermissionService.hasPermission(userProfile, PermissionService.PERMISSIONS.LOAN_REQUEST_VIEW),
+      canApproveLoan: PermissionService.hasPermission(userProfile, PermissionService.PERMISSIONS.LOAN_REQUEST_APPROVE),
+      canRejectLoan: PermissionService.hasPermission(userProfile, PermissionService.PERMISSIONS.LOAN_REQUEST_REJECT),
+      canProcessReturn: PermissionService.hasPermission(userProfile, PermissionService.PERMISSIONS.LOAN_RETURN_PROCESS),
+      canVerifyReturn: PermissionService.hasPermission(userProfile, PermissionService.PERMISSIONS.LOAN_RETURN_VERIFY),
+      canViewOverdue: PermissionService.hasPermission(userProfile, PermissionService.PERMISSIONS.OVERDUE_VIEW),
+      canNotifyOverdue: PermissionService.hasPermission(userProfile, PermissionService.PERMISSIONS.OVERDUE_NOTIFY),
+      
+      // Role checks
+      isStaff: userProfile.role === PermissionService.ROLES.STAFF,
+      isAdmin: userProfile.role === PermissionService.ROLES.ADMIN,
+      canPerformStaffFunctions: PermissionService.canPerformStaffFunctions(userProfile),
       
       // Validation functions
       validateEquipmentAccess: (operation, equipment) => 

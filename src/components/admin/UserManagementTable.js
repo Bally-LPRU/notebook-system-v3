@@ -77,11 +77,13 @@ const UserManagementTable = ({ users, onUserUpdate, onUserDelete, onLoadMore, ha
   const getRoleBadge = (role) => {
     const badges = {
       admin: 'bg-purple-100 text-purple-800',
+      staff: 'bg-indigo-100 text-indigo-800',
       user: 'bg-blue-100 text-blue-800'
     };
 
     const labels = {
       admin: 'ผู้ดูแลระบบ',
+      staff: 'เจ้าหน้าที่ให้บริการ',
       user: 'ผู้ใช้ทั่วไป'
     };
 
@@ -335,7 +337,10 @@ const UserManagementTable = ({ users, onUserUpdate, onUserDelete, onLoadMore, ha
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">บทบาท</p>
-                      <p className="font-medium">{selectedUser.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้ทั่วไป'}</p>
+                      <p className="font-medium">
+                        {selectedUser.role === 'admin' ? 'ผู้ดูแลระบบ' : 
+                         selectedUser.role === 'staff' ? 'เจ้าหน้าที่ให้บริการ' : 'ผู้ใช้ทั่วไป'}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">สถานะ</p>

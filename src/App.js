@@ -10,6 +10,7 @@ import LoginPage from './components/auth/LoginPage';
 import ProfileSetupPage from './components/auth/ProfileSetupPage';
 import ProfileStatusDisplay from './components/auth/ProfileStatusDisplay';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import StaffRoute from './components/auth/StaffRoute';
 import NotFound from './components/NotFound';
 import PWAInstallPrompt from './components/common/PWAInstallPrompt';
 import OfflineIndicator from './components/common/OfflineIndicator';
@@ -38,6 +39,15 @@ const LazyDataManagementConsole = lazy(() => import('./components/admin/DataMana
 const LazyUsageAnalyticsDashboard = lazy(() => import('./components/admin/UsageAnalyticsDashboard'));
 const LazyUserReliabilityDashboard = lazy(() => import('./components/admin/UserReliabilityDashboard'));
 const LazyReportHistoryViewer = lazy(() => import('./components/admin/ReportHistoryViewer'));
+
+// Staff Activity Page
+const LazyStaffActivityPage = lazy(() => import('./components/admin/StaffActivityPage'));
+
+// Staff Pages
+const LazyStaffDashboard = lazy(() => import('./components/staff/StaffDashboard'));
+const LazyStaffLoanRequestList = lazy(() => import('./components/staff/StaffLoanRequestList'));
+const LazyStaffReturnList = lazy(() => import('./components/staff/StaffReturnList'));
+const LazyStaffOverdueList = lazy(() => import('./components/staff/StaffOverdueList'));
 
 // Lazy loaded components
 const LazyAdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
@@ -119,6 +129,8 @@ const AppRoutes = () => {
           <ProtectedRoute>
             {userProfile?.role === 'admin' ? (
               <Navigate to="/admin" replace />
+            ) : userProfile?.role === 'staff' ? (
+              <Navigate to="/staff/dashboard" replace />
             ) : (
               <Navigate to="/dashboard" replace />
             )}
@@ -257,6 +269,38 @@ const AppRoutes = () => {
         <ProtectedRoute requireAdmin={true}>
           <LazyReportHistoryViewer />
         </ProtectedRoute>
+      } />
+      
+      {/* Staff Activity Page (Admin only) */}
+      <Route path="/admin/staff-activity" element={
+        <ProtectedRoute requireAdmin={true}>
+          <LazyStaffActivityPage />
+        </ProtectedRoute>
+      } />
+      
+      {/* Staff Routes */}
+      <Route path="/staff/dashboard" element={
+        <StaffRoute>
+          <LazyStaffDashboard />
+        </StaffRoute>
+      } />
+      
+      <Route path="/staff/loan-requests" element={
+        <StaffRoute>
+          <LazyStaffLoanRequestList />
+        </StaffRoute>
+      } />
+      
+      <Route path="/staff/returns" element={
+        <StaffRoute>
+          <LazyStaffReturnList />
+        </StaffRoute>
+      } />
+      
+      <Route path="/staff/overdue" element={
+        <StaffRoute>
+          <LazyStaffOverdueList />
+        </StaffRoute>
       } />
 
       {/* Status Pages - redirect approved users */}

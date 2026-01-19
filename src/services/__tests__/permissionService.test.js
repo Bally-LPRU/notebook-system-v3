@@ -22,6 +22,20 @@ describe('PermissionService', () => {
     status: 'approved'
   };
 
+  const mockStaff = {
+    uid: 'staff-user-123',
+    email: 'staff@example.com',
+    role: 'staff',
+    status: 'approved'
+  };
+
+  const mockBasicUser = {
+    uid: 'basic-user-123',
+    email: 'user@example.com',
+    role: 'user',
+    status: 'approved'
+  };
+
   describe('getUserPermissions', () => {
     test('should return correct permissions for viewer role', () => {
       const permissions = PermissionService.getUserPermissions('viewer');
@@ -224,6 +238,213 @@ describe('PermissionService', () => {
       const permissions = PermissionService.getEffectivePermissions(userWithoutRole);
       
       expect(permissions).toEqual({});
+    });
+  });
+
+  // ==================== Staff Role Tests ====================
+  // Tests for Requirements 1.1, 1.2, 2.1, 2.2, 2.3, 11.1, 11.7
+
+  describe('Staff Role - Permission Boundary', () => {
+    // Validates: Requirements 2.1, 2.2, 2.3
+    
+    test('should return correct permissions for staff role', () => {
+      const permissions = PermissionService.getUserPermissions('staff');
+      
+      // Staff should have loan management permissions
+      expect(permissions).toContain(PermissionService.PERMISSIONS.LOAN_REQUEST_VIEW);
+      expect(permissions).toContain(PermissionService.PERMISSIONS.LOAN_REQUEST_APPROVE);
+      expect(permissions).toContain(PermissionService.PERMISSIONS.LOAN_REQUEST_REJECT);
+      expect(permissions).toContain(PermissionService.PERMISSIONS.LOAN_RETURN_PROCESS);
+      expect(permissions).toContain(PermissionService.PERMISSIONS.LOAN_RETURN_VERIFY);
+      expect(permissions).toContain(PermissionService.PERMISSIONS.OVERDUE_VIEW);
+      expect(permissions).toContain(PermissionService.PERMISSIONS.OVERDUE_NOTIFY);
+      expect(permissions).toContain(PermissionService.PERMISSIONS.EQUIPMENT_VIEW);
+      expect(permissions).toContain(PermissionService.PERMISSIONS.REPORT_VIEW);
+    });
+
+    test('should NOT have restricted permissions for staff role', () => {
+      const permissions = PermissionService.getUserPermissions('staff');
+      
+      // Staff should NOT have these permissions
+      expect(permissions).not.toContain(PermissionService.PERMISSIONS.USER_MANAGE);
+      expect(permissions).not.toContain(PermissionService.PERMISSIONS.EQUIPMENT_CREATE);
+      expect(permissions).not.toContain(PermissionService.PERMISSIONS.EQUIPMENT_UPDATE);
+      expect(permissions).not.toContain(PermissionService.PERMISSIONS.EQUIPMENT_DELETE);
+      expect(permissions).not.toContain(PermissionService.PERMISSIONS.CATEGORY_MANAGE);
+      expect(permissions).not.toContain(PermissionService.PERMISSIONS.RESERVATION_MANAGE);
+      expect(permissions).not.toContain(PermissionService.PERMISSIONS.SYSTEM_SETTINGS);
+      expect(permissions).not.toContain(PermissionService.PERMISSIONS.INTELLIGENCE_ACCESS);
+      expect(permissions).not.toContain(PermissionService.PERMISSIONS.AUDIT_VIEW);
+      expect(permissions).not.toContain(PermissionService.PERMISSIONS.AUDIT_MANAGE);
+    });
+
+    test('should return false for restricted permissions when checking staff', () => {
+      const restrictedPermissions = PermissionService.getStaffRestrictedPermissions();
+      
+      restrictedPermissions.forEach(permission => {
+        expect(PermissionService.hasPermission(mockStaff, permission)).toBe(false);
+      });
+    });
+  });
+
+  describe('Staff Role - Loan Management Permissions', () => {
+    // Validates: Requirements 2.1
+    
+    test('canApproveLoan should return true for staff', () => {
+      expect(PermissionService.canApproveLoan(mockStaff)).toBe(true);
+    });
+
+    test('canRejectLoan should return true for staff', () => {
+      expect(PermissionService.canRejectLoan(mockStaff)).toBe(true);
+    });
+
+    test('canProcessReturn should return true for staff', () => {
+      expect(PermissionService.canProcessReturn(mockStaff)).toBe(true);
+    });
+
+    test('canVerifyReturn should return true for staff', () => {
+      expect(PermissionService.canVerifyReturn(mockStaff)).toBe(true);
+    });
+
+    test('canViewOverdue should return true for staff', () => {
+      expect(PermissionService.canViewOverdue(mockStaff)).toBe(true);
+    });
+
+    test('canNotifyOverdue should return true for staff', () => {
+      expect(PermissionService.canNotifyOverdue(mockStaff)).toBe(true);
+    });
+
+    test('canViewLoanRequests should return true for staff', () => {
+      expect(PermissionService.canViewLoanRequests(mockStaff)).toBe(true);
+    });
+
+    test('basic user should NOT have loan management permissions', () => {
+      expect(PermissionService.canApproveLoan(mockBasicUser)).toBe(false);
+      expect(PermissionService.canRejectLoan(mockBasicUser)).toBe(false);
+      expect(PermissionService.canProcessReturn(mockBasicUser)).toBe(false);
+      expect(PermissionService.canViewOverdue(mockBasicUser)).toBe(false);
+      expect(PermissionService.canNotifyOverdue(mockBasicUser)).toBe(false);
+    });
+  });
+
+  describe('Staff Role - Role Hierarchy', () => {
+    // Validates: Requirements 11.1, 11.7
+    
+    test('admin should have all staff permissions', () => {
+      const staffPermissions = PermissionService.getUserPermissions('staff');
+      
+      staffPermissions.forEach(permission => {
+        expect(PermissionService.hasPermission(mockAdmin, permission)).toBe(true);
+      });
+    });
+
+    test('admin canApproveLoan should return true', () => {
+      expect(PermissionService.canApproveLoan(mockAdmin)).toBe(true);
+    });
+
+    test('admin canRejectLoan should return true', () => {
+      expect(PermissionService.canRejectLoan(mockAdmin)).toBe(true);
+    });
+
+    test('admin canProcessReturn should return true', () => {
+      expect(PermissionService.canProcessReturn(mockAdmin)).toBe(true);
+    });
+
+    test('admin canViewOverdue should return true', () => {
+      expect(PermissionService.canViewOverdue(mockAdmin)).toBe(true);
+    });
+
+    test('admin canNotifyOverdue should return true', () => {
+      expect(PermissionService.canNotifyOverdue(mockAdmin)).toBe(true);
+    });
+
+    test('hasHigherOrEqualRole should correctly compare roles', () => {
+      // Admin > Staff > Editor > Viewer > User
+      expect(PermissionService.hasHigherOrEqualRole('admin', 'staff')).toBe(true);
+      expect(PermissionService.hasHigherOrEqualRole('admin', 'admin')).toBe(true);
+      expect(PermissionService.hasHigherOrEqualRole('staff', 'admin')).toBe(false);
+      expect(PermissionService.hasHigherOrEqualRole('staff', 'editor')).toBe(true);
+      expect(PermissionService.hasHigherOrEqualRole('staff', 'user')).toBe(true);
+      expect(PermissionService.hasHigherOrEqualRole('editor', 'staff')).toBe(false);
+      expect(PermissionService.hasHigherOrEqualRole('user', 'staff')).toBe(false);
+    });
+  });
+
+  describe('Staff Role - isStaff and canPerformStaffFunctions', () => {
+    // Validates: Requirements 1.1
+    
+    test('isStaff should return true for staff user', () => {
+      expect(PermissionService.isStaff(mockStaff)).toBe(true);
+    });
+
+    test('isStaff should return false for admin user', () => {
+      expect(PermissionService.isStaff(mockAdmin)).toBe(false);
+    });
+
+    test('isStaff should return false for basic user', () => {
+      expect(PermissionService.isStaff(mockBasicUser)).toBe(false);
+    });
+
+    test('canPerformStaffFunctions should return true for staff', () => {
+      expect(PermissionService.canPerformStaffFunctions(mockStaff)).toBe(true);
+    });
+
+    test('canPerformStaffFunctions should return true for admin', () => {
+      expect(PermissionService.canPerformStaffFunctions(mockAdmin)).toBe(true);
+    });
+
+    test('canPerformStaffFunctions should return false for basic user', () => {
+      expect(PermissionService.canPerformStaffFunctions(mockBasicUser)).toBe(false);
+    });
+
+    test('canPerformStaffFunctions should return false for editor', () => {
+      expect(PermissionService.canPerformStaffFunctions(mockUser)).toBe(false);
+    });
+  });
+
+  describe('Staff Role - Display Info', () => {
+    // Validates: Requirements 1.4
+    
+    test('should return correct display info for staff role', () => {
+      const info = PermissionService.getRoleDisplayInfo('staff');
+      
+      expect(info.name).toBe('เจ้าหน้าที่ให้บริการ');
+      expect(info.description).toBe('สามารถอนุมัติและจัดการคำขอยืม-คืนอุปกรณ์ได้');
+      expect(info.color).toBe('indigo');
+      expect(info.icon).toBe('clipboard-document-list');
+    });
+
+    test('getAllRoles should include staff role', () => {
+      const allRoles = PermissionService.getAllRoles();
+      const staffRole = allRoles.find(r => r.value === 'staff');
+      
+      expect(staffRole).toBeDefined();
+      expect(staffRole.name).toBe('เจ้าหน้าที่ให้บริการ');
+    });
+  });
+
+  describe('Staff Role - Restricted Permissions Helper', () => {
+    test('getStaffRestrictedPermissions should return correct list', () => {
+      const restricted = PermissionService.getStaffRestrictedPermissions();
+      
+      expect(restricted).toContain(PermissionService.PERMISSIONS.USER_MANAGE);
+      expect(restricted).toContain(PermissionService.PERMISSIONS.EQUIPMENT_CREATE);
+      expect(restricted).toContain(PermissionService.PERMISSIONS.EQUIPMENT_UPDATE);
+      expect(restricted).toContain(PermissionService.PERMISSIONS.EQUIPMENT_DELETE);
+      expect(restricted).toContain(PermissionService.PERMISSIONS.CATEGORY_MANAGE);
+      expect(restricted).toContain(PermissionService.PERMISSIONS.RESERVATION_MANAGE);
+      expect(restricted).toContain(PermissionService.PERMISSIONS.SYSTEM_SETTINGS);
+      expect(restricted).toContain(PermissionService.PERMISSIONS.INTELLIGENCE_ACCESS);
+    });
+
+    test('isStaffRestrictedPermission should return true for restricted permissions', () => {
+      expect(PermissionService.isStaffRestrictedPermission(PermissionService.PERMISSIONS.USER_MANAGE)).toBe(true);
+      expect(PermissionService.isStaffRestrictedPermission(PermissionService.PERMISSIONS.SYSTEM_SETTINGS)).toBe(true);
+    });
+
+    test('isStaffRestrictedPermission should return false for allowed permissions', () => {
+      expect(PermissionService.isStaffRestrictedPermission(PermissionService.PERMISSIONS.LOAN_REQUEST_VIEW)).toBe(false);
+      expect(PermissionService.isStaffRestrictedPermission(PermissionService.PERMISSIONS.LOAN_REQUEST_APPROVE)).toBe(false);
     });
   });
 });

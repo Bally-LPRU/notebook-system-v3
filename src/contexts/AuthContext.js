@@ -567,6 +567,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
     isApproved: userProfile?.status === 'approved',
     isAdmin: userProfile?.role === 'admin',
+    isStaff: userProfile?.role === 'staff',
     isPending: userProfile?.status === 'pending',
     isIncomplete: userProfile?.status === 'incomplete',
     // Enhanced error handling properties

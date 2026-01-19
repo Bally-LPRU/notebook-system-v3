@@ -49,7 +49,13 @@ class ActivityLoggerService {
     USER_LOGIN: 'user_login',
     USER_LOGOUT: 'user_logout',
     PERMISSION_DENIED: 'permission_denied',
-    SYSTEM_ERROR: 'system_error'
+    SYSTEM_ERROR: 'system_error',
+    
+    // Staff loan management activities (Requirements 10.1-10.4)
+    STAFF_LOAN_APPROVED: 'staff_loan_approved',
+    STAFF_LOAN_REJECTED: 'staff_loan_rejected',
+    STAFF_RETURN_PROCESSED: 'staff_return_processed',
+    STAFF_OVERDUE_NOTIFIED: 'staff_overdue_notified'
   };
 
   // Severity levels
@@ -495,6 +501,284 @@ class ActivityLoggerService {
     }
   }
 
+  // ============================================================================
+  // Staff Action Audit Logging (Requirements 10.1-10.4)
+  // ============================================================================
+
+  /**
+   * Log Staff action to audit trail
+   * Comprehensive logging for all Staff loan management actions
+   * 
+   * Requirements: 10.1, 10.2, 10.3, 10.4
+   * 
+   * @param {string} actionType - Type of Staff action (from ACTIVITY_TYPES)
+   * @param {Object} data - Action data
+   * @param {string} data.staffId - Staff user ID
+   * @param {string} data.staffName - Staff display name
+   * @param {string} data.staffEmail - Staff email
+   * @param {string} [data.requestId] - Loan request ID (for approve/reject)
+   * @param {string} [data.loanId] - Loan ID (for return/overdue)
+   * @param {string} [data.borrowerId] - Borrower user ID
+   * @param {string} [data.borrowerName] - Borrower display name
+   * @param {string} [data.equipmentId] - Equipment ID
+   * @param {string} [data.equipmentName] - Equipment name
+   * @param {string} [data.rejectionReason] - Reason for rejection (Req 10.2)
+   * @param {string} [data.condition] - Equipment condition on return (Req 10.3)
+   * @param {string} [data.notes] - Additional notes
+   * @param {Object} metadata - Additional metadata
+   * @returns {Promise<string|null>} Audit log ID or null on error
+   */
+  static async logStaffAction(actionType, data, metadata = {}) {
+    try {
+      const {
+        staffId,
+        staffName,
+        staffEmail,
+        requestId,
+        loanId,
+        borrowerId,
+        borrowerName,
+        equipmentId,
+        equipmentName,
+        rejectionReason,
+        condition,
+        conditionLabel,
+        notes,
+        daysOverdue,
+        notificationCount
+      } = data;
+
+      // Map Staff action types to activity types
+      const activityTypeMap = {
+        'loan_approved': this.ACTIVITY_TYPES.STAFF_LOAN_APPROVED,
+        'loan_rejected': this.ACTIVITY_TYPES.STAFF_LOAN_REJECTED,
+        'return_processed': this.ACTIVITY_TYPES.STAFF_RETURN_PROCESSED,
+        'overdue_notified': this.ACTIVITY_TYPES.STAFF_OVERDUE_NOTIFIED
+      };
+
+      const mappedActivityType = activityTypeMap[actionType] || actionType;
+
+      const activity = {
+        activityType: mappedActivityType,
+        resourceType: 'loan_request',
+        resourceId: requestId || loanId || null,
+        userId: staffId,
+        timestamp: serverTimestamp(),
+        
+        // Staff information
+        staffInfo: {
+          staffId,
+          staffName: staffName || 'Unknown Staff',
+          staffEmail: staffEmail || ''
+        },
+        
+        // Action details based on type
+        details: {
+          actionType,
+          requestId: requestId || null,
+          loanId: loanId || null,
+          borrowerId: borrowerId || null,
+          borrowerName: borrowerName || null,
+          equipmentId: equipmentId || null,
+          equipmentName: equipmentName || null,
+          // Requirement 10.2: Store rejection reason
+          rejectionReason: rejectionReason || null,
+          // Requirement 10.3: Store condition assessment
+          condition: condition || null,
+          conditionLabel: conditionLabel || null,
+          notes: notes || null,
+          // Requirement 10.4: Overdue notification details
+          daysOverdue: daysOverdue || null,
+          notificationCount: notificationCount || null,
+          timestamp: new Date().toISOString()
+        },
+        
+        // Technical metadata
+        metadata: {
+          ipAddress: this.getClientIP(),
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server',
+          sessionId: this.getSessionId(),
+          browserInfo: typeof navigator !== 'undefined' ? this.getBrowserInfo() : {},
+          timestamp: new Date().toISOString(),
+          ...metadata
+        },
+        
+        // Severity and classification
+        severity: this.getSeverityLevel(mappedActivityType),
+        category: 'staff_action',
+        
+        // Search and filtering
+        searchKeywords: this.generateStaffActionSearchKeywords(data),
+        tags: ['staff_action', actionType]
+      };
+
+      // Add user information for the staff member
+      const userInfo = await this.getUserInfo(staffId);
+      if (userInfo) {
+        activity.userInfo = {
+          displayName: userInfo.displayName || userInfo.firstName + ' ' + userInfo.lastName,
+          email: userInfo.email,
+          role: userInfo.role,
+          department: userInfo.department
+        };
+      }
+
+      const docRef = await addDoc(collection(db, this.COLLECTION_NAME), activity);
+      
+      // Also log to user activity collection for staff-specific tracking
+      await this.logUserActivity(staffId, mappedActivityType, {
+        resourceType: 'loan_request',
+        resourceId: requestId || loanId,
+        activityLogId: docRef.id,
+        actionType,
+        borrowerName,
+        equipmentName
+      });
+
+      return docRef.id;
+    } catch (error) {
+      console.error('Error logging staff action:', error);
+      // Don't throw error to avoid breaking main functionality
+      return null;
+    }
+  }
+
+  /**
+   * Generate search keywords for Staff action
+   * @param {Object} data - Staff action data
+   * @returns {Array<string>} Search keywords
+   */
+  static generateStaffActionSearchKeywords(data) {
+    const keywords = new Set();
+    
+    // Add staff name keywords
+    if (data.staffName) {
+      data.staffName.toLowerCase().split(' ').forEach(word => {
+        if (word.length >= 2) keywords.add(word);
+      });
+    }
+    
+    // Add borrower name keywords
+    if (data.borrowerName) {
+      data.borrowerName.toLowerCase().split(' ').forEach(word => {
+        if (word.length >= 2) keywords.add(word);
+      });
+    }
+    
+    // Add equipment name keywords
+    if (data.equipmentName) {
+      data.equipmentName.toLowerCase().split(' ').forEach(word => {
+        if (word.length >= 2) keywords.add(word);
+      });
+    }
+    
+    // Add IDs for exact matching
+    if (data.requestId) keywords.add(data.requestId.toLowerCase());
+    if (data.loanId) keywords.add(data.loanId.toLowerCase());
+    if (data.equipmentId) keywords.add(data.equipmentId.toLowerCase());
+    
+    return Array.from(keywords);
+  }
+
+  /**
+   * Get Staff activity audit logs with filtering
+   * For Admin to view Staff actions (Requirement 10.5)
+   * 
+   * @param {Object} filters - Filter parameters
+   * @param {string} [filters.staffId] - Filter by specific staff
+   * @param {string} [filters.actionType] - Filter by action type
+   * @param {Object} [filters.dateRange] - Date range filter
+   * @param {number} [filters.pageSize=50] - Page size
+   * @param {Object} [filters.lastDoc] - Last document for pagination
+   * @returns {Promise<Object>} Staff audit log entries with pagination
+   */
+  static async getStaffAuditLogs(filters = {}) {
+    try {
+      const {
+        staffId = null,
+        actionType = null,
+        dateRange = null,
+        pageSize = 50,
+        lastDoc = null
+      } = filters;
+
+      let auditQuery = collection(db, this.COLLECTION_NAME);
+      const queryConstraints = [];
+
+      // Filter by category = staff_action
+      queryConstraints.push(where('category', '==', 'staff_action'));
+
+      // Filter by specific staff
+      if (staffId) {
+        queryConstraints.push(where('userId', '==', staffId));
+      }
+
+      // Filter by action type
+      if (actionType) {
+        const activityTypeMap = {
+          'loan_approved': this.ACTIVITY_TYPES.STAFF_LOAN_APPROVED,
+          'loan_rejected': this.ACTIVITY_TYPES.STAFF_LOAN_REJECTED,
+          'return_processed': this.ACTIVITY_TYPES.STAFF_RETURN_PROCESSED,
+          'overdue_notified': this.ACTIVITY_TYPES.STAFF_OVERDUE_NOTIFIED
+        };
+        const mappedType = activityTypeMap[actionType] || actionType;
+        queryConstraints.push(where('activityType', '==', mappedType));
+      }
+
+      // Date range filter
+      if (dateRange) {
+        if (dateRange.start) {
+          queryConstraints.push(where('timestamp', '>=', dateRange.start));
+        }
+        if (dateRange.end) {
+          queryConstraints.push(where('timestamp', '<=', dateRange.end));
+        }
+      }
+
+      // Sorting and pagination
+      queryConstraints.push(orderBy('timestamp', 'desc'));
+      
+      if (lastDoc) {
+        queryConstraints.push(startAfter(lastDoc));
+      }
+      
+      queryConstraints.push(limit(pageSize + 1));
+
+      // Build and execute query
+      auditQuery = query(auditQuery, ...queryConstraints);
+      const querySnapshot = await getDocs(auditQuery);
+      
+      const entries = [];
+      let hasNextPage = false;
+      
+      querySnapshot.forEach((docSnapshot, index) => {
+        if (index < pageSize) {
+          const data = docSnapshot.data();
+          entries.push({
+            id: docSnapshot.id,
+            ...data,
+            timestamp: data.timestamp?.toDate() || new Date()
+          });
+        } else {
+          hasNextPage = true;
+        }
+      });
+
+      return {
+        entries,
+        pagination: {
+          hasNextPage,
+          totalItems: entries.length,
+          pageSize
+        },
+        lastDoc: entries.length > 0 ? querySnapshot.docs[Math.min(entries.length - 1, pageSize - 1)] : null
+      };
+    } catch (error) {
+      console.error('Error getting staff audit logs:', error);
+      throw error;
+    }
+  }
+
   // Helper methods
 
   /**
@@ -533,7 +817,12 @@ class ActivityLoggerService {
       [this.ACTIVITY_TYPES.EQUIPMENT_DELETED]: this.SEVERITY_LEVELS.HIGH,
       [this.ACTIVITY_TYPES.BULK_DELETE]: this.SEVERITY_LEVELS.HIGH,
       [this.ACTIVITY_TYPES.PERMISSION_DENIED]: this.SEVERITY_LEVELS.MEDIUM,
-      [this.ACTIVITY_TYPES.SYSTEM_ERROR]: this.SEVERITY_LEVELS.HIGH
+      [this.ACTIVITY_TYPES.SYSTEM_ERROR]: this.SEVERITY_LEVELS.HIGH,
+      // Staff activity severity levels
+      [this.ACTIVITY_TYPES.STAFF_LOAN_APPROVED]: this.SEVERITY_LEVELS.MEDIUM,
+      [this.ACTIVITY_TYPES.STAFF_LOAN_REJECTED]: this.SEVERITY_LEVELS.MEDIUM,
+      [this.ACTIVITY_TYPES.STAFF_RETURN_PROCESSED]: this.SEVERITY_LEVELS.MEDIUM,
+      [this.ACTIVITY_TYPES.STAFF_OVERDUE_NOTIFIED]: this.SEVERITY_LEVELS.LOW
     };
 
     return severityMap[activityType] || this.SEVERITY_LEVELS.LOW;
@@ -550,6 +839,7 @@ class ActivityLoggerService {
     if (activityType.startsWith('category_')) return 'category';
     if (activityType.startsWith('report_')) return 'report';
     if (activityType.startsWith('user_')) return 'user';
+    if (activityType.startsWith('staff_')) return 'staff_action';
     return 'system';
   }
 
